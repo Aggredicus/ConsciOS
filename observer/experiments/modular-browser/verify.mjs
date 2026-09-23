@@ -1,0 +1,27 @@
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import assert from 'node:assert/strict';
+import { runModularV0 } from '../../../runtime/v0-modular.mjs';
+
+const html=readFileSync('runtime/modular-demo.html','utf8');
+const ui=readFileSync('runtime/modular-ui.mjs','utf8');
+const reference=readFileSync('index.html');
+const gitBlobSha=createHash('sha1').update(Buffer.from(`blob ${reference.length}\0`)).update(reference).digest('hex');
+
+assert.equal(gitBlobSha,'0f6286c9f12baf76facec69bd2d924e52072fa36','root index.html reference phenotype changed');
+assert.match(html,/type="module" src="\.\/modular-ui\.mjs"/);
+assert.match(ui,/import \{ blankV0State, runModularV0 \} from '\.\/v0-modular\.mjs'/);
+assert.match(ui,/state=runModularV0\(\)/,'UI must consume modular Runtime rather than reproduce cognition');
+
+for(const id of ['sensorium','workspace','worldModel','selfModel','metacognition','guardian','expression','memory','trace'])assert.ok(html.includes(`id="${id}"`),`missing browser panel ${id}`);
+for(const forbidden of ['https://','http://','fetch(','XMLHttpRequest','WebSocket','navigator.mediaDevices','geolocation','localStorage']){
+  assert.ok(!html.includes(forbidden)&&!ui.includes(forbidden),`unexpected external/persistent capability in modular browser demo: ${forbidden}`);
+}
+assert.ok(!ui.includes('I am conscious')&&!ui.includes('I am awake')&&!ui.includes('I love you'),'scripted phenomenology language found in UI adapter');
+
+const state=runModularV0();
+assert.equal(state.guardian.decision,'allow');
+assert.equal(state.expression?.id,'expression-1');
+assert.equal(state.expression?.content,'A new human instruction is the most goal-relevant information currently available. My confidence in this summary is 0.940. This output reports the deterministic functional state of ConsciOS v0 and is not evidence of subjective experience.');
+
+console.log(`Modular browser verification passed. Reference index blob: ${gitBlobSha}`);
