@@ -1,0 +1,37 @@
+name: Verify Browser AI Host
+
+on:
+  pull_request:
+    paths:
+      - 'runtime/models/**'
+      - 'local/**'
+      - 'observer/experiments/browser-ai-host/**'
+      - '.github/workflows/verify-browser-ai-host.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/models/**'
+      - 'local/**'
+      - 'observer/experiments/browser-ai-host/**'
+      - '.github/workflows/verify-browser-ai-host.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify browser-local model host contract
+        run: node observer/experiments/browser-ai-host/verify.mjs
+      - name: Verify hosted local browser lab
+        run: node observer/experiments/browser-ai-host/verify-local-ui.mjs
+      - name: Verify real CognitiveEvent architecture trace
+        run: node observer/experiments/browser-ai-host/verify-architecture-trace.mjs
+      - name: Verify recurrent scientific controls
+        run: node observer/experiments/browser-ai-host/verify-scientific-controls.mjs
