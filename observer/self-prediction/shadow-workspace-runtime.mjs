@@ -27,7 +27,7 @@ export function createPrePolicyCandidateFactsV0(){
 function select(policy,candidates,{capacity,redundancyPenalty}){
   const inputs=candidates.map(candidate=>({
     id:candidate.id,rootObservationId:candidate.causalParents[0],salience:candidate.salience
-  }));
+  })).sort((a,b)=>b.salience-a.salience||a.id.localeCompare(b.id));
   if(policy==='raw-top-k')return rawTopK(inputs,capacity);
   if(policy==='hard-source-diversity')return sourceDiverseTopK(inputs,capacity);
   if(policy==='soft-diversity')return softDiversityTopK(inputs,capacity,redundancyPenalty);
