@@ -4,6 +4,12 @@ export const TRANSFORMERS_JS_VERSION='4.3.0';
 export const TRANSFORMERS_JS_BROWSER_URL=`https://cdn.jsdelivr.net/npm/@huggingface/transformers@${TRANSFORMERS_JS_VERSION}`;
 
 const now=()=>globalThis.performance?.now?.()??Date.now();
+const stableJson=value=>JSON.stringify(value);
+async function sha256Text(text){
+  const bytes=new TextEncoder().encode(String(text));
+  const digest=await globalThis.crypto.subtle.digest('SHA-256',bytes);
+  return [...new Uint8Array(digest)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
 
 export function serializeDeclaredContext(contextManifest=[]){
   if(!Array.isArray(contextManifest))throw new TypeError('contextManifest must be an array');
@@ -65,6 +71,17 @@ export class BrowserTransformersHost {
     if(declared.length)messages.push({role:'system',content:`Declared ConsciOS context artifacts (and only these artifacts):\n${JSON.stringify(declared)}`});
     if(providedMessages===null)messages.push({role:'user',content:userText});
     this.cancelRequested=false;
+    const inputJson=stableJson(messages);
+    const inputHash=await sha256Text(inputJson);
+    let renderedPrompt=null,inputTokenCount=null,renderedPromptHash=null;
+    try{
+      if(this.generator?.tokenizer?.apply_chat_template){
+        renderedPrompt=this.generator.tokenizer.apply_chat_template(messages,{tokenize:false,add_generation_prompt:true});
+        renderedPromptHash=await sha256Text(renderedPrompt);
+        const encoded=await this.generator.tokenizer(renderedPrompt,{add_special_tokens:false});
+        inputTokenCount=encoded?.input_ids?.size??encoded?.input_ids?.data?.length??encoded?.input_ids?.length??null;
+      }
+    }catch{}
     const started=now();let firstChunkAt=null;let streamedText='';
     const callback=text=>{
       if(this.cancelRequested)return;
@@ -79,11 +96,13 @@ export class BrowserTransformersHost {
       const ended=now();
       const generated=output?.[0]?.generated_text;
       const finalText=streamedText||((Array.isArray(generated)?generated.at(-1)?.content:generated)||'');
+      const outputHash=await sha256Text(finalText);
       return {
         status:this.cancelRequested?'cancelled':'ok',text:finalText,
         contextArtifactIds:declared.map(x=>x.artifactId),
         provenance:this.provenance(),
-        telemetry:{elapsedMs:Math.round(ended-started),ttftMs:firstChunkAt===null?null:Math.round(firstChunkAt-started),streamed:Boolean(streamer)}
+        telemetry:{elapsedMs:Math.round(ended-started),ttftMs:firstChunkAt===null?null:Math.round(firstChunkAt-started),streamed:Boolean(streamer),
+          inferenceBoundary:{messageCount:messages.length,inputHash,renderedPromptHash,inputTokenCount,outputHash}}
       };
     }catch(error){
       if(/destroy/i.test(String(error?.message||error))){this.generator=null;this.state='idle';throw new Error(`WebGPU generation resource reset required: ${error?.message||error}`)}
