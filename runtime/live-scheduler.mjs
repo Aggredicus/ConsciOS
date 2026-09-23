@@ -12,17 +12,8 @@ import { expressV0 } from '../cognition/expression/v0.mjs';
 import { createV0Runtime, V0_ARCHITECTURE_VERSION } from './v0-modular.mjs';
 
 export const LIVE_STAGE_ORDER = Object.freeze([
-  'sensorium',
-  'local-processing',
-  'global-workspace',
-  'world-model',
-  'self-model',
-  'counterfactual',
-  'metacognition',
-  'homeostasis',
-  'guardian',
-  'executive',
-  'expression'
+  'sensorium','local-processing','global-workspace','world-model','self-model','counterfactual',
+  'metacognition','homeostasis','guardian','executive','expression'
 ]);
 
 export const LIVE_STAGE_LABELS = Object.freeze({
@@ -40,10 +31,7 @@ export const LIVE_STAGE_LABELS = Object.freeze({
 });
 
 const clone=value=>typeof structuredClone==='function'?structuredClone(value):JSON.parse(JSON.stringify(value));
-
-function normalizePolicy(policy){
-  return ['raw','diverse','soft'].includes(policy)?policy:'raw';
-}
+const normalizePolicy=policy=>['raw','diverse','soft'].includes(policy)?policy:'raw';
 
 function rankedCandidates(candidates){
   return [...candidates]
@@ -53,7 +41,6 @@ function rankedCandidates(candidates){
 
 function competitionWithPolicy(state,{makeEvent,pushEvent},policy){
   if(policy==='raw') return workspaceCompetitionV0(state.candidates,{makeEvent,pushEvent,capacity:V0_WORKSPACE_CAPACITY});
-
   const ranked=rankedCandidates(state.candidates);
   const selected=policy==='diverse'
     ?sourceDiverseTopK(ranked,V0_WORKSPACE_CAPACITY)
@@ -62,14 +49,8 @@ function competitionWithPolicy(state,{makeEvent,pushEvent},policy){
   const winners=selected.map(selectedCandidate=>{
     const candidate=state.candidates.find(item=>item.id===selectedCandidate.id);
     return pushEvent(makeEvent({...candidate,
-      id:`broadcast-${candidate.id}`,
-      source:'GlobalWorkspace',
-      target:'*',
-      type:'workspace.broadcast',
-      content:candidate.content,
-      globallyAvailable:true,
-      causalParents:[candidate.id],
-      epistemicStatus:'inference',
+      id:`broadcast-${candidate.id}`,source:'GlobalWorkspace',target:'*',type:'workspace.broadcast',
+      content:candidate.content,globallyAvailable:true,causalParents:[candidate.id],epistemicStatus:'inference',
       metadata:{workspacePolicy:policy,policyReason:selectedCandidate.policyReason,adjustedSalience:selectedCandidate.adjustedSalience}
     }));
   });
@@ -77,15 +58,8 @@ function competitionWithPolicy(state,{makeEvent,pushEvent},policy){
 }
 
 export function makeBrowserObservation({
-  id='obs-live-human',
-  content='A human supplied a live observation.',
-  type='human.message',
-  confidence=1,
-  novelty=.7,
-  goalRelevance=.8,
-  predictionError=.4,
-  urgency=.3,
-  metadata={}
+  id='obs-live-human',content='A human supplied a live observation.',type='human.message',confidence=1,
+  novelty=.7,goalRelevance=.8,predictionError=.4,urgency=.3,metadata={}
 }={}){
   return Object.freeze({
     id:String(id),source:'Sensorium',type:String(type),content:String(content),
@@ -98,16 +72,7 @@ export function createLiveScheduler({fixture=V0_FIXTURE,workspacePolicy='raw',cy
   let policy=normalizePolicy(workspacePolicy);
   let sourceFixture=[...fixture];
   let cycleNumber=cycle;
-  let runtime;
-  let stageIndex;
-  let observations;
-  let worldResult;
-  let selfResult;
-  let counterfactualResult;
-  let metaResult;
-  let homeostasisResult;
-  let guardResult;
-  let executiveResult;
+  let runtime,stageIndex,observations,worldResult,selfResult,counterfactualResult,metaResult,homeostasisResult,guardResult,executiveResult;
 
   function initialize(){
     runtime=createV0Runtime();
@@ -121,23 +86,16 @@ export function createLiveScheduler({fixture=V0_FIXTURE,workspacePolicy='raw',cy
   function recordStep(stage,beforeCount){
     const newEvents=runtime.state.events.slice(beforeCount);
     return Object.freeze({
-      cycle:cycleNumber,
-      stage,
-      stageIndex:stageIndex-1,
-      label:LIVE_STAGE_LABELS[stage],
-      newEventIds:newEvents.map(event=>event.id),
-      newEvents:clone(newEvents),
-      eventCount:runtime.state.events.length,
-      tick:runtime.state.tick,
-      complete:stageIndex>=LIVE_STAGE_ORDER.length,
-      workspacePolicy:policy,
-      state:clone(runtime.state)
+      cycle:cycleNumber,stage,stageIndex:stageIndex-1,label:LIVE_STAGE_LABELS[stage],
+      newEventIds:newEvents.map(event=>event.id),newEvents:clone(newEvents),
+      eventCount:runtime.state.events.length,tick:runtime.state.tick,
+      complete:stageIndex>=LIVE_STAGE_ORDER.length,workspacePolicy:policy,state:clone(runtime.state)
     });
   }
 
   function step(){
     if(stageIndex>=LIVE_STAGE_ORDER.length) return Object.freeze({
-      cycle:cycleNumber,stage:'complete',stageIndex, label:'Cycle complete',newEventIds:[],newEvents:[],
+      cycle:cycleNumber,stage:'complete',stageIndex,label:'Cycle complete',newEventIds:[],newEvents:[],
       eventCount:runtime.state.events.length,tick:runtime.state.tick,complete:true,workspacePolicy:policy,state:clone(runtime.state)
     });
 
@@ -145,18 +103,11 @@ export function createLiveScheduler({fixture=V0_FIXTURE,workspacePolicy='raw',cy
     const beforeCount=runtime.state.events.length;
     const {state,makeEvent,pushEvent}=runtime;
 
-    switch(stage){
-      case 'sensorium':
-        observations=perceiveV0({makeEvent,pushEvent,score:scoreV0,fixture:sourceFixture});
-        break;
-      case 'local-processing':
-        state.candidates=localProcessV0(observations,{makeEvent,pushEvent,score:scoreV0});
-        break;
-      case 'global-workspace':':
-        break;
-    }
-
-    if(stage==='global-workspace'){
+    if(stage==='sensorium'){
+      observations=perceiveV0({makeEvent,pushEvent,score:scoreV0,fixture:sourceFixture});
+    }else if(stage==='local-processing'){
+      state.candidates=localProcessV0(observations,{makeEvent,pushEvent,score:scoreV0});
+    }else if(stage==='global-workspace'){
       const competition=competitionWithPolicy(state,{makeEvent,pushEvent},policy);
       state.workspace=competition.winners;
       state.suppressed=competition.suppressed;
@@ -186,7 +137,6 @@ export function createLiveScheduler({fixture=V0_FIXTURE,workspacePolicy='raw',cy
       state.expression=expressV0({executive:state.executive,executiveEvent:executiveResult.event,workspace:state.workspace,meta:state.meta},{makeEvent,pushEvent});
       state.traceRoot=state.expression?.id??executiveResult.event.id;
     }
-
     return recordStep(stage,beforeCount);
   }
 
