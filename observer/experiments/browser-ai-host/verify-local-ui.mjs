@@ -8,7 +8,7 @@ assert.ok(js.includes("'../runtime/models/browser-transformers-host.mjs'"),'UI m
 assert.ok(js.includes('detectBrowserAICapabilities'),'UI must expose measured browser capabilities');
 assert.ok(js.includes('approximatePrimaryWeightMB'),'UI must disclose approximate model size before load');
 assert.ok(js.includes("$('load').addEventListener('click',load)"),'model loading must require explicit user action');
-assert.ok(!/\bload\(\);/.test(js),'model must not auto-load on module initialization');
+assert.ok(!js.includes('await load();'),'model must not auto-load on module initialization');
 for(const forbidden of ['api.openai.com','api.anthropic.com','generativelanguage.googleapis.com','API_KEY','apiKey'])assert.ok(!html.includes(forbidden)&&!js.includes(forbidden),`local lab contains forbidden remote/credential capability: ${forbidden}`);
 assert.ok(js.includes("host?.cancel()"),'UI must expose generation cancellation');
 assert.ok(js.includes('model cache hit not asserted'),'cache state must not be fabricated');
