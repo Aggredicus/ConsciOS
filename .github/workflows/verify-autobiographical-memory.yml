@@ -19,3 +19,5 @@ jobs:
           node-version: '22'
       - name: Verify hash-linked continuity semantics
         run: node observer/experiments/autobiographical-memory/verify.mjs
+      - name: Verify non-destructive IndexedDB persistence boundary
+        run: node observer/experiments/autobiographical-memory/verify-indexeddb-adapter.mjs
