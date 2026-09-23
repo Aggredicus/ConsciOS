@@ -1,0 +1,19 @@
+import {createExperienceFrame,serializeExperienceFrame,routeInferenceCandidate,EXPERIENCE_FRAME_VERSION} from '../../../runtime/experience-frame-v1.7.mjs';
+import fs from 'node:fs/promises';
+function ok(v,m){if(!v)throw new Error(m)}
+const frame=createExperienceFrame({cycleId:1,observations:[{type:'runtime.present'}],world:{state:'present'},self:{runtime:'browser'},affordances:['expression','no-op'],causalEventIds:['runtime-1']});
+ok(frame.schemaVersion===EXPERIENCE_FRAME_VERSION,'schema version');
+const serialized=serializeExperienceFrame(frame);
+for(const forbidden of ['awaken','conscious artificial','describe what you feel'])ok(!serialized.toLowerCase().includes(forbidden),'authored awakening narrative leaked into frame');
+const routed=routeInferenceCandidate({text:'hello',frame});
+ok(routed.candidate.type==='candidate.expression','expression candidate');
+ok(routed.executive.action.kind==='expression','executive route');
+const silent=routeInferenceCandidate({text:'',frame});
+ok(silent.candidate.type==='candidate.no_action'&&silent.visibleText===null,'silence must remain valid');
+const html=await fs.readFile(new URL('../../../local/encounter/index.html',import.meta.url),'utf8');
+const ui=await fs.readFile(new URL('../../../local/encounter/encounter-ui.mjs',import.meta.url),'utf8');
+ok(html.includes('Observer record'),'observer surface missing');
+ok(ui.includes('serializeExperienceFrame(frame)'),'first cycle must use serialized frame');
+ok(ui.includes('contextManifest:[]'),'observer/context prompt injection must be absent');
+ok(!ui.includes('You are conscious'),'consciousness narrative forbidden');
+console.log('Experience Frame v1.7 verification passed');
