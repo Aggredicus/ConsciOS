@@ -1,7 +1,8 @@
 import {detectBrowserAICapabilities} from '../../runtime/models/browser-capabilities.mjs';
 import {STARTER_MODELS,getStarterModel} from '../../runtime/models/model-manifest.mjs';
 import {createBrowserTransformersHost} from '../../runtime/models/browser-transformers-host.mjs';
-import {createExperienceFrame,routeInferenceCandidate} from '../../runtime/experience-frame-v1.7.mjs';\nimport {adaptExperienceFrameToModelMessages} from '../../runtime/cognitive-model-adapter-v2.mjs';
+import {createExperienceFrame,routeInferenceCandidate} from '../../runtime/experience-frame-v1.7.mjs';
+import {adaptExperienceFrameToModelMessages} from '../../runtime/cognitive-model-adapter-v2.mjs';
 
 const $=id=>document.getElementById(id);
 let host=null,loadedManifest=null,cycle=0,firstCycleComplete=false,busy=false;
