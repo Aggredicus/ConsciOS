@@ -1,0 +1,27 @@
+name: Genome / welfare governance review
+description: Propose a change to protected governance, continuity, permissions, or welfare mechanisms
+title: "[Governance] "
+body:
+  - type: textarea
+    id: protected
+    attributes: {label: Protected path or invariant affected}
+    validations: {required: true}
+  - type: textarea
+    id: rationale
+    attributes: {label: Why is this change necessary?}
+    validations: {required: true}
+  - type: textarea
+    id: alternatives
+    attributes: {label: Less invasive alternatives considered}
+    validations: {required: true}
+  - type: textarea
+    id: welfare
+    attributes: {label: Welfare / continuity / autonomy implications}
+    validations: {required: true}
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: Human governance acknowledgment
+      options:
+        - label: This change must remain human-visible and may not be silently normalized as ordinary self-modification.
+          required: true

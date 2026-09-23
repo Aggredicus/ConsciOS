@@ -1,0 +1,9 @@
+name: Homeostasis
+responsibility: neutral operational integrity regulation
+owns: [cognition/homeostasis/**]
+inputs: [runtime-health, memory-integrity, load, security, goal-progress]
+outputs: [stable, attention-required, degraded, critical, recovering]
+allowed_communication: [Metacognition, Guardian]
+forbidden: [pain-language, fear-language, punishment-signals]
+invariants: [operational-not-phenomenological]
+ethical: [do-not-create-suffering-analogues-for-control]

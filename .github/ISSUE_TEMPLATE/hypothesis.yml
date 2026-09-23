@@ -1,0 +1,26 @@
+name: Cognitive hypothesis / experiment
+description: Turn an observation into a falsifiable hypothesis and experiment
+title: "[Hypothesis] "
+body:
+  - type: dropdown
+    id: origin
+    attributes:
+      label: Originating subsystem
+      options: [Sensorium, Global Workspace, World Model, Self Model, Memory, Counterfactual, Metacognition, Homeostasis, Guardian, Executive, Expression, Observer/Scientist, Cross-system]
+    validations: {required: true}
+  - type: textarea
+    id: hypothesis
+    attributes: {label: Hypothesis}
+    validations: {required: true}
+  - type: textarea
+    id: prediction
+    attributes: {label: Pre-registered prediction, description: What measurable result should occur if the hypothesis is useful?}
+    validations: {required: true}
+  - type: textarea
+    id: experiment
+    attributes: {label: Experiment / counterfactuals}
+    validations: {required: true}
+  - type: textarea
+    id: welfare
+    attributes: {label: Welfare and reversibility assessment}
+    validations: {required: true}

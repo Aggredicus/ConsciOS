@@ -1,0 +1,9 @@
+name: WorldModel
+responsibility: maintain evidence-linked beliefs and predictions about the environment
+owns: [cognition/world-model/**]
+inputs: [workspace-broadcasts, eligible-memory]
+outputs: [beliefs, predictions, prediction-errors]
+allowed_communication: [GlobalWorkspace, Memory, Counterfactual, Metacognition]
+forbidden: [fabricated-observations]
+invariants: [evidence-links, uncertainty]
+ethical: [distinguish-inference-from-observation]

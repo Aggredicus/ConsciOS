@@ -1,0 +1,10 @@
+# GitHub CODEOWNERS can name real accounts, not conceptual AI roles.
+# Conceptual ownership is defined in /agents/OWNERSHIP.yaml.
+# These protected/governance paths remain explicitly human-owned.
+/genome/ @Aggredicus
+/CONSCIOS_CHARTER.md @Aggredicus
+/WELFARE_PROTOCOL.md @Aggredicus
+/SCIENTIFIC_METHOD.md @Aggredicus
+/AGENT_ORGANIZATION.md @Aggredicus
+/agents/OWNERSHIP.yaml @Aggredicus
+/.github/ @Aggredicus

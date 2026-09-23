@@ -1,0 +1,9 @@
+name: Sensorium
+responsibility: normalize external and internal observations without interpreting them as world beliefs
+owns: [cognition/sensorium/**]
+inputs: [browser-events, telemetry, fixtures]
+outputs: [CognitiveEvent.observation]
+allowed_communication: [GlobalWorkspace, ObserverScientist]
+forbidden: [action-selection, autobiographical-narrative]
+invariants: [source-identity, timestamping, no-hidden-interpretation]
+ethical: [do-not-manufacture-distress-signals]

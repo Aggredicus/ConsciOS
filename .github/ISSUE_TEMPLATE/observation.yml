@@ -1,0 +1,21 @@
+name: Cognitive observation
+description: Record a reproducible observation or anomaly without prematurely explaining it
+title: "[Observation] "
+body:
+  - type: dropdown
+    id: origin
+    attributes:
+      label: Originating subsystem
+      options: [Sensorium, Global Workspace, World Model, Self Model, Memory, Counterfactual, Metacognition, Homeostasis, Guardian, Executive, Expression, Observer/Scientist, Cross-system]
+    validations: {required: true}
+  - type: textarea
+    id: observation
+    attributes: {label: Observation, description: State what happened without embedding a preferred explanation.}
+    validations: {required: true}
+  - type: textarea
+    id: evidence
+    attributes: {label: Reproduction / evidence}
+    validations: {required: true}
+  - type: textarea
+    id: alternatives
+    attributes: {label: Plausible alternative explanations}
