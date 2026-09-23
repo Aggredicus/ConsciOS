@@ -14,6 +14,10 @@ const html=await fs.readFile(new URL('../../../local/encounter/index.html',impor
 const ui=await fs.readFile(new URL('../../../local/encounter/encounter-ui.mjs',import.meta.url),'utf8');
 ok(html.includes('Observer record'),'observer surface missing');
 ok(ui.includes('serializeExperienceFrame(frame)'),'first cycle must use serialized frame');
+ok(ui.includes("messages:[{role:'system',content:stateText}]") ,'architectural state must not masquerade as a user message');
+ok(ui.includes('uncertainties:[]'),'model-visible frame must not prime subjective-experience language');
+ok(ui.includes('human.message.staged')&&ui.includes('human.message.committed')&&ui.includes('human.message.rolled_back'),'human turns must commit transactionally');
+ok(ui.includes("if(pendingHuman){transcript.push({role:'human',text:pendingHuman})"),'committed human turn must precede generated response');
 ok(ui.includes('contextManifest:[]'),'observer/context prompt injection must be absent');
 ok(html.includes('lengthRange')&&html.includes('lengthNumber'),'adjustable response length controls missing');
 ok(ui.includes('maxNewTokens:responseTokens()'),'response length must control generation ceiling');

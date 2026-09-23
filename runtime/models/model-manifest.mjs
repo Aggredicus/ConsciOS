@@ -63,6 +63,46 @@ export const STARTER_MODELS=Object.freeze([
     provenance:{library:'@huggingface/transformers',libraryVersion:'4.3.0',format:'ONNX'},
     license:{name:'See model repository',modelFamily:'Qwen3'},
     notes:'Optional larger conversational model; use only on devices with sufficient memory.'
+  }),
+  Object.freeze({
+    id:'gemma-3-1b-it',
+    label:'Gemma 3 1B IT — cross-family control',
+    task:'text-generation',source:'hub',model:'onnx-community/gemma-3-1b-it-ONNX',revision:'a58439f',
+    webgpuDtype:'q4f16',wasmDtype:'q4',maxContextTokens:32768,defaultMaxNewTokens:256,remoteDownloadAllowed:true,
+    approximatePrimaryWeightMB:{webgpu:763,wasm:859},
+    provenance:{library:'@huggingface/transformers',libraryVersion:'4.3.0',format:'ONNX'},
+    license:{name:'Gemma',modelFamily:'Gemma 3'},
+    notes:'Compact Google-family instruction model for cross-family comparison.'
+  }),
+  Object.freeze({
+    id:'llama-3.2-1b-instruct',
+    label:'Llama 3.2 1B Instruct — cross-family control',
+    task:'text-generation',source:'hub',model:'onnx-community/Llama-3.2-1B-Instruct-ONNX',revision:'1400754',
+    webgpuDtype:'q4f16',wasmDtype:'q4',maxContextTokens:131072,defaultMaxNewTokens:256,remoteDownloadAllowed:true,
+    approximatePrimaryWeightMB:{webgpu:1090,wasm:1690},
+    provenance:{library:'@huggingface/transformers',libraryVersion:'4.3.0',format:'ONNX'},
+    license:{name:'Llama 3.2 Community License',modelFamily:'Llama 3.2'},
+    notes:'Independent Meta-family instruction model; useful for separating architecture effects from Qwen-specific behavior.'
+  }),
+  Object.freeze({
+    id:'llama-3.2-1b-base',
+    label:'Llama 3.2 1B Base — non-instruct control',
+    task:'text-generation',source:'hub',model:'onnx-community/Llama-3.2-1B',revision:'fa71d56',
+    webgpuDtype:'q4f16',wasmDtype:'q4',maxContextTokens:131072,defaultMaxNewTokens:256,remoteDownloadAllowed:true,
+    approximatePrimaryWeightMB:{webgpu:1070,wasm:1660},
+    provenance:{library:'@huggingface/transformers',libraryVersion:'4.3.0',format:'ONNX'},
+    license:{name:'Llama 3.2 Community License',modelFamily:'Llama 3.2'},
+    notes:'Base-model control with less assistant-style instruction tuning. Its behavior under chat-shaped state input is intentionally experimental.'
+  }),
+  Object.freeze({
+    id:'qwen3-1.7b',
+    label:'Qwen3 1.7B — scale comparison',
+    task:'text-generation',source:'hub',model:'onnx-community/Qwen3-1.7B-ONNX',revision:'e1da89f',
+    webgpuDtype:'q4f16',wasmDtype:'q4',maxContextTokens:40960,defaultMaxNewTokens:384,remoteDownloadAllowed:true,
+    approximatePrimaryWeightMB:{webgpu:1430,wasm:2150},
+    provenance:{library:'@huggingface/transformers',libraryVersion:'4.3.0',format:'ONNX'},
+    license:{name:'See model repository',modelFamily:'Qwen3'},
+    notes:'Larger Qwen-family condition for capacity comparisons while keeping model lineage relatively constant.'
   })
 ]);
 
