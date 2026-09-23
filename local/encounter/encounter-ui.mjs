@@ -11,9 +11,9 @@ function record(kind,data){observer.push({sequence:observer.length+1,kind,data})
 function render(){const el=$('conversation');el.innerHTML=transcript.length?transcript.map(t=>`<div class="turn ${t.role==='human'?'human':'system'}"><b>${t.role==='human'?'You':'ConsciOS'}</b><br>${esc(t.text)}</div>`).join(''):'<div class="muted">No visible expression selected.</div>';el.scrollTop=el.scrollHeight}
 function lock(v){busy=v;$('load').disabled=v;$('begin').disabled=v||!host||cycle>0;$('stop').disabled=!v;$('send').disabled=v||!host||cycle===0;$('message').disabled=v||!host||cycle===0}
 function selected(){return getStarterModel($('model').value)}
-function clampTokens(value){const n=Math.round(Number(value)||512);return Math.max(32,Math.min(65536,n))}
+function clampTokens(value){const n=Math.round(Number(value)||512);return Math.max(32,Math.min(2097152,n))}
 function responseTokens(){return clampTokens($('lengthNumber').value)}
-function syncLength(source){const n=clampTokens(source.value);$('lengthNumber').value=n;$('lengthRange').value=Math.min(32768,n)}
+function syncLength(source){const n=clampTokens(source.value);$('lengthNumber').value=n;$('lengthRange').value=Math.min(1048576,n)}
 $('lengthRange').addEventListener('input',e=>{$('lengthNumber').value=e.target.value});
 $('lengthNumber').addEventListener('change',e=>syncLength(e.target));
 async function load(){lock(true);const manifest=selected(),device=$('backend').value;host=createBrowserTransformersHost({manifest,device,dtype:device==='webgpu'?manifest.webgpuDtype:manifest.wasmDtype,onProgress:e=>status(`Loading ${e.file||e.status||'model'} ${Number.isFinite(Number(e.progress))?Math.round(Number(e.progress))+'%':''}`)});try{const p=await host.load();status(`Ready · ${p.modelId} · ${p.device}. No first-cycle inference has run.`);record('model.loaded',p)}catch(e){host=null;status(String(e?.message||e))}finally{lock(false)}}

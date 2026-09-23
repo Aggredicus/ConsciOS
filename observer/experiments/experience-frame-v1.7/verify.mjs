@@ -17,7 +17,7 @@ ok(ui.includes('serializeExperienceFrame(frame)'),'first cycle must use serializ
 ok(ui.includes('contextManifest:[]'),'observer/context prompt injection must be absent');
 ok(html.includes('lengthRange')&&html.includes('lengthNumber'),'adjustable response length controls missing');
 ok(ui.includes('maxNewTokens:responseTokens()'),'response length must control generation ceiling');
-ok(html.includes('max="32768"'),'response slider must allow 16x prior upper limit');
-ok(ui.includes('Math.min(65536,n)'),'editable token field must allow 16x prior upper limit');
+ok(html.includes('max="1048576"'),'response slider must allow 32x prior upper limit');
+ok(ui.includes('Math.min(2097152,n)'),'editable token field must allow 32x prior upper limit');
 ok(!ui.includes('You are conscious'),'consciousness narrative forbidden');
 console.log('Experience Frame v1.7 verification passed');
