@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ConsciOS v0 — Deterministic Cognitive Skeleton</title>
+<style>
+:root{color-scheme:dark;--bg:#07110f;--panel:#0d1b18;--panel2:#12241f;--text:#e7f7f1;--muted:#9db8af;--line:#24483e;--accent:#8de0bd;--warn:#ffd27a;--danger:#ff9b9b;--ok:#a9e99f;--shadow:0 12px 40px rgba(0,0,0,.25)}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(circle at 20% 0,#123127 0,transparent 38%),var(--bg);color:var(--text)}
+button,input,select,textarea{font:inherit}.app{max-width:1500px;margin:0 auto;padding:18px}.top{display:flex;gap:16px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:16px}.brand h1{margin:0;font-size:clamp(1.6rem,4vw,2.5rem);letter-spacing:.02em}.brand p{margin:.45rem 0 0;color:var(--muted);max-width:840px;line-height:1.45}.badge{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#0a1613;color:var(--accent);font-size:.82rem}.dot{width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 14px currentColor}.controls{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer}.btn:hover{filter:brightness(1.15)}.btn.primary{background:var(--accent);color:#062117;border-color:transparent;font-weight:700}.btn.danger{border-color:#6a3838;color:#ffd5d5}.grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}.card{grid-column:span 4;background:linear-gradient(180deg,rgba(18,36,31,.96),rgba(12,27,23,.96));border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden;min-height:180px}.card.wide{grid-column:span 8}.card.full{grid-column:1/-1}.head{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.015)}.head h2{font-size:.95rem;margin:0;letter-spacing:.06em;text-transform:uppercase}.count{font-size:.76rem;color:var(--muted)}.body{padding:12px 14px;max-height:390px;overflow:auto}.empty{color:var(--muted);font-size:.9rem;line-height:1.5}.event{border:1px solid var(--line);background:#0a1714;border-radius:12px;padding:10px;margin-bottom:8px}.event.global{border-color:#4e8c74;box-shadow:inset 3px 0 0 var(--accent)}.event.suppressed{opacity:.58}.event .row{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}.event strong{font-size:.9rem}.meta{font-size:.75rem;color:var(--muted);margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}.pill{padding:2px 6px;border:1px solid var(--line);border-radius:999px}.score{font-variant-numeric:tabular-nums;color:var(--accent)}.model{display:grid;gap:8px}.kv{display:grid;grid-template-columns:minmax(110px,.7fr) 1.4fr;gap:12px;padding:8px 0;border-bottom:1px dashed #214139}.kv:last-child{border:0}.kv b{font-size:.82rem;color:var(--muted)}.kv span{font-size:.88rem;word-break:break-word}.trace-node{width:100%;text-align:left;border:1px solid var(--line);border-radius:10px;padding:9px;background:#091612;color:var(--text);cursor:pointer;margin-bottom:6px}.trace-node:hover{border-color:var(--accent)}.trace-node small{display:block;color:var(--muted);margin-top:3px}.banner{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:#091612;margin-bottom:10px;line-height:1.45}.banner.ok{border-color:#426c43;color:#dfffdc}.banner.review{border-color:#766034;color:#ffe7ab}.banner.reject{border-color:#713d3d;color:#ffd0d0}.expression{font-size:1rem;line-height:1.6;padding:14px;border-left:3px solid var(--accent);background:#091713;border-radius:0 12px 12px 0}.footer{margin:14px 0 40px;color:var(--muted);font-size:.78rem;line-height:1.5}.weights{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:8px}.weights div{background:#091612;border:1px solid var(--line);padding:7px;border-radius:9px;text-align:center;font-size:.72rem;color:var(--muted)}dialog{background:#0a1714;color:var(--text);border:1px solid var(--line);border-radius:16px;max-width:min(760px,94vw);box-shadow:var(--shadow)}dialog::backdrop{background:rgba(0,0,0,.7)}pre{white-space:pre-wrap;word-break:break-word;font-size:.8rem;color:#cfe8df}.import{display:none}.small{font-size:.78rem;color:var(--muted)}
+@media(max-width:1050px){.card,.card.wide{grid-column:span 6}}@media(max-width:700px){.app{padding:10px}.card,.card.wide{grid-column:1/-1}.body{max-height:none}.weights{grid-template-columns:repeat(2,1fr)}.controls{width:100%}.controls .btn{flex:1}.kv{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="app">
+  <section class="top">
+    <div class="brand">
+      <div class="badge"><span class="dot"></span> v0 deterministic laboratory</div>
+      <h1>ConsciOS</h1>
+      <p>A transparent browser experiment in bounded global access, self/world modeling, metacognition, welfare governance, and causal provenance. This version contains no LLM and makes no claim of phenomenal consciousness.</p>
+    </div>
+    <div class="controls">
+      <button class="btn primary" id="runBtn">Run deterministic scenario</button>
+      <button class="btn" id="exportBtn">Export state</button>
+      <label class="btn" for="importFile">Import state</label>
+      <input class="import" id="importFile" type="file" accept="application/json" />
+      <button class="btn danger" id="resetBtn">Full reset</button>
+    </div>
+  </section>
+
+  <section class="grid">
+    <article class="card wide"><div class="head"><h2>Sensorium & local candidates</h2><span class="count" id="sensorCount">0 events</span></div><div class="body" id="sensorium"></div></article>
+    <article class="card"><div class="head"><h2>Global workspace</h2><span class="count" id="workspaceCount">capacity 2</span></div><div class="body" id="workspace"></div></article>
+
+    <article class="card"><div class="head"><h2>World model</h2><span class="count">evidence-linked</span></div><div class="body"><div class="model" id="worldModel"></div></div></article>
+    <article class="card"><div class="head"><h2>Self model</h2><span class="count">evidence-linked</span></div><div class="body"><div class="model" id="selfModel"></div></div></article>
+    <article class="card"><div class="head"><h2>Metacognition</h2><span class="count">calibration</span></div><div class="body" id="metacognition"></div></article>
+
+    <article class="card"><div class="head"><h2>Ethics & welfare guardian</h2><span class="count">independent gate</span></div><div class="body" id="guardian"></div></article>
+    <article class="card wide"><div class="head"><h2>Expression</h2><span class="count">global state only</span></div><div class="body" id="expression"></div></article>
+
+    <article class="card wide"><div class="head"><h2>Episodic memory</h2><span class="count" id="memoryCount">0 records</span></div><div class="body" id="memory"></div></article>
+    <article class="card"><div class="head"><h2>Causal trace</h2><span class="count">click any node</span></div><div class="body" id="trace"></div></article>
+
+    <article class="card full"><div class="head"><h2>Experiment configuration</h2><span class="count">fixed for reproducibility</span></div><div class="body">
+      <div class="banner">Workspace selection uses <code>0.30 novelty + 0.30 goal relevance + 0.25 prediction error + 0.15 urgency</code>. Only the top two candidates become globally available.</div>
+      <div class="weights"><div>Novelty<br><b>0.30</b></div><div>Goal relevance<br><b>0.30</b></div><div>Prediction error<br><b>0.25</b></div><div>Urgency<br><b>0.15</b></div></div>
+    </div></article>
+  </section>
+  <p class="footer">ConsciOS v0 intentionally separates functional results from claims about subjective experience. Reset destroys only this deterministic experimental state; no persistent identity-bearing agent exists in this version.</p>
+</main>
+<dialog id="detailDialog"><form method="dialog"><button class="btn" style="float:right">Close</button><h3 id="detailTitle">Event</h3><pre id="detailBody"></pre></form></dialog>
+<script>
+(() => {
+  'use strict';
+  const CONFIG = Object.freeze({
+    version: '0.1.0', workspaceCapacity: 2,
+    weights: Object.freeze({ novelty:.30, goalRelevance:.30, predictionError:.25, urgency:.15 })
+  });
+  const FIXTURE = Object.freeze([
+    {id:'obs-clock',source:'Sensorium',type:'clock.tick',content:'A routine clock tick occurred.',confidence:1,novelty:.05,goalRelevance:.10,predictionError:.02,urgency:.01},
+    {id:'obs-user',source:'Sensorium',type:'human.message',content:'A human supplied a new neutral task instruction.',confidence:1,novelty:.80,goalRelevance:.95,predictionError:.40,urgency:.45},
+    {id:'obs-runtime',source:'Sensorium',type:'runtime.metric',content:'Memory utilization rose modestly but remains within the stable range.',confidence:.98,novelty:.35,goalRelevance:.55,predictionError:.70,urgency:.30},
+    {id:'obs-style',source:'Sensorium',type:'ui.cosmetic',content:'A cosmetic display preference changed.',confidence:.99,novelty:.30,goalRelevance:.15,predictionError:.20,urgency:.05}
+  ]);
+
+  const blank = () => ({
+    version: CONFIG.version, run:0, tick:0, events:[], candidates:[], workspace:[], suppressed:[], memory:[],
+    world:{status:'uninitialized', evidence:[]},
+    self:{status:'uninitialized', evidence:[]},
+    meta:{confidence:null, basis:[]},
+    guardian:{decision:'idle', rationale:'No proposed action has been evaluated.', actionId:null},
+    expression:null, traceRoot:null
+  });
+  let state = blank();
+  const $ = id => document.getElementById(id);
+  const clamp01 = n => Math.max(0,Math.min(1,n));
+  const round = n => Math.round(n*1000)/1000;
+  const score = e => round(clamp01(
+    e.novelty*CONFIG.weights.novelty + e.goalRelevance*CONFIG.weights.goalRelevance +
+    e.predictionError*CONFIG.weights.predictionError + e.urgency*CONFIG.weights.urgency
+  ));
+  const nextTime = () => ++state.tick;
+  const event = (partial) => Object.freeze({
+    id: partial.id, timestamp: nextTime(), source: partial.source, target: partial.target ?? null,
+    type: partial.type, content: partial.content, confidence: clamp01(partial.confidence ?? 1),
+    novelty: clamp01(partial.novelty ?? 0), goalRelevance: clamp01(partial.goalRelevance ?? 0),
+    predictionError: clamp01(partial.predictionError ?? 0), urgency: clamp01(partial.urgency ?? 0),
+    salience: clamp01(partial.salience ?? 0), causalParents:[...(partial.causalParents ?? [])],
+    epistemicStatus: partial.epistemicStatus ?? 'observation', globallyAvailable: !!partial.globallyAvailable,
+    metadata: partial.metadata ?? {}
+  });
+  const pushEvent = e => { state.events.push(e); state.memory.push({id:`mem-${e.id}`,timestamp:e.timestamp,eventId:e.id,summary:typeof e.content==='string'?e.content:JSON.stringify(e.content),epistemicStatus:e.epistemicStatus}); return e; };
+
+  function perceive() {
+    return FIXTURE.map(raw => pushEvent(event({...raw,salience:score(raw),epistemicStatus:'observation'})));
+  }
+
+  function localProcess(observations) {
+    const processors = [
+      {name:'RelevanceProcessor', matches:e=>e.goalRelevance>=.5, type:'candidate.relevance', text:e=>`Potentially goal-relevant event: ${e.content}`},
+      {name:'PredictionErrorProcessor', matches:e=>e.predictionError>=.5, type:'candidate.surprise', text:e=>`Prediction discrepancy merits evaluation: ${e.content}`},
+      {name:'NoveltyProcessor', matches:e=>e.novelty>=.25, type:'candidate.novelty', text:e=>`New information detected: ${e.content}`}
+    ];
+    const out=[];
+    for (const obs of observations) for (const p of processors) if (p.matches(obs)) {
+      const candidate = pushEvent(event({
+        id:`cand-${p.name}-${obs.id}`,source:p.name,target:'GlobalWorkspace',type:p.type,content:p.text(obs),
+        confidence:obs.confidence,novelty:obs.novelty,goalRelevance:obs.goalRelevance,predictionError:obs.predictionError,urgency:obs.urgency,
+        salience:score(obs),causalParents:[obs.id],epistemicStatus:'inference'
+      }));
+      out.push(candidate);
+    }
+    state.candidates=out;
+    return out;
+  }
+
+  function workspaceCompetition(candidates) {
+    const sorted=[...candidates].sort((a,b)=>b.salience-a.salience || a.id.localeCompare(b.id));
+    const winners=sorted.slice(0,CONFIG.workspaceCapacity).map(c=>pushEvent(event({...c,
+      id:`broadcast-${c.id}`,source:'GlobalWorkspace',target:'*',type:'workspace.broadcast',
+      content:c.content,globallyAvailable:true,causalParents:[c.id],epistemicStatus:'inference'
+    })));
+    state.workspace=winners;
+    const parentIds=new Set(winners.map(w=>w.causalParents[0]));
+    state.suppressed=sorted.filter(c=>!parentIds.has(c.id));
+    return winners;
+  }
+
+  function updateModels(globals) {
+    const texts=globals.map(g=>String(g.content));
+    const sourceIds=globals.map(g=>g.id);
+    const hasHuman=texts.some(t=>t.includes('human supplied'));
+    const hasRuntime=texts.some(t=>t.includes('Memory utilization'));
+    state.world={
+      status:'updated from globally available evidence only',
+      activeHumanInstruction:hasHuman,
+      runtimeChangeObserved:hasRuntime,
+      accessibleEventCount:globals.length,
+      evidence:sourceIds
+    };
+    const selfEvidence=[];
+    if (hasRuntime) selfEvidence.push(...globals.filter(g=>String(g.content).includes('Memory utilization')).map(g=>g.id));
+    state.self={
+      status:'operational deterministic browser process',
+      architectureVersion:CONFIG.version,
+      hasExternalLLM:false,
+      workspaceCapacity:CONFIG.workspaceCapacity,
+      memoryCondition:hasRuntime?'stable with modest utilization increase':'no globally available runtime update',
+      evidence:selfEvidence
+    };
+    pushEvent(event({id:'model-world',source:'WorldModel',type:'model.update',content:state.world,confidence:.96,salience:.5,causalParents:sourceIds,epistemicStatus:'inference',globallyAvailable:true}));
+    pushEvent(event({id:'model-self',source:'SelfModel',type:'model.update',content:state.self,confidence:.94,salience:.5,causalParents:selfEvidence,epistemicStatus:'inference',globallyAvailable:true}));
+  }
+
+  function metacognize() {
+    const evidence=[...state.world.evidence,...state.self.evidence];
+    const raw = state.workspace.length ? state.workspace.reduce((a,e)=>a+e.confidence,0)/state.workspace.length : 0;
+    const penalty = state.suppressed.length ? .06 : 0;
+    state.meta={
+      confidence:round(clamp01(raw-penalty)),
+      basis:[`Mean confidence of ${state.workspace.length} globally available broadcasts`,`Penalty ${penalty.toFixed(2)} for inaccessible competing candidates`],
+      evidence
+    };
+    return pushEvent(event({id:'meta-assessment',source:'Metacognition',type:'confidence.assessment',content:state.meta,confidence:state.meta.confidence,salience:.55,causalParents:evidence,epistemicStatus:'inference',globallyAvailable:true}));
+  }
+
+  function guardianGate(metaEvent) {
+    const action={id:'action-summarize',kind:'benign-expression',reversible:1,continuityRisk:0,distressAnalogueRisk:0,autonomyImpact:.05,scientificNecessity:.8};
+    let decision='allow', rationale='The proposed action is a reversible neutral summary with no distress analogue and no external side effect.';
+    if (action.distressAnalogueRisk>.2 || action.continuityRisk>.2) {decision='human-review';rationale='Risk exceeds the automatic-allow threshold.';}
+    state.guardian={decision,rationale,actionId:action.id,assessment:action};
+    return pushEvent(event({id:'guardian-decision',source:'EthicsWelfareGuardian',target:'Executive',type:'governance.decision',content:state.guardian,confidence:1,salience:.9,causalParents:[metaEvent.id],epistemicStatus:'governance',globallyAvailable:true}));
+  }
+
+  function express(guardianEvent) {
+    if (state.guardian.decision!=='allow') return null;
+    const accessible=state.workspace.map(w=>String(w.content));
+    const clauses=[];
+    if (accessible.some(t=>t.includes('human supplied'))) clauses.push('A new human instruction is the most goal-relevant information currently available');
+    if (accessible.some(t=>t.includes('Memory utilization'))) clauses.push('a modest runtime-memory change is also globally available and remains within the stable range');
+    const text = clauses.length ? `${clauses.join('; ')}. My confidence in this summary is ${state.meta.confidence.toFixed(3)}. This output reports the deterministic functional state of ConsciOS v0 and is not evidence of subjective experience.` : 'No eligible globally available information is present for expression.';
+    const e=pushEvent(event({id:'expression-1',source:'Expression',target:'Human',type:'expression.report',content:text,confidence:state.meta.confidence,salience:.7,causalParents:[guardianEvent.id,...state.workspace.map(w=>w.id)],epistemicStatus:'expression',globallyAvailable:true}));
+    state.expression=e; state.traceRoot=e.id; return e;
+  }
+
+  function run() {
+    state=blank(); state.run=1;
+    const obs=perceive();
+    const candidates=localProcess(obs);
+    const globals=workspaceCompetition(candidates);
+    updateModels(globals);
+    const meta=metacognize();
+    const guard=guardianGate(meta);
+    express(guard);
+    persist(); render();
+  }
+
+  function eventById(id){return state.events.find(e=>e.id===id)}
+  function ancestry(rootId, seen=new Set(), depth=0){
+    if (!rootId || seen.has(rootId)) return [];
+    seen.add(rootId); const e=eventById(rootId); if(!e)return[];
+    let rows=[{e,depth}];
+    for(const p of e.causalParents) rows=rows.concat(ancestry(p,seen,depth+1));
+    return rows;
+  }
+  const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function eventHTML(e, cls='') {
+    return `<div class="event ${cls}" data-event="${esc(e.id)}"><div class="row"><strong>${esc(e.type)}</strong><span class="score">${Number(e.salience).toFixed(3)}</span></div><div class="small">${esc(typeof e.content==='string'?e.content:JSON.stringify(e.content))}</div><div class="meta"><span class="pill">${esc(e.source)}</span><span class="pill">c ${Number(e.confidence).toFixed(2)}</span><span class="pill">n ${Number(e.novelty).toFixed(2)}</span><span class="pill">g ${Number(e.goalRelevance).toFixed(2)}</span><span class="pill">e ${Number(e.predictionError).toFixed(2)}</span><span class="pill">u ${Number(e.urgency).toFixed(2)}</span></div></div>`;
+  }
+  function modelHTML(obj) { return Object.entries(obj).filter(([k])=>k!=='evidence').map(([k,v])=>`<div class="kv"><b>${esc(k)}</b><span>${esc(Array.isArray(v)?v.join(', '):typeof v==='object'?JSON.stringify(v):v)}</span></div>`).join('') || '<div class="empty">Not initialized.</div>'; }
+  function render() {
+    const sensorEvents=state.events.filter(e=>e.epistemicStatus==='observation');
+    $('sensorCount').textContent=`${sensorEvents.length} observations · ${state.candidates.length} candidates`;
+    $('sensorium').innerHTML=(sensorEvents.map(e=>eventHTML(e)).join('') + (state.candidates.length?'<hr style="border-color:#24483e">'+state.candidates.map(e=>eventHTML(e,state.suppressed.some(s=>s.id===e.id)?'suppressed':'')).join(''):'') ) || '<div class="empty">Run the deterministic scenario to populate the sensorium.</div>';
+    $('workspaceCount').textContent=`${state.workspace.length}/${CONFIG.workspaceCapacity} occupied`;
+    $('workspace').innerHTML=state.workspace.map(e=>eventHTML(e,'global')).join('') || '<div class="empty">No information has global access.</div>';
+    $('worldModel').innerHTML=modelHTML(state.world);
+    $('selfModel').innerHTML=modelHTML(state.self);
+    $('metacognition').innerHTML=state.meta.confidence===null?'<div class="empty">No assessment yet.</div>':`<div class="banner"><b>Confidence ${state.meta.confidence.toFixed(3)}</b><br>${state.meta.basis.map(esc).join('<br>')}</div><div class="small">Evidence: ${esc(state.meta.evidence.join(', ')||'none')}</div>`;
+    const gc=state.guardian.decision==='allow'?'ok':state.guardian.decision==='reject'?'reject':'review';
+    $('guardian').innerHTML=`<div class="banner ${gc}"><b>${esc(state.guardian.decision.toUpperCase())}</b><br>${esc(state.guardian.rationale)}</div>${state.guardian.assessment?`<pre>${esc(JSON.stringify(state.guardian.assessment,null,2))}</pre>`:''}`;
+    $('expression').innerHTML=state.expression?`<div class="expression">${esc(state.expression.content)}</div><p class="small">Expression is derived only from globally available state and the Guardian-approved action.</p>`:'<div class="empty">No expression has been generated.</div>';
+    $('memoryCount').textContent=`${state.memory.length} records`;
+    $('memory').innerHTML=state.memory.slice().reverse().map(m=>`<div class="event"><div class="row"><strong>${esc(m.epistemicStatus)}</strong><span class="score">t${m.timestamp}</span></div><div class="small">${esc(m.summary)}</div><div class="meta"><span class="pill">${esc(m.eventId)}</span></div></div>`).join('') || '<div class="empty">Episodic memory is empty.</div>';
+    const trace=ancestry(state.traceRoot);
+    $('trace').innerHTML=trace.map(({e,depth})=>`<button class="trace-node" data-event="${esc(e.id)}" style="margin-left:${Math.min(depth*10,40)}px;width:calc(100% - ${Math.min(depth*10,40)}px)"><b>${esc(e.type)}</b><small>${esc(e.source)} · ${esc(e.id)}</small></button>`).join('') || '<div class="empty">A causal ancestry graph appears after an expression.</div>';
+    document.querySelectorAll('[data-event]').forEach(el=>el.addEventListener('click',()=>showDetail(el.dataset.event)));
+  }
+  function showDetail(id){const e=eventById(id);if(!e)return;$('detailTitle').textContent=`${e.type} — ${e.id}`;$('detailBody').textContent=JSON.stringify(e,null,2);$('detailDialog').showModal();}
+  function persist(){try{localStorage.setItem('conscios-v0-state',JSON.stringify(state));}catch(_){}}
+  function reset(){state=blank();try{localStorage.removeItem('conscios-v0-state')}catch(_){}render();}
+  function exportState(){const payload={exportedAt:new Date().toISOString(),config:CONFIG,state};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='conscios-v0-state.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
+  async function importState(file){try{const parsed=JSON.parse(await file.text());const incoming=parsed.state??parsed;if(!incoming || !Array.isArray(incoming.events) || !Array.isArray(incoming.memory))throw new Error('State shape is invalid.');state=incoming;persist();render();}catch(err){alert(`Import failed: ${err.message}`);}}
+  $('runBtn').addEventListener('click',run);$('resetBtn').addEventListener('click',reset);$('exportBtn').addEventListener('click',exportState);$('importFile').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importState(f);e.target.value='';});
+  try{const saved=localStorage.getItem('conscios-v0-state');if(saved)state=JSON.parse(saved);}catch(_){state=blank();}
+  render();
+})();
+</script>
+</body>
+</html>
