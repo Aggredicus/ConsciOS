@@ -1,6 +1,6 @@
 import {runRecurrentLaboratoryV1} from '../runtime/recurrent-shadow-v1.mjs';
 
-const finite=value=>Number.isFinite(Number(value))?Number(value):null;
+const finite=value=>value===null||value===undefined||value===''?null:(Number.isFinite(Number(value))?Number(value):null);
 const mean=values=>{const xs=values.map(finite).filter(value=>value!==null);return xs.length?xs.reduce((sum,value)=>sum+value,0)/xs.length:null};
 
 export function summarizeArchitectureTrace(trace){
