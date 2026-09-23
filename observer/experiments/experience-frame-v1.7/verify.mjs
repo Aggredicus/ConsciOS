@@ -15,5 +15,7 @@ const ui=await fs.readFile(new URL('../../../local/encounter/encounter-ui.mjs',i
 ok(html.includes('Observer record'),'observer surface missing');
 ok(ui.includes('serializeExperienceFrame(frame)'),'first cycle must use serialized frame');
 ok(ui.includes('contextManifest:[]'),'observer/context prompt injection must be absent');
+ok(html.includes('lengthRange')&&html.includes('lengthNumber'),'adjustable response length controls missing');
+ok(ui.includes('maxNewTokens:responseTokens()'),'response length must control generation ceiling');
 ok(!ui.includes('You are conscious'),'consciousness narrative forbidden');
 console.log('Experience Frame v1.7 verification passed');
