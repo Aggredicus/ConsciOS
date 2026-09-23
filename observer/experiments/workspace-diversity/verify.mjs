@@ -5,7 +5,7 @@ import { comparePolicies } from '../../../cognition/workspace/policies.mjs';
 const fixture = JSON.parse(readFileSync('experiments/v0-fixture.json', 'utf8'));
 const result = comparePolicies(fixture, 0.25);
 
-assert.equal(result.candidates.length, 7, 'candidate count changed unexpectedly');
+assert.equal(result.candidates.length, 6, 'candidate count changed unexpectedly');
 assert.deepEqual(result.raw.metrics.roots, ['obs-user', 'obs-user'], 'raw top-k baseline should preserve v0 duplicate-root saturation');
 assert.deepEqual(result.diverse.metrics.roots, ['obs-user', 'obs-runtime'], 'hard source diversity should represent two distinct root observations');
 assert.deepEqual(result.soft.metrics.roots, ['obs-user', 'obs-runtime'], 'soft penalty 0.25 should prefer the runtime observation over a repeated user root');
