@@ -1,8 +1,11 @@
 {
-  "version": 2,
+  "version": 3,
   "entry": "@conscios/ui",
+  "labBadge": "v1.0 modular laboratory",
+  "portableBadge": "v1.0 portable modular build · generated",
   "modules": [
     {"id":"@conscios/memory","path":"cognition/memory/v0.mjs","rewrite":{}},
+    {"id":"@conscios/autobiographical-memory","path":"cognition/memory/autobiographical.mjs","rewrite":{}},
     {"id":"@conscios/sensorium","path":"cognition/sensorium/v0.mjs","rewrite":{}},
     {"id":"@conscios/workspace-policies","path":"cognition/workspace/policies.mjs","rewrite":{}},
     {"id":"@conscios/workspace-runtime","path":"cognition/workspace/v0-runtime.mjs","rewrite":{"./policies.mjs":"@conscios/workspace-policies"}},
@@ -15,6 +18,8 @@
     {"id":"@conscios/executive","path":"cognition/executive/v0.mjs","rewrite":{}},
     {"id":"@conscios/expression","path":"cognition/expression/v0.mjs","rewrite":{}},
     {"id":"@conscios/runtime","path":"runtime/v0-modular.mjs","rewrite":{"../cognition/memory/v0.mjs":"@conscios/memory","../cognition/sensorium/v0.mjs":"@conscios/sensorium","../cognition/workspace/v0-runtime.mjs":"@conscios/workspace-runtime","../cognition/world-model/v0.mjs":"@conscios/world-model","../cognition/self-model/v0.mjs":"@conscios/self-model","../cognition/counterfactual/v0.mjs":"@conscios/counterfactual","../cognition/metacognition/v0.mjs":"@conscios/metacognition","../cognition/homeostasis/v0.mjs":"@conscios/homeostasis","../cognition/guardian/v0.mjs":"@conscios/guardian","../cognition/executive/v0.mjs":"@conscios/executive","../cognition/expression/v0.mjs":"@conscios/expression"}},
-    {"id":"@conscios/ui","path":"runtime/modular-ui.mjs","rewrite":{"./v0-modular.mjs":"@conscios/runtime"}}
+    {"id":"@conscios/indexeddb-autobiographical","path":"runtime/storage/indexeddb-autobiographical.mjs","rewrite":{"../../cognition/memory/autobiographical.mjs":"@conscios/autobiographical-memory"}},
+    {"id":"@conscios/continuity-controller","path":"runtime/continuity-controller.mjs","rewrite":{"../cognition/memory/autobiographical.mjs":"@conscios/autobiographical-memory","./storage/indexeddb-autobiographical.mjs":"@conscios/indexeddb-autobiographical"}},
+    {"id":"@conscios/ui","path":"runtime/modular-ui.mjs","rewrite":{"./v0-modular.mjs":"@conscios/runtime","./continuity-controller.mjs":"@conscios/continuity-controller"}}
   ]
 }
