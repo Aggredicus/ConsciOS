@@ -3,6 +3,7 @@ import { perceiveV0 } from '../cognition/sensorium/v0.mjs';
 import { V0_WORKSPACE_CAPACITY, localProcessV0, scoreV0, workspaceCompetitionV0 } from '../cognition/workspace/v0-runtime.mjs';
 import { updateWorldModelV0 } from '../cognition/world-model/v0.mjs';
 import { updateSelfModelV0 } from '../cognition/self-model/v0.mjs';
+import { generateCounterfactualsV0 } from '../cognition/counterfactual/v0.mjs';
 import { metacognizeV0 } from '../cognition/metacognition/v0.mjs';
 import { guardianGateV0 } from '../cognition/guardian/v0.mjs';
 import { expressV0 } from '../cognition/expression/v0.mjs';
@@ -14,6 +15,7 @@ export function blankV0State() {
   return {
     version:V0_ARCHITECTURE_VERSION, run:0, tick:0, events:[], candidates:[], workspace:[], suppressed:[], memory:[],
     world:{status:'uninitialized',evidence:[]}, self:{status:'uninitialized',evidence:[]},
+    counterfactual:{status:'uninitialized',candidates:[],recommendedCandidateId:null,evidence:[]},
     meta:{confidence:null,basis:[]}, guardian:{decision:'idle',rationale:'No proposed action has been evaluated.',actionId:null},
     expression:null, traceRoot:null
   };
@@ -55,6 +57,9 @@ export function runModularV0() {
 
   const selfResult=updateSelfModelV0(state.workspace,{makeEvent,pushEvent,architectureVersion:V0_ARCHITECTURE_VERSION,workspaceCapacity:V0_WORKSPACE_CAPACITY});
   state.self=selfResult.self;
+
+  const counterfactualResult=generateCounterfactualsV0({workspace:state.workspace,world:state.world,self:state.self},{makeEvent,pushEvent});
+  state.counterfactual=counterfactualResult.counterfactual;
 
   const metaResult=metacognizeV0(state,{makeEvent,pushEvent});
   state.meta=metaResult.meta;
