@@ -12,7 +12,7 @@ function record(kind,data){const entry={sequence:observer.length+1,timestamp:new
 function render(){const el=$('conversation');el.innerHTML=transcript.length?transcript.map(t=>`<div class="turn ${t.role==='human'?'human':'system'}"><b>${t.role==='human'?'You':'ConsciOS'}</b><br>${esc(t.text)}</div>`).join(''):'<div class="muted">No visible expression selected.</div>';el.scrollTop=el.scrollHeight}
 function lock(v){busy=v;$('load').disabled=v;$('begin').disabled=v||!host||firstCycleComplete;$('stop').disabled=!v;$('send').disabled=v||!host||!firstCycleComplete;$('message').disabled=v}
 function selected(){return getStarterModel($('model').value)}
-function clampTokens(value){const n=Math.round(Number(value)||512);return Math.max(32,Math.min(2097152,n))}
+function clampTokens(value){const n=Math.round(Number(value)||1028);return Math.max(32,Math.min(2097152,n))}
 function responseTokens(){return clampTokens($('lengthNumber').value)}
 function syncLength(source){const n=clampTokens(source.value);$('lengthNumber').value=n;$('lengthRange').value=Math.min(1048576,n)}
 function resetSession(reason){host=null;loadedManifest=null;cycle=0;firstCycleComplete=false;transcript.length=0;observer.length=0;try{localStorage.removeItem('conscios:first-encounter:v1.7')}catch{};render();$('observer').textContent='No events yet.';lock(false);status(reason)}
