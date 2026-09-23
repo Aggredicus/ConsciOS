@@ -5,6 +5,7 @@ import { updateWorldModelV0 } from '../cognition/world-model/v0.mjs';
 import { updateSelfModelV0 } from '../cognition/self-model/v0.mjs';
 import { generateCounterfactualsV0 } from '../cognition/counterfactual/v0.mjs';
 import { metacognizeV0 } from '../cognition/metacognition/v0.mjs';
+import { assessHomeostasisV0 } from '../cognition/homeostasis/v0.mjs';
 import { guardianGateV0 } from '../cognition/guardian/v0.mjs';
 import { expressV0 } from '../cognition/expression/v0.mjs';
 
@@ -16,7 +17,9 @@ export function blankV0State() {
     version:V0_ARCHITECTURE_VERSION, run:0, tick:0, events:[], candidates:[], workspace:[], suppressed:[], memory:[],
     world:{status:'uninitialized',evidence:[]}, self:{status:'uninitialized',evidence:[]},
     counterfactual:{status:'uninitialized',candidates:[],recommendedCandidateId:null,evidence:[]},
-    meta:{confidence:null,basis:[]}, guardian:{decision:'idle',rationale:'No proposed action has been evaluated.',actionId:null},
+    meta:{confidence:null,basis:[]},
+    homeostasis:{status:'uninitialized',variables:{},evidence:[]},
+    guardian:{decision:'idle',rationale:'No proposed action has been evaluated.',actionId:null},
     expression:null, traceRoot:null
   };
 }
@@ -63,6 +66,9 @@ export function runModularV0() {
 
   const metaResult=metacognizeV0(state,{makeEvent,pushEvent});
   state.meta=metaResult.meta;
+
+  const homeostasisResult=assessHomeostasisV0(state,metaResult.event,{makeEvent,pushEvent,workspaceCapacity:V0_WORKSPACE_CAPACITY});
+  state.homeostasis=homeostasisResult.homeostasis;
 
   const guardResult=guardianGateV0(metaResult.event,{makeEvent,pushEvent});
   state.guardian=guardResult.guardian;
