@@ -31,7 +31,7 @@ function exportRecord(){
   a.remove();
   setTimeout(()=>URL.revokeObjectURL(url),10000);
   record('observer.exported',{filename,bytes:blob.size});
-  status(`Saved ${filename} to your browser downloads.`);
+  status(`Saved ${filename} to your browser downloads.`);\n  alert(`Observer record downloaded successfully.\\n\\n${filename}`);
 }
 $('lengthRange').addEventListener('input',e=>{$('lengthNumber').value=e.target.value});
 $('lengthNumber').addEventListener('change',e=>syncLength(e.target));
