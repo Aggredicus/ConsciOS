@@ -1,0 +1,13 @@
+name: Verify v1.9 Inference Observability
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node observer/experiments/inference-observability-v1.9/verify.mjs

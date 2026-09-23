@@ -1,0 +1,11 @@
+import fs from 'node:fs';
+const host=fs.readFileSync(new URL('../../../runtime/models/browser-transformers-host.mjs',import.meta.url),'utf8');
+const ui=fs.readFileSync(new URL('../../../local/encounter/encounter-ui.mjs',import.meta.url),'utf8');
+const contract=fs.readFileSync(new URL('../../../SCIENTIFIC_CONTRACT.md',import.meta.url),'utf8');
+const ok=(x,m)=>{if(!x)throw new Error(m)};
+ok(host.includes("inferenceBoundary:{messageCount:messages.length,inputHash,renderedPromptHash,inputTokenCount,outputHash}"),'host must expose inference-boundary telemetry');
+ok(ui.includes("inference.boundary.input"),'encounter must record boundary input');
+ok(ui.includes("inference.boundary.output"),'encounter must record boundary output');
+ok(contract.includes("Consciousness vocabulary is not a benchmark target."),'contract must reject consciousness-language optimization');
+ok(contract.includes("Cloud models are external capabilities."),'contract must define cloud boundary');
+console.log('v1.9 inference observability verified');
