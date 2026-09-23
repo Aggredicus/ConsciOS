@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const html=readFileSync('local/index.html','utf8');
+const js=readFileSync('local/local-ui.mjs','utf8');
+for(const text of ['ConsciOS Local AI Lab','Load model','Local neural model','Deterministic/mock control','WebGPU','WASM / CPU','Telemetry & provenance','This is not a consciousness indicator'])assert.ok(html.includes(text),`local lab missing disclosure/control: ${text}`);
+assert.ok(html.includes('src="./local-ui.mjs"'));
+assert.ok(js.includes("'../runtime/models/browser-transformers-host.mjs'"),'UI must use canonical local host');
+assert.ok(js.includes('detectBrowserAICapabilities'),'UI must expose measured browser capabilities');
+assert.ok(js.includes('approximatePrimaryWeightMB'),'UI must disclose approximate model size before load');
+assert.ok(js.includes("$('load').addEventListener('click',load)"),'model loading must require explicit user action');
+assert.ok(!/\bload\(\);/.test(js),'model must not auto-load on module initialization');
+for(const forbidden of ['api.openai.com','api.anthropic.com','generativelanguage.googleapis.com','API_KEY','apiKey'])assert.ok(!html.includes(forbidden)&&!js.includes(forbidden),`local lab contains forbidden remote/credential capability: ${forbidden}`);
+assert.ok(js.includes("host?.cancel()"),'UI must expose generation cancellation');
+assert.ok(js.includes('model cache hit not asserted'),'cache state must not be fabricated');
+assert.ok(js.includes("state.failure='WebGPU selected but unavailable; choose WASM explicitly.'"),'WebGPU failure must require explicit fallback');
+console.log('ConsciOS local browser lab verification passed: explicit load, disclosure, control mode, honest telemetry, cancellation, and no proprietary inference fallback.');
