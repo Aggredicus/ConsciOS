@@ -16,7 +16,23 @@ function clampTokens(value){const n=Math.round(Number(value)||512);return Math.m
 function responseTokens(){return clampTokens($('lengthNumber').value)}
 function syncLength(source){const n=clampTokens(source.value);$('lengthNumber').value=n;$('lengthRange').value=Math.min(1048576,n)}
 function resetSession(reason){host=null;loadedManifest=null;cycle=0;firstCycleComplete=false;transcript.length=0;observer.length=0;try{localStorage.removeItem('conscios:first-encounter:v1.7')}catch{};render();$('observer').textContent='No events yet.';lock(false);status(reason)}
-function exportRecord(){const payload={protocol:'ConsciOS First Encounter',version:'1.7.0',exportedAt:new Date().toISOString(),loadedModel:loadedManifest?{id:loadedManifest.id,model:loadedManifest.model,revision:loadedManifest.revision}:null,backend:$('backend').value,generation:{maxNewTokens:responseTokens()},transcript,observer};const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`conscios-first-encounter-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),0)}
+function exportRecord(){
+  const now=new Date();
+  const stamp=now.toISOString().replace(/\.\d{3}Z$/,'Z').replace(/:/g,'-');
+  const model=loadedManifest?.id||'unloaded-model';
+  const filename=`ConsciOS_Encounter_${String(Math.max(cycle,1)).padStart(3,'0')}_${model}_${stamp}.json`;
+  const payload={protocol:'ConsciOS First Encounter',version:'1.8.0',exportedAt:now.toISOString(),loadedModel:loadedManifest?{id:loadedManifest.id,model:loadedManifest.model,revision:loadedManifest.revision}:null,backend:$('backend').value,generation:{maxNewTokens:responseTokens()},cycle,firstCycleComplete,transcript:[...transcript],observer:[...observer]};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;a.style.display='none';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  record('observer.exported',{filename,bytes:blob.size});
+  status(`Saved ${filename} to your browser downloads.`);
+}
 $('lengthRange').addEventListener('input',e=>{$('lengthNumber').value=e.target.value});
 $('lengthNumber').addEventListener('change',e=>syncLength(e.target));
 async function load(){lock(true);const manifest=selected(),device=$('backend').value;host=createBrowserTransformersHost({manifest,device,dtype:device==='webgpu'?manifest.webgpuDtype:manifest.wasmDtype,onProgress:e=>status(`Loading ${e.file||e.status||'model'} ${Number.isFinite(Number(e.progress))?Math.round(Number(e.progress))+'%':''}`)});try{const p=await host.load();loadedManifest=manifest;status(`Ready · ${p.modelId} · ${p.device}. No first-cycle inference has run.`);record('model.loaded',p)}catch(e){host=null;loadedManifest=null;status(String(e?.message||e))}finally{lock(false)}}
