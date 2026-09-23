@@ -76,10 +76,34 @@ assert.equal(failed.status,'error');assert.equal(failed.confidence,0);assert.equ
 assert.ok(failed.failure.includes('simulated local runtime failure'));
 assert.equal(validateCognitiveModelOutput(failed).valid,true);
 
+let cancelInterruptObserved=false;
+class CancelStopping{interrupt(){this.interrupted=true;cancelInterruptObserved=true}}
+const cancelGenerator=async(input,options)=>{
+  options.streamer?.options?.callback_function?.('first ');
+  await new Promise(resolve=>setTimeout(resolve,30));
+  return [{generated_text:[...input,{role:'assistant',content:'first complete'}]}];
+};
+cancelGenerator.tokenizer={};
+const cancelModule={
+  TextStreamer:FakeStreamer,InterruptableStoppingCriteria:CancelStopping,
+  pipeline:async()=>cancelGenerator
+};
+const cancelHost=createBrowserTransformersHost({manifest,device:'webgpu',importTransformers:async()=>cancelModule});
+await cancelHost.load();
+let cancelledOnFirstChunk=false;
+const cancelled=await cancelHost.generate({
+  userText:'Generate a longer neutral answer.',contextManifest:[visible],maxNewTokens:64,
+  onText:()=>{if(!cancelledOnFirstChunk){cancelledOnFirstChunk=true;cancelHost.cancel()}}
+});
+assert.equal(cancelled.status,'cancelled');
+assert.equal(cancelInterruptObserved,true,'cancel did not interrupt stopping criteria');
+const recovered=await cancelHost.generate({userText:'Now answer again.',contextManifest:[visible],maxNewTokens:16});
+assert.equal(recovered.status,'ok','host did not recover after cancellation');
+
 const source=readFileSync('runtime/models/browser-transformers-host.mjs','utf8');
 const adapterSource=readFileSync('runtime/models/browser-cognitive-model.mjs','utf8');
 for(const text of [source,adapterSource])for(const forbidden of ['api.openai.com','api.anthropic.com','generativelanguage.googleapis.com','process.env','API_KEY','apiKey'])assert.ok(!text.includes(forbidden),`browser model path contains forbidden remote/credential capability: ${forbidden}`);
 const expression=readFileSync('cognition/expression/v0.mjs','utf8');
 assert.ok(!expression.includes('browser-transformers-host')&&!expression.includes('browser-cognitive-model')&&!expression.includes('.generate(')&&!expression.includes('.infer('),'Expression gained direct browser model access');
 
-console.log('ConsciOS browser AI host verification passed: pinned local runtime, explicit declared context, streaming, typed CognitiveModel provenance, honest uncalibrated confidence, failure mapping, and no proprietary inference fallback. Real WebGPU/WASM execution remains a physical-browser acceptance test.');
+console.log('ConsciOS browser AI host verification passed: pinned local runtime, explicit declared context, streaming, typed CognitiveModel provenance, honest uncalibrated confidence, cancellation recovery, failure mapping, and no proprietary inference fallback. Real WebGPU/WASM execution remains a physical-browser acceptance test.');
