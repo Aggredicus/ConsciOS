@@ -8,24 +8,50 @@
   "properties": {
     "requestId":{"type":"string","minLength":1},
     "provider": {
-      "type":"object",
-      "additionalProperties": false,
-      "required":["kind","name","hiddenState"],
-      "properties": {
-        "kind":{"const":"deterministic-mock"},
-        "name":{"type":"string","minLength":1},
-        "hiddenState":{"const":"none"}
-      }
+      "oneOf": [
+        {
+          "type":"object",
+          "additionalProperties": false,
+          "required":["kind","name","hiddenState"],
+          "properties": {
+            "kind":{"const":"deterministic-mock"},
+            "name":{"type":"string","minLength":1},
+            "hiddenState":{"const":"none"}
+          }
+        },
+        {
+          "type":"object",
+          "additionalProperties": false,
+          "required":["kind","name","hiddenState","modelId","revision","runtime","device","dtype","inferenceLocation","remoteInference"],
+          "properties": {
+            "kind":{"const":"browser-transformers-local"},
+            "name":{"type":"string","minLength":1},
+            "hiddenState":{"const":"none"},
+            "modelId":{"type":"string","minLength":1},
+            "revision":{"type":["string","null"]},
+            "runtime":{"type":"string","minLength":1},
+            "device":{"type":"string","enum":["webgpu","wasm"]},
+            "dtype":{"type":"string","minLength":1},
+            "inferenceLocation":{"const":"browser-local"},
+            "remoteInference":{"const":false}
+          }
+        }
+      ]
     },
-    "status":{"type":"string","enum":["ok","timeout","error"]},
+    "status":{"type":"string","enum":["ok","timeout","error","cancelled"]},
     "content":{},
-    "confidence":{"type":"number","minimum":0,"maximum":1},
+    "confidence":{"type":["number","null"],"minimum":0,"maximum":1},
     "causalSourceIds":{"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true},
     "timing": {
       "type":"object",
       "additionalProperties": false,
-      "required":["deterministicSteps"],
-      "properties":{"deterministicSteps":{"type":"integer","minimum":0}}
+      "properties": {
+        "deterministicSteps":{"type":"integer","minimum":0},
+        "elapsedMs":{"type":"number","minimum":0},
+        "ttftMs":{"type":["number","null"],"minimum":0},
+        "streamed":{"type":"boolean"}
+      },
+      "anyOf":[{"required":["deterministicSteps"]},{"required":["elapsedMs","ttftMs","streamed"]}]
     },
     "failure":{"type":["string","null"]},
     "epistemicStatus":{"type":"string","enum":["inference","prediction","counterfactual","memory","error"]}
