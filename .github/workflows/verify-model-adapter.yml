@@ -1,0 +1,21 @@
+name: Verify Deterministic CognitiveModel Adapter
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-model-adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify typed model boundary without AI activation
+        run: node observer/experiments/model-adapter/verify.mjs

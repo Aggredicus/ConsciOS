@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conscios.local/schemas/cognitive-model-input.schema.json",
+  "title": "ConsciOS CognitiveModel Input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["requestId","requestingModule","inferenceType","contextManifest","causalSourceIds","maxResponseUnits","expectedEpistemicStatus","hiddenContextPolicy"],
+  "properties": {
+    "requestId": {"type":"string","minLength":1},
+    "requestingModule": {"type":"string","enum":["Sensorium","GlobalWorkspace","WorldModel","SelfModel","Memory","Counterfactual","Metacognition","Homeostasis","Guardian","Executive","Expression","ObserverScientist"]},
+    "inferenceType": {"type":"string","minLength":1},
+    "contextManifest": {
+      "type":"array",
+      "items": {
+        "type":"object",
+        "additionalProperties": false,
+        "required":["artifactId","epistemicStatus","content"],
+        "properties": {
+          "artifactId":{"type":"string","minLength":1},
+          "epistemicStatus":{"type":"string","minLength":1},
+          "content":{}
+        }
+      }
+    },
+    "causalSourceIds": {"type":"array","items":{"type":"string","minLength":1},"uniqueItems":true},
+    "maxResponseUnits": {"type":"integer","minimum":1,"maximum":65536},
+    "expectedEpistemicStatus": {"type":"string","enum":["inference","prediction","counterfactual","memory"]},
+    "hiddenContextPolicy": {"const":"none"}
+  }
+}
