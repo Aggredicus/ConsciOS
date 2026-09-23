@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conscios.dev/schemas/cognitive-event.schema.json",
+  "title": "ConsciOS Cognitive Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "timestamp",
+    "source",
+    "type",
+    "content",
+    "confidence",
+    "novelty",
+    "salience",
+    "causalParents",
+    "epistemicStatus"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "integer", "minimum": 0 },
+    "source": { "type": "string", "minLength": 1 },
+    "target": { "type": ["string", "null"] },
+    "type": { "type": "string", "minLength": 1 },
+    "content": {},
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "novelty": { "type": "number", "minimum": 0, "maximum": 1 },
+    "salience": { "type": "number", "minimum": 0, "maximum": 1 },
+    "goalRelevance": { "type": "number", "minimum": 0, "maximum": 1 },
+    "predictionError": { "type": "number", "minimum": 0, "maximum": 1 },
+    "urgency": { "type": "number", "minimum": 0, "maximum": 1 },
+    "causalParents": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "epistemicStatus": {
+      "enum": [
+        "observation",
+        "inference",
+        "prediction",
+        "memory",
+        "counterfactual",
+        "action",
+        "expression",
+        "governance"
+      ]
+    },
+    "globallyAvailable": { "type": "boolean" },
+    "metadata": { "type": "object" }
+  }
+}
