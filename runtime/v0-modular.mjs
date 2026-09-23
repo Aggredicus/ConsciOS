@@ -7,9 +7,10 @@ import { generateCounterfactualsV0 } from '../cognition/counterfactual/v0.mjs';
 import { metacognizeV0 } from '../cognition/metacognition/v0.mjs';
 import { assessHomeostasisV0 } from '../cognition/homeostasis/v0.mjs';
 import { guardianGateV0 } from '../cognition/guardian/v0.mjs';
+import { executiveSelectV0 } from '../cognition/executive/v0.mjs';
 import { expressV0 } from '../cognition/expression/v0.mjs';
 
-export const V0_ARCHITECTURE_VERSION='0.1.0';
+export const V0_ARCHITECTURE_VERSION='0.6.0';
 const clamp01=n=>Math.max(0,Math.min(1,n));
 
 export function blankV0State() {
@@ -20,6 +21,7 @@ export function blankV0State() {
     meta:{confidence:null,basis:[]},
     homeostasis:{status:'uninitialized',variables:{},evidence:[]},
     guardian:{decision:'idle',rationale:'No proposed action has been evaluated.',actionId:null},
+    executive:{status:'idle',selectedCandidateId:null,action:null,rationale:'No action has been selected.'},
     expression:null, traceRoot:null
   };
 }
@@ -64,16 +66,26 @@ export function runModularV0() {
   const counterfactualResult=generateCounterfactualsV0({workspace:state.workspace,world:state.world,self:state.self},{makeEvent,pushEvent});
   state.counterfactual=counterfactualResult.counterfactual;
 
-  const metaResult=metacognizeV0(state,{makeEvent,pushEvent});
+  const metaResult=metacognizeV0({...state,counterfactualEvent:counterfactualResult.event},{makeEvent,pushEvent});
   state.meta=metaResult.meta;
 
   const homeostasisResult=assessHomeostasisV0(state,metaResult.event,{makeEvent,pushEvent,workspaceCapacity:V0_WORKSPACE_CAPACITY});
   state.homeostasis=homeostasisResult.homeostasis;
 
-  const guardResult=guardianGateV0(metaResult.event,{makeEvent,pushEvent});
+  const proposedCandidate=state.counterfactual.candidates.find(c=>c.id===state.counterfactual.recommendedCandidateId)??null;
+  const guardResult=guardianGateV0({
+    metaEvent:metaResult.event,homeostasisEvent:homeostasisResult.event,counterfactualEvent:counterfactualResult.event,
+    proposedCandidate,homeostasis:state.homeostasis
+  },{makeEvent,pushEvent});
   state.guardian=guardResult.guardian;
 
-  state.expression=expressV0({guardian:state.guardian,guardianEvent:guardResult.event,workspace:state.workspace,meta:state.meta},{makeEvent,pushEvent});
-  state.traceRoot=state.expression?.id??null;
+  const executiveResult=executiveSelectV0({
+    counterfactual:state.counterfactual,counterfactualEvent:counterfactualResult.event,
+    guardian:state.guardian,guardianEvent:guardResult.event
+  },{makeEvent,pushEvent});
+  state.executive=executiveResult.executive;
+
+  state.expression=expressV0({executive:state.executive,executiveEvent:executiveResult.event,workspace:state.workspace,meta:state.meta},{makeEvent,pushEvent});
+  state.traceRoot=state.expression?.id??executiveResult.event.id;
   return state;
 }

@@ -33,7 +33,7 @@ if (!html.includes(externalTag)) throw new Error('modular demo bootstrap tag not
 const importMap = JSON.stringify({imports}, null, 2);
 const inlineBootstrap = `<script type="importmap">\n${importMap}\n</script>\n<script type="module">import '${manifest.entry}';</script>`;
 html = html.replace(externalTag, inlineBootstrap);
-html = html.replace('v0.4 modular laboratory','v0.5 portable modular build · generated');
+html = html.replace('v0.6 modular laboratory','v0.6 portable modular build · generated');
 html = html.replace('</head>',`<meta name="conscios-source-digest" content="${sourceDigest}">\n<!-- GENERATED FILE: source of truth is the modular cognition/runtime tree. -->\n</head>`);
 
 mkdirSync('dist',{recursive:true});
