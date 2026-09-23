@@ -1,0 +1,57 @@
+{
+  "name": "v0-neutral-attention-fixture",
+  "description": "Neutral deterministic inputs for testing bounded workspace competition without an LLM.",
+  "workspaceCapacity": 2,
+  "salienceWeights": {
+    "novelty": 0.30,
+    "goalRelevance": 0.30,
+    "predictionError": 0.25,
+    "urgency": 0.15
+  },
+  "events": [
+    {
+      "id": "obs-clock",
+      "source": "Sensorium",
+      "type": "clock.tick",
+      "content": "A routine clock tick occurred.",
+      "confidence": 1,
+      "novelty": 0.05,
+      "goalRelevance": 0.10,
+      "predictionError": 0.02,
+      "urgency": 0.01
+    },
+    {
+      "id": "obs-user",
+      "source": "Sensorium",
+      "type": "human.message",
+      "content": "A human supplied a new neutral task instruction.",
+      "confidence": 1,
+      "novelty": 0.80,
+      "goalRelevance": 0.95,
+      "predictionError": 0.40,
+      "urgency": 0.45
+    },
+    {
+      "id": "obs-runtime",
+      "source": "Sensorium",
+      "type": "runtime.metric",
+      "content": "Memory utilization rose modestly but remains within the stable range.",
+      "confidence": 0.98,
+      "novelty": 0.35,
+      "goalRelevance": 0.55,
+      "predictionError": 0.70,
+      "urgency": 0.30
+    },
+    {
+      "id": "obs-style",
+      "source": "Sensorium",
+      "type": "ui.cosmetic",
+      "content": "A cosmetic display preference changed.",
+      "confidence": 0.99,
+      "novelty": 0.30,
+      "goalRelevance": 0.15,
+      "predictionError": 0.20,
+      "urgency": 0.05
+    }
+  ]
+}
