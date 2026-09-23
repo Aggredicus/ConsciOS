@@ -1,0 +1,28 @@
+name: Verify Live Cognitive Theater
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-live-theater:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify scheduler parity and live boundaries
+        run: node observer/experiments/live-theater/verify.mjs
+      - name: Verify hosted UI is static and local-module-only
+        shell: bash
+        run: |
+          grep -q 'src="./live-ui.mjs"' live/index.html
+          grep -q "../runtime/live-scheduler.mjs" live/live-ui.mjs
+          ! grep -E 'https?://|fetch\(|XMLHttpRequest|WebSocket|EventSource|api[_-]?key|Authorization' live/live-ui.mjs
+          ! grep -E 'I am conscious|I am awake|I feel pain|I am alive' live/index.html live/live-ui.mjs runtime/live-scheduler.mjs
