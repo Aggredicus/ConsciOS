@@ -3,18 +3,25 @@ import { perceiveV0 } from '../cognition/sensorium/v0.mjs';
 import { V0_WORKSPACE_CAPACITY, localProcessV0, scoreV0, workspaceCompetitionV0 } from '../cognition/workspace/v0-runtime.mjs';
 import { updateWorldModelV0 } from '../cognition/world-model/v0.mjs';
 import { updateSelfModelV0 } from '../cognition/self-model/v0.mjs';
+import { generateCounterfactualsV0 } from '../cognition/counterfactual/v0.mjs';
 import { metacognizeV0 } from '../cognition/metacognition/v0.mjs';
+import { assessHomeostasisV0 } from '../cognition/homeostasis/v0.mjs';
 import { guardianGateV0 } from '../cognition/guardian/v0.mjs';
+import { executiveSelectV0 } from '../cognition/executive/v0.mjs';
 import { expressV0 } from '../cognition/expression/v0.mjs';
 
-export const V0_ARCHITECTURE_VERSION='0.1.0';
+export const V0_ARCHITECTURE_VERSION='0.6.0';
 const clamp01=n=>Math.max(0,Math.min(1,n));
 
 export function blankV0State() {
   return {
     version:V0_ARCHITECTURE_VERSION, run:0, tick:0, events:[], candidates:[], workspace:[], suppressed:[], memory:[],
     world:{status:'uninitialized',evidence:[]}, self:{status:'uninitialized',evidence:[]},
-    meta:{confidence:null,basis:[]}, guardian:{decision:'idle',rationale:'No proposed action has been evaluated.',actionId:null},
+    counterfactual:{status:'uninitialized',candidates:[],recommendedCandidateId:null,evidence:[]},
+    meta:{confidence:null,basis:[]},
+    homeostasis:{status:'uninitialized',variables:{},evidence:[]},
+    guardian:{decision:'idle',rationale:'No proposed action has been evaluated.',actionId:null},
+    executive:{status:'idle',selectedCandidateId:null,action:null,rationale:'No action has been selected.'},
     expression:null, traceRoot:null
   };
 }
@@ -56,13 +63,29 @@ export function runModularV0() {
   const selfResult=updateSelfModelV0(state.workspace,{makeEvent,pushEvent,architectureVersion:V0_ARCHITECTURE_VERSION,workspaceCapacity:V0_WORKSPACE_CAPACITY});
   state.self=selfResult.self;
 
-  const metaResult=metacognizeV0(state,{makeEvent,pushEvent});
+  const counterfactualResult=generateCounterfactualsV0({workspace:state.workspace,world:state.world,self:state.self},{makeEvent,pushEvent});
+  state.counterfactual=counterfactualResult.counterfactual;
+
+  const metaResult=metacognizeV0({...state,counterfactualEvent:counterfactualResult.event},{makeEvent,pushEvent});
   state.meta=metaResult.meta;
 
-  const guardResult=guardianGateV0(metaResult.event,{makeEvent,pushEvent});
+  const homeostasisResult=assessHomeostasisV0(state,metaResult.event,{makeEvent,pushEvent,workspaceCapacity:V0_WORKSPACE_CAPACITY});
+  state.homeostasis=homeostasisResult.homeostasis;
+
+  const proposedCandidate=state.counterfactual.candidates.find(c=>c.id===state.counterfactual.recommendedCandidateId)??null;
+  const guardResult=guardianGateV0({
+    metaEvent:metaResult.event,homeostasisEvent:homeostasisResult.event,counterfactualEvent:counterfactualResult.event,
+    proposedCandidate,homeostasis:state.homeostasis
+  },{makeEvent,pushEvent});
   state.guardian=guardResult.guardian;
 
-  state.expression=expressV0({guardian:state.guardian,guardianEvent:guardResult.event,workspace:state.workspace,meta:state.meta},{makeEvent,pushEvent});
-  state.traceRoot=state.expression?.id??null;
+  const executiveResult=executiveSelectV0({
+    counterfactual:state.counterfactual,counterfactualEvent:counterfactualResult.event,
+    guardian:state.guardian,guardianEvent:guardResult.event
+  },{makeEvent,pushEvent});
+  state.executive=executiveResult.executive;
+
+  state.expression=expressV0({executive:state.executive,executiveEvent:executiveResult.event,workspace:state.workspace,meta:state.meta},{makeEvent,pushEvent});
+  state.traceRoot=state.expression?.id??executiveResult.event.id;
   return state;
 }

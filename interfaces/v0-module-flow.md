@@ -1,6 +1,6 @@
-# v0 Modular Cognitive Flow Contract
+# v0.6 Modular Cognitive Flow Contract
 
-This interface document defines the deterministic artifacts exchanged during the v0.3 parity extraction. It does not change the v0 cognitive behavior.
+This interface document defines the deterministic artifacts exchanged by the role-owned ConsciOS modules. It does not imply phenomenal consciousness.
 
 ```txt
 Sensorium
@@ -9,52 +9,47 @@ Sensorium
 GlobalWorkspace
   candidates[] → admitted broadcasts[] + suppressed[]
       ↓
-WorldModel + SelfModel
-  evidence-linked model states
+WorldModel + SelfModel + Memory
+      ↓
+Counterfactual
+  isolated possible actions
       ↓
 Metacognition
-  confidence assessment
+  confidence / epistemic assessment
+      ↓
+Homeostasis
+  neutral operational integrity
       ↓
 Guardian
-  governance decision
+  allow / human-review / reject
+      ↓
+Executive
+  selected permitted action or withheld
       ↓
 Expression
-  neutral outward report
+  outward report only when explicitly selected
 ```
 
 ## Shared event envelope
 
-All runtime events use the existing `schemas/cognitive-event.schema.json` semantics and include `id`, deterministic `timestamp`, `source`, `target`, `type`, `content`, confidence/salience fields, causal parents, epistemic status, global-access flag, and metadata.
+Runtime events retain the existing `schemas/cognitive-event.schema.json` semantics: identity, deterministic timestamp, source/target, typed content, confidence/salience, causal parents, epistemic status, global-access flag, and metadata.
 
-## Module boundaries
+## Counterfactual boundary
 
-### Sensorium → GlobalWorkspace
-Input: deterministic raw fixture records.
-Output: observation events. Sensorium does not infer world meaning.
+Counterfactual candidates are shadow simulations. Candidate generation does not authorize execution. Each candidate exposes action kind, predicted effects, utility, confidence, reversibility, continuity risk, and distress-analogue risk.
 
-### GlobalWorkspace → WorldModel/SelfModel
-Input: observations.
-Output: local inference candidates, admitted broadcasts, suppressed candidates. The v0 parity runner uses the original raw top-k policy; diversity policies remain separate counterfactuals.
+## Homeostasis boundary
 
-### WorldModel
-Input: admitted broadcasts only.
-Output: evidence-linked environmental state plus a `model.update` event.
+Homeostasis is operational rather than phenomenological. Initial variables are resource health, memory integrity, workspace load, prediction calibration, and goal progress. Allowed status vocabulary is neutral (`stable`, `attention-required`, `degraded`, `recovering`, `critical`).
 
-### SelfModel
-Input: admitted broadcasts and architecture metadata supplied by the runtime.
-Output: evidence-linked self state plus a `model.update` event.
+## Guardian boundary
 
-### Metacognition
-Input: workspace broadcasts, suppressed-candidate count, model evidence.
-Output: calibrated confidence assessment. v0 retains the `0.06` inaccessible-competition penalty.
+Guardian evaluates the recommended counterfactual against operational state and welfare risk. Risk or non-stable operational state may require human review. A missing proposal is rejected.
 
-### Guardian
-Input: metacognitive event and a fixed benign-expression proposal.
-Output: governance decision: `allow`, `human-review`, or later `reject` paths.
+## Executive boundary
 
-### Expression
-Input: Guardian-approved context plus admitted workspace broadcasts only.
-Output: human-facing neutral functional report. It may not read suppressed candidates or raw Sensorium state.
+Executive can select only the recommended counterfactual whose action ID exactly matches a Guardian `allow` decision. Otherwise action is withheld. Executive cannot manufacture an alternative action or bypass Guardian.
 
-### Memory
-Every committed runtime event is appended to episodic memory with provenance. Raw episode history is not silently rewritten.
+## Expression boundary
+
+Expression receives the Executive selection plus admitted workspace state and metacognitive confidence. It does not read suppressed candidates. Only the selected `neutral-summary` action produces the current v0 outward report.
