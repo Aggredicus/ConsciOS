@@ -1,0 +1,10 @@
+import {adaptExperienceFrameToModelMessages} from '../../../runtime/cognitive-model-adapter-v2.mjs';
+const base={schemaVersion:'1.7.0',cycleId:2,present:{observations:[{type:'human.message',content:'Hello!'}],workspace:[{type:'workspace.broadcast',content:'Hello!'}]},remembered:{recentEvents:[{role:'system',content:'Earlier output'}]},modeled:{world:{humanMessagePresent:true},self:{continuityAvailable:true}},anticipated:{predictions:[],counterfactuals:[]},possible:{affordances:['expression','no-op']},uncertain:{assessments:[]}};
+const a=adaptExperienceFrameToModelMessages(base);
+if(a.messages.at(-1).role!=='user'||a.messages.at(-1).content!=='Hello!')throw new Error('human observation must remain a native user turn');
+if(!a.messages.some(x=>x.role==='assistant'&&x.content==='Earlier output'))throw new Error('recent system expression must become assistant history');
+if(a.messages[0].content.includes('"observations"'))throw new Error('raw ExperienceFrame must not be passed as a JSON document');
+const autonomous=structuredClone(base);autonomous.present.observations=[];autonomous.remembered.recentEvents=[];
+const b=adaptExperienceFrameToModelMessages(autonomous);
+if(b.messages.at(-1).role!=='user')throw new Error('autonomous cycle must provide a generation turn');
+console.log('native cognitive adapter v2 verified');
