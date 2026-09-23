@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - 'runtime/models/**'
+      - 'local/**'
       - 'observer/experiments/browser-ai-host/**'
       - '.github/workflows/verify-browser-ai-host.yml'
   push:
     branches: [main]
     paths:
       - 'runtime/models/**'
+      - 'local/**'
       - 'observer/experiments/browser-ai-host/**'
       - '.github/workflows/verify-browser-ai-host.yml'
   workflow_dispatch:
@@ -27,3 +29,5 @@ jobs:
           node-version: '22'
       - name: Verify browser-local model host contract
         run: node observer/experiments/browser-ai-host/verify.mjs
+      - name: Verify hosted local browser lab
+        run: node observer/experiments/browser-ai-host/verify-local-ui.mjs
