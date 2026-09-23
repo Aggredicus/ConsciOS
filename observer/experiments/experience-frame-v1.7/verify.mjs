@@ -22,8 +22,10 @@ ok(ui.includes('Math.min(2097152,n)'),'editable token field must allow 32x prior
 ok(ui.includes("some(o=>o?.type==='human.message')"),'human presence must derive from human-message events');
 ok(ui.includes("localStorage.setItem('conscios:first-encounter:v1.7'"),'observer record must persist locally');
 ok(html.includes('id="export"'),'observer export control missing');
+ok(!html.match(/<textarea[^>]*id="message"[^>]*disabled/),'message composer should be editable before first cycle');
+ok(ui.includes("$('message').disabled=v"),'composer should only lock while inference is busy');
 ok(ui.includes('loadedManifest?.model'),'frame provenance must bind to loaded model');
 ok(ui.includes('resetSession('),'model/backend changes must clear the encounter session');
-ok(ui.includes('if(first)firstCycleComplete=true'),'conversation must open only after successful first cycle');
+ok(ui.includes('if(first){firstCycleComplete=true;'),'conversation must open only after successful first cycle');
 ok(!ui.includes('You are conscious'),'consciousness narrative forbidden');
 console.log('Experience Frame v1.7 verification passed');
