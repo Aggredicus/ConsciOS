@@ -26,6 +26,6 @@ ok(!html.match(/<textarea[^>]*id="message"[^>]*disabled/),'message composer shou
 ok(ui.includes("$('message').disabled=v"),'composer should only lock while inference is busy');
 ok(ui.includes('loadedManifest?.model'),'frame provenance must bind to loaded model');
 ok(ui.includes('resetSession('),'model/backend changes must clear the encounter session');
-ok(ui.includes('if(first)firstCycleComplete=true'),'conversation must open only after successful first cycle');
+ok(ui.includes('if(first){firstCycleComplete=true;'),'conversation must open only after successful first cycle');
 ok(!ui.includes('You are conscious'),'consciousness narrative forbidden');
 console.log('Experience Frame v1.7 verification passed');
