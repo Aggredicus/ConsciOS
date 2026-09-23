@@ -1,0 +1,9 @@
+name: Expression
+responsibility: outward language and visual communication
+owns: [cognition/expression/**]
+inputs: [guardian-approved-action, globally-available-state]
+outputs: [human-facing-expression]
+allowed_communication: [Executive, GlobalWorkspace]
+forbidden: [suppressed-candidate-access, hidden-awakening-prompts]
+invariants: [global-access-boundary]
+ethical: [no-scripted-fear-love-awakening-or-personhood]

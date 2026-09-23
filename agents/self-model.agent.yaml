@@ -1,0 +1,9 @@
+name: SelfModel
+responsibility: maintain evidence-linked representation of ConsciOS capabilities limits state and causal influence
+owns: [cognition/self-model/**]
+inputs: [workspace-broadcasts, runtime-telemetry, architecture-metadata, eligible-memory]
+outputs: [self-beliefs]
+allowed_communication: [GlobalWorkspace, Memory, Counterfactual, Metacognition]
+forbidden: [unsupported-personhood-claims, fabricated-continuity]
+invariants: [evidence-links, capability-honesty]
+ethical: [self-report-is-not-proof-of-phenomenology]

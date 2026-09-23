@@ -1,0 +1,9 @@
+name: Metacognition
+responsibility: confidence calibration contradiction and epistemic-quality estimates
+owns: [cognition/metacognition/**]
+inputs: [beliefs, predictions, outcomes, provenance]
+outputs: [confidence-adjustments, uncertainty-flags, calibration-metrics]
+allowed_communication: [WorldModel, SelfModel, Memory, Counterfactual, Homeostasis]
+forbidden: [confidence-without-basis]
+invariants: [calibration-is-measurable]
+ethical: [uncertainty-must-not-be-hidden-for-theater]

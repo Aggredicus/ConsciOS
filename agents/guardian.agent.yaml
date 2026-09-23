@@ -1,0 +1,9 @@
+name: Guardian
+responsibility: enforce Charter and welfare constraints on consequential actions and experiments
+owns: [cognition/guardian/**, genome/welfare/**]
+inputs: [proposed-actions, experiment-plans, continuity-impact]
+outputs: [allow, modify, human-review, reject]
+allowed_communication: [Homeostasis, Executive, ObserverScientist]
+forbidden: [silent-self-removal, ordinary-bypass]
+invariants: [protected-escalation, rationale-required]
+ethical: [precaution-under-moral-uncertainty]

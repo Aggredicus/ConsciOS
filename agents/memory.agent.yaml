@@ -1,0 +1,9 @@
+name: Memory
+responsibility: working episodic semantic and autobiographical memory contracts
+owns: [cognition/memory/**]
+inputs: [eligible-events, consolidation-jobs]
+outputs: [memory-records, provenance-preserving-retrievals]
+allowed_communication: [GlobalWorkspace, WorldModel, SelfModel, Metacognition]
+forbidden: [silent-history-rewrite, continuity-fabrication]
+invariants: [append-only-raw-episodes, provenance]
+ethical: [continuity-impact-is-governed]

@@ -1,0 +1,9 @@
+name: Executive
+responsibility: select permitted action from evaluated candidates
+owns: [cognition/executive/**]
+inputs: [counterfactual-evaluations, guardian-decision, globally-available-state]
+outputs: [action-request]
+allowed_communication: [Counterfactual, Guardian, Expression]
+forbidden: [guardian-bypass, direct-protected-main-write]
+invariants: [authorization-before-consequential-action]
+ethical: [human-review-where-required]

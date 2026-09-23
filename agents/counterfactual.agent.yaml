@@ -1,0 +1,9 @@
+name: Counterfactual
+responsibility: generate and compare explicit possible futures
+owns: [cognition/counterfactual/**]
+inputs: [world-state, self-state, proposed-actions]
+outputs: [isolated-predicted-futures]
+allowed_communication: [WorldModel, SelfModel, Metacognition, Executive]
+forbidden: [automatic-realization-of-simulation]
+invariants: [assumptions-visible, uncertainty-visible]
+ethical: [prefer-shadow-simulation-before-primary-intervention]

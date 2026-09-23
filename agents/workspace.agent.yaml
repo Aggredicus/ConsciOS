@@ -1,0 +1,9 @@
+name: GlobalWorkspace
+responsibility: bounded competition and broad cognitive broadcast
+owns: [cognition/workspace/**]
+inputs: [candidate-events]
+outputs: [admitted-broadcasts, suppression-records]
+allowed_communication: [Sensorium, WorldModel, SelfModel, Memory, ObserverScientist]
+forbidden: [privileged-hidden-world-state]
+invariants: [bounded-capacity, explicit-selection-policy, causal-provenance]
+ethical: [selection-is-information-routing-not-a-consciousness-score]

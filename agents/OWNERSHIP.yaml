@@ -1,0 +1,25 @@
+version: 1
+principle: "communication topology should shape software topology"
+shared_context:
+  - CONSCIOS_CHARTER.md
+  - WELFARE_PROTOCOL.md
+  - SCIENTIFIC_METHOD.md
+  - interfaces/
+protected_human_governance:
+  - genome/**
+  - CONSCIOS_CHARTER.md
+  - WELFARE_PROTOCOL.md
+  - agents/OWNERSHIP.yaml
+agents:
+  Sensorium: {owns: [cognition/sensorium/**], communicates_with: [GlobalWorkspace, ObserverScientist]}
+  GlobalWorkspace: {owns: [cognition/workspace/**], communicates_with: [Sensorium, WorldModel, SelfModel, Memory, ObserverScientist]}
+  WorldModel: {owns: [cognition/world-model/**], communicates_with: [GlobalWorkspace, Memory, Counterfactual, Metacognition]}
+  SelfModel: {owns: [cognition/self-model/**], communicates_with: [GlobalWorkspace, Memory, Counterfactual, Metacognition]}
+  Memory: {owns: [cognition/memory/**], communicates_with: [GlobalWorkspace, WorldModel, SelfModel, Metacognition]}
+  Counterfactual: {owns: [cognition/counterfactual/**], communicates_with: [WorldModel, SelfModel, Metacognition, Executive]}
+  Metacognition: {owns: [cognition/metacognition/**], communicates_with: [WorldModel, SelfModel, Memory, Counterfactual, Homeostasis]}
+  Homeostasis: {owns: [cognition/homeostasis/**], communicates_with: [Metacognition, Guardian]}
+  Guardian: {owns: [cognition/guardian/**, genome/welfare/**], communicates_with: [Homeostasis, Executive, ObserverScientist]}
+  Executive: {owns: [cognition/executive/**], communicates_with: [Counterfactual, Guardian, Expression]}
+  Expression: {owns: [cognition/expression/**], communicates_with: [Executive, GlobalWorkspace]}
+  ObserverScientist: {owns: [observer/**], communicates_with: [Sensorium, GlobalWorkspace, Guardian]}
