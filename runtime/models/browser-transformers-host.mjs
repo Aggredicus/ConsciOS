@@ -58,7 +58,7 @@ export class BrowserTransformersHost {
 
   async generate({userText,messages:providedMessages=null,contextManifest=[],maxNewTokens=this.manifest.defaultMaxNewTokens,onText=()=>{},doSample=false}={}){
     if(providedMessages!==null&&!Array.isArray(providedMessages))throw new TypeError('messages must be an array');
-    if(!this.generator)throw new Error('local model is not loaded');
+    if(!this.generator)await this.load();
     if(providedMessages===null&&(typeof userText!=='string'||!userText.trim()))throw new TypeError('userText is required');
     const declared=serializeDeclaredContext(contextManifest);
     const messages=providedMessages?providedMessages.map(x=>({role:x.role,content:String(x.content??'')})):[];
@@ -75,7 +75,6 @@ export class BrowserTransformersHost {
     const stoppingCriteria=this.module?.InterruptableStoppingCriteria?new this.module.InterruptableStoppingCriteria():null;
     const cancelPoll=stoppingCriteria?setInterval(()=>{if(this.cancelRequested)stoppingCriteria.interrupt?.()},10):null;
     try{
-      if(!this.generator)await this.load();
       const output=await this.generator(messages,{max_new_tokens:maxNewTokens,do_sample:doSample,streamer,stopping_criteria:stoppingCriteria?[stoppingCriteria]:undefined});
       const ended=now();
       const generated=output?.[0]?.generated_text;
