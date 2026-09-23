@@ -19,5 +19,11 @@ ok(html.includes('lengthRange')&&html.includes('lengthNumber'),'adjustable respo
 ok(ui.includes('maxNewTokens:responseTokens()'),'response length must control generation ceiling');
 ok(html.includes('max="1048576"'),'response slider must allow 32x prior upper limit');
 ok(ui.includes('Math.min(2097152,n)'),'editable token field must allow 32x prior upper limit');
+ok(ui.includes("some(o=>o?.type==='human.message')"),'human presence must derive from human-message events');
+ok(ui.includes("localStorage.setItem('conscios:first-encounter:v1.7'"),'observer record must persist locally');
+ok(html.includes('id="export"'),'observer export control missing');
+ok(ui.includes('loadedManifest?.model'),'frame provenance must bind to loaded model');
+ok(ui.includes('resetSession('),'model/backend changes must clear the encounter session');
+ok(ui.includes('if(first)firstCycleComplete=true'),'conversation must open only after successful first cycle');
 ok(!ui.includes('You are conscious'),'consciousness narrative forbidden');
 console.log('Experience Frame v1.7 verification passed');
