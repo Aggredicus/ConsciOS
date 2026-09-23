@@ -26,4 +26,8 @@ for(const forbidden of ['api.openai.com','api.anthropic.com','generativelanguage
 assert.ok(js.includes("model?.cancel()"),'UI must expose typed model cancellation');
 assert.ok(js.includes('model cache hit not asserted'),'cache state must not be fabricated');
 assert.ok(js.includes("state.failure='WebGPU selected but unavailable; choose WASM explicitly.'"),'WebGPU failure must require explicit fallback');
-console.log('ConsciOS local browser lab verification passed: explicit load, typed CognitiveModel conversation, real scheduler CognitiveEvents, causal ancestry, honest telemetry, cancellation, and no proprietary inference fallback.');
+// Pass F accessibility/mobile invariants: keyboard navigation, status semantics, labelled progress/table overflow, usable touch targets, reduced motion.
+for(const text of ['class="skip" href="#main"','id="main"','role="status"','role="log"','aria-label="Model loading progress"','aria-label="Conversation-turn temporal metrics table"','scope="col"','@media(prefers-reduced-motion:reduce)','min-height:44px'])assert.ok(html.includes(text),`Pass F accessibility invariant missing: ${text}`);
+assert.ok(html.includes('@media(max-width:560px)')&&html.includes('button{width:100%'), 'mobile controls must remain usable at narrow widths');
+assert.ok(html.includes(':focus-visible'), 'keyboard focus must be visibly indicated');
+console.log('ConsciOS local browser lab verification passed: explicit load, typed CognitiveModel conversation, real scheduler CognitiveEvents, causal ancestry, honest telemetry, cancellation, no proprietary inference fallback, and Pass F mobile/accessibility invariants.');
