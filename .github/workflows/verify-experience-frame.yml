@@ -1,0 +1,27 @@
+name: Verify Experience Frame v1.7
+on:
+  pull_request:
+    paths:
+      - 'runtime/experience-frame-v1.7.mjs'
+      - 'local/encounter/**'
+      - 'observer/experiments/experience-frame-v1.7/**'
+      - '.github/workflows/verify-experience-frame.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/experience-frame-v1.7.mjs'
+      - 'local/encounter/**'
+      - 'observer/experiments/experience-frame-v1.7/**'
+      - '.github/workflows/verify-experience-frame.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - run: node observer/experiments/experience-frame-v1.7/verify.mjs
