@@ -1,15 +1,25 @@
 import { assertValidModelInput, assertValidModelOutput } from './validation.mjs';
 
-const PROVIDER=Object.freeze({kind:'deterministic-mock',name:'conscios-v0.7-mock',hiddenState:'none'});
+const PROVIDER=Object.freeze({kind:'deterministic-mock',name:'conscios-v0.8-mock',hiddenState:'none'});
 
 function causalIds(input){return [...input.causalSourceIds]}
-function successContent(input){
+function worldStateSummary(input){
+  const texts=input.contextManifest.map(a=>typeof a.content==='string'?a.content:JSON.stringify(a.content));
   return {
+    activeHumanInstruction:texts.some(t=>t.includes('human supplied')),
+    runtimeChangeObserved:texts.some(t=>t.includes('Memory utilization')),
+    accessibleEventCount:input.contextManifest.length
+  };
+}
+function successContent(input){
+  const base={
     inferenceType:input.inferenceType,
     requestingModule:input.requestingModule,
     accessibleArtifactIds:input.contextManifest.map(a=>a.artifactId),
     result:`deterministic:${input.inferenceType}:${input.contextManifest.length}`
   };
+  if(input.inferenceType==='world-state-summary')base.worldState=worldStateSummary(input);
+  return base;
 }
 
 export class DeterministicMockModel {
