@@ -33,3 +33,5 @@ jobs:
         run: node observer/experiments/browser-ai-host/verify-local-ui.mjs
       - name: Verify real CognitiveEvent architecture trace
         run: node observer/experiments/browser-ai-host/verify-architecture-trace.mjs
+      - name: Verify recurrent scientific controls
+        run: node observer/experiments/browser-ai-host/verify-scientific-controls.mjs
