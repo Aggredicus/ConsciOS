@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "CTX-example-workspace",
+  "role": "GlobalWorkspace",
+  "task": "Evaluate a Workspace admission-policy change",
+  "sharedArtifacts": ["CONSCIOS_CHARTER.md","WELFARE_PROTOCOL.md","SCIENTIFIC_METHOD.md","agents/OWNERSHIP.yaml","agents/workspace.agent.yaml"],
+  "ownedArtifacts": ["cognition/workspace/MODULE.md","cognition/workspace/v0.mjs"],
+  "interfaceArtifacts": ["interfaces/README.md"],
+  "incomingArtifacts": ["schemas/cognitive-event.schema.json"],
+  "contextExpansions": [],
+  "forbiddenRoots": ["cognition/sensorium","cognition/world-model","cognition/self-model","cognition/memory","cognition/counterfactual","cognition/metacognition","cognition/homeostasis","cognition/guardian","cognition/executive","cognition/expression","runtime","live","audits"],
+  "files": []
+}

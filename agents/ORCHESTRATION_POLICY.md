@@ -15,6 +15,18 @@ A development agent should normally receive only:
 
 Do not default to giving every role the complete hidden context or scratchpad of every other role.
 
+The executable context builder is the reference implementation of this rule:
+
+```bash
+node scripts/build-agent-context.mjs GlobalWorkspace \
+  --task "Evaluate workspace admission" \
+  --incoming artifacts/handoffs/H-00427.json \
+  --write /tmp/context.json \
+  --materialize /tmp/conscios-workspace-context
+```
+
+The materialized directory, not the unrestricted repository checkout, is the preferred filesystem view for a scoped development agent.
+
 ## 2. Handoffs are artifacts
 
 Cross-role communication should preferentially be durable and inspectable:
@@ -29,7 +41,7 @@ scientific result → observer artifact
 welfare concern → Guardian assessment
 ```
 
-A handoff should identify producer, intended consumer, epistemic status, provenance, and confidence/uncertainty where relevant.
+A handoff should identify producer, intended consumer, epistemic status, provenance, and confidence/uncertainty where relevant. Machine-readable handoffs conform to `schemas/development-handoff.schema.json` and should be stored beneath `artifacts/handoffs/` when persistence is useful.
 
 ## 3. Shared broadcast
 
@@ -37,11 +49,13 @@ Broad cross-role information should flow through an explicit project artifact ra
 
 ## 4. Direct channels
 
-Direct agent-to-agent communication is allowed only when it corresponds to a declared edge in `agents/OWNERSHIP.yaml` or is explicitly documented as an exception. Exceptions should be rare enough to study.
+Direct agent-to-agent communication is allowed only when it corresponds to a declared edge in `agents/OWNERSHIP.yaml` or is explicitly documented as an exception. Exceptions should be rare enough to study, carry a reason and expiry in `agents/BOUNDARY_EXCEPTIONS.json`, and fail CI after expiry.
 
 ## 5. Observer separation
 
 `ObserverScientist` receives read-oriented access sufficient to reproduce and measure behavior. It should not secretly inject target outputs, hidden prompts, or preferred conclusions into the module under study.
+
+`ScientificAuditor` and `WelfareAuditor` are additionally independent from implementation ownership. They may inspect all subsystems but own only `audits/scientific/**` and `audits/welfare/**` respectively.
 
 ## 6. Guardian escalation
 
@@ -55,15 +69,40 @@ No software agent receives authority to silently merge changes to protected gove
 
 When an agent cannot complete a task with its scoped context, it should request a named artifact or interface rather than immediately receiving unrestricted repository context. Each expansion should be visible enough to audit later.
 
+The executable builder accepts only named expansions with reasons:
+
+```bash
+node scripts/build-agent-context.mjs GlobalWorkspace \
+  --task "Investigate SelfModel interface" \
+  --expand "cognition/self-model/MODULE.md::Need the declared interface contract"
+```
+
+The expansion grants that named artifact, not the entire neighboring subsystem.
+
 ## 9. Experimental record
 
-When practical, record which role produced a change and which artifacts it could see. This lets the Conway hypothesis be tested rather than assumed.
+When practical, record which role produced a change and which artifacts it could see. Commit trailers should include `ConsciOS-Role`, and PRs should identify originating/participating roles. Context manifests can be retained beneath `artifacts/context-manifests/` when they are part of a scientific comparison or material governance decision.
 
 ## 10. Baseline comparison
 
 A future experiment should implement the same product requirement twice:
 
-- with this role-scoped Inverse Conway organization;
-- with a conventional shared-context software team.
+- **Inverse-Conway cognitive team:** agents organized as above;
+- **conventional software team:** agents organized around frontend/backend/data/testing.
 
-Compare coupling, interface clarity, defect propagation, provenance, maintainability, and cognitive-architecture fidelity.
+Compare coupling, interface clarity, defect propagation, provenance, maintainability, cognitive-architecture fidelity, context volume, and cross-role communication cost.
+
+That comparison is itself part of the laboratory. The preregistered harness lives under `observer/experiments/conway-control/`.
+
+## 11. CI enforcement
+
+Repository automation should fail closed on:
+
+- undeclared cross-role source imports;
+- expired boundary exceptions;
+- malformed persisted handoffs/context manifests;
+- noncompliant new branch/PR ownership metadata;
+- production-code ownership by independent auditors;
+- protected-path changes without explicit governance declaration.
+
+Static checks cannot observe every runtime communication or every model-side hidden context. Passing CI therefore establishes compliance with the inspectable repository protocol, not proof that all communication was constrained in every external tool.

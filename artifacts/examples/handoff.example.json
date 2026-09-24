@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "id": "H-example-sensorium-workspace",
+  "producer": "Sensorium",
+  "consumers": ["GlobalWorkspace"],
+  "epistemicStatus": "observation",
+  "summary": "Sensorium proposes a typed observation interface for Workspace admission.",
+  "artifactPaths": ["schemas/cognitive-event.schema.json"],
+  "causalParents": ["OBS-example"],
+  "confidence": 1,
+  "sourceCommit": "example",
+  "constraints": ["No hidden provider context"]
+}

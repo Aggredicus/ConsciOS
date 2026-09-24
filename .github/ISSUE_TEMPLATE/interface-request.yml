@@ -1,0 +1,21 @@
+name: Interface request
+description: Request named information or an interface without expanding to unrestricted repository context.
+title: "[interface] "
+labels: ["epistemic:hypothesis"]
+body:
+  - type: input
+    id: requester
+    attributes: {label: Requesting role}
+    validations: {required: true}
+  - type: input
+    id: provider
+    attributes: {label: Intended provider role}
+    validations: {required: true}
+  - type: textarea
+    id: need
+    attributes: {label: Exact artifact or interface needed, description: "Name the smallest sufficient artifact and why current scoped context is insufficient."}
+    validations: {required: true}
+  - type: textarea
+    id: boundary
+    attributes: {label: Information-boundary impact, description: "State what becomes visible and what remains unavailable."}
+    validations: {required: true}

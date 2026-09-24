@@ -1,0 +1,25 @@
+name: Cognitive development handoff
+description: Transfer an explicit artifact between declared development roles.
+title: "[handoff] "
+labels: ["state:counterfactual"]
+body:
+  - type: dropdown
+    id: producer
+    attributes:
+      label: Producer role
+      options: [Sensorium, GlobalWorkspace, WorldModel, SelfModel, Memory, Counterfactual, Metacognition, Homeostasis, Guardian, Executive, Expression, ObserverScientist, ScientificAuditor, WelfareAuditor]
+    validations: {required: true}
+  - type: input
+    id: consumers
+    attributes: {label: Consumer role(s), description: "Comma-separated declared consumers."}
+    validations: {required: true}
+  - type: dropdown
+    id: epistemic
+    attributes:
+      label: Epistemic status
+      options: [observation, belief, hypothesis, prediction, interface-request, counterfactual, governance, audit, result, decision]
+    validations: {required: true}
+  - type: textarea
+    id: artifact
+    attributes: {label: Artifact and provenance, description: "Name the repository artifact(s), causal parents, confidence/uncertainty, and source commit."}
+    validations: {required: true}
