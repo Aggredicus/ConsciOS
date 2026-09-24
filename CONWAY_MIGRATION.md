@@ -27,6 +27,8 @@ The goal is not aesthetic symmetry. It is to make communication constraints caus
 - `observer/` — experiments, measurements, causal traces, falsification work, and the matched Conway control laboratory.
 - `audits/` — independent Scientific and Welfare audit findings; auditors own no production cognition.
 - `runtime/` — embodied integration boundary.
+- `live/` — live cognitive visualization surface.
+- `local/` — deployed browser-local AI/Encounter body; an Expression/Executive integration surface included in phenotype fingerprints.
 - `phenotype/` — deterministic fingerprint definition for accepted executable architecture.
 - `governance/` — machine-readable path/branch/provenance policy.
 - `ci/` — role-aware fast-path test routing.
@@ -77,7 +79,7 @@ For new PRs:
 - protected-path changes require Guardian participation and an affirmative governance declaration;
 - every non-merge commit must carry `ConsciOS-Role: <CanonicalRole>`.
 
-Pre-enforcement open PRs are handled only through explicit expiring entries in `governance/legacy-pr-exceptions.json`.
+`governance/legacy-pr-exceptions.json` is currently empty. If an exceptional migration is ever unavoidable, it must be explicit, justified, and expiring rather than becoming a permanent bypass.
 
 ### Independent auditors
 
@@ -87,9 +89,13 @@ Pre-enforcement open PRs are handled only through explicit expiring entries in `
 
 `ci/subsystems.json` maps roles to fast verifier scripts. A PR runs tests for directly changed roles plus one-hop declared communication neighbors and ObserverScientist. This supplements rather than replaces the complete regression suite.
 
+### Browser-body integrity
+
+`observer/experiments/browser-entrypoints/verify.mjs` treats the deployed browser body as part of the governed system. It syntax-checks critical browser/runtime modules, rejects literal escaped-newline module corruption, resolves relative imports, and verifies that Encounter model selection remains connected to a non-empty unique starter-model manifest.
+
 ### Accepted phenotype manifests
 
-`scripts/generate-phenotype-manifest.mjs` hashes the architecture/governance/runtime surfaces and computes a deterministic root hash. Every accepted `main` push uploads the exact phenotype manifest as a workflow artifact keyed by commit SHA.
+`scripts/generate-phenotype-manifest.mjs` hashes the architecture/governance/runtime/browser surfaces—including `local/`—and computes a deterministic root hash. Every accepted `main` push uploads the exact phenotype manifest as a workflow artifact keyed by commit SHA.
 
 ### Fail-closed negative controls
 
@@ -124,7 +130,7 @@ While ConsciOS has only one trusted human maintainer, the expected ruleset uses 
 
 ## Matched Conway control experiment
 
-The repository now preregisters a future matched comparison in `observer/experiments/conway-control/`:
+The repository preregisters a future matched comparison in `observer/experiments/conway-control/`:
 
 - **inverse-conway:** scoped role context + typed handoffs + declared ownership/communication;
 - **conventional:** frontend/backend/data/testing organization with shared repository context.
