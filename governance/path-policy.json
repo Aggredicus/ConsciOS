@@ -28,7 +28,8 @@
     {"prefix":"scripts/","roles":["Guardian","ObserverScientist","Executive"]},
     {"prefix":"phenotype/","roles":["Executive","ObserverScientist"]},
     {"prefix":"governance/","roles":["Guardian"]},
-    {"prefix":".github/","roles":["Guardian"]}
+    {"prefix":".github/","roles":["Guardian"]},
+    {"prefix":"ci/","roles":["Executive","Guardian"]}
   ],
   "protectedPaths": [
     "genome/",

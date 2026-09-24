@@ -1,0 +1,30 @@
+name: Verify accepted phenotype manifest
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  phenotype:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Verify deterministic phenotype fingerprint
+        run: node scripts/verify-phenotype-manifest.mjs
+      - name: Generate accepted phenotype artifact
+        if: github.event_name == 'push'
+        run: node scripts/generate-phenotype-manifest.mjs --output=dist/phenotype-manifest.json
+      - uses: actions/upload-artifact@v4
+        if: github.event_name == 'push'
+        with:
+          name: conscios-phenotype-${{ github.sha }}
+          path: dist/phenotype-manifest.json
+          if-no-files-found: error

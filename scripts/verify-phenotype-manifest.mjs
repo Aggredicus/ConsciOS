@@ -1,0 +1,4 @@
+import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import assert from 'node:assert/strict';import { execFileSync } from 'node:child_process';
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'conscios-phenotype-'));const a=path.join(dir,'a.json'),b=path.join(dir,'b.json');
+for(const out of [a,b])execFileSync(process.execPath,['scripts/generate-phenotype-manifest.mjs',`--output=${out}`],{stdio:'inherit'});
+assert.equal(fs.readFileSync(a,'utf8'),fs.readFileSync(b,'utf8'),'phenotype generation is not deterministic');const m=JSON.parse(fs.readFileSync(a,'utf8'));assert.match(m.rootHash,/^[0-9a-f]{64}$/);assert.ok(m.files.some(x=>x.path==='agents/OWNERSHIP.yaml'));assert.ok(m.files.some(x=>x.path.startsWith('cognition/workspace/')));assert.ok(m.files.some(x=>x.path.startsWith('runtime/')));fs.rmSync(dir,{recursive:true,force:true});console.log(`Phenotype manifest deterministic: ${m.files.length} files, root ${m.rootHash}.`);

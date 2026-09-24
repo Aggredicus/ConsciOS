@@ -1,0 +1,1 @@
+{"condition":"conventional","requirementId":"fixture-001","startingCommit":"abc1234","metrics":{"crossRoleImportEdges":7,"undeclaredDependencyEdges":2,"dependencyCycles":1,"contextBytes":400000,"handoffCount":1,"filesChangedPerDefect":4,"regressionFailures":3,"mergeConflicts":1,"architectureBoundaryViolations":3,"acceptanceTestsPassed":19}}

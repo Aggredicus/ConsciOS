@@ -1,0 +1,1 @@
+{"condition":"inverse-conway","requirementId":"fixture-001","startingCommit":"abc1234","metrics":{"crossRoleImportEdges":4,"undeclaredDependencyEdges":0,"dependencyCycles":0,"contextBytes":120000,"handoffCount":6,"filesChangedPerDefect":2,"regressionFailures":1,"mergeConflicts":0,"architectureBoundaryViolations":0,"acceptanceTestsPassed":20}}

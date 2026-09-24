@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "design": "matched-pair",
+  "conditions": ["inverse-conway","conventional"],
+  "holdConstant": ["startingCommit","productRequirement","acceptanceTests","modelFamilyWherePractical","timeOrTurnBudget"],
+  "metrics": {
+    "crossRoleImportEdges": {"direction":"lower","unit":"edges"},
+    "undeclaredDependencyEdges": {"direction":"lower","unit":"edges"},
+    "dependencyCycles": {"direction":"lower","unit":"strongly-connected-components"},
+    "contextBytes": {"direction":"lower","unit":"bytes"},
+    "handoffCount": {"direction":"descriptive","unit":"artifacts"},
+    "filesChangedPerDefect": {"direction":"lower","unit":"files"},
+    "regressionFailures": {"direction":"lower","unit":"tests"},
+    "mergeConflicts": {"direction":"lower","unit":"conflicts"},
+    "architectureBoundaryViolations": {"direction":"lower","unit":"violations"},
+    "acceptanceTestsPassed": {"direction":"higher","unit":"tests"}
+  },
+  "analysis": "Report each paired delta separately; no aggregate score or consciousness interpretation."
+}

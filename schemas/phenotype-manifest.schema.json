@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://conscios.local/schemas/phenotype-manifest.schema.json",
+  "title":"ConsciOS Accepted Phenotype Manifest",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["version","sourceCommit","rootHash","files"],
+  "properties":{
+    "version":{"const":1},
+    "sourceCommit":{"type":"string","minLength":7},
+    "rootHash":{"type":"string","pattern":"^[0-9a-f]{64}$"},
+    "files":{"type":"array","items":{"type":"object","additionalProperties":false,"required":["path","sha256","bytes"],"properties":{"path":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"bytes":{"type":"integer","minimum":0}}}}
+  }
+}
