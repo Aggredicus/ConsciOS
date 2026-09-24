@@ -12,6 +12,7 @@
     "schemas",
     "runtime",
     "live",
+    "local",
     "encounter"
   ],
   "excludePrefixes": ["dist/","node_modules/",".git/"]
