@@ -3,10 +3,11 @@
   "target": "branch",
   "enforcement": "active",
   "ref": "refs/heads/main",
+  "soloMaintainerMode": true,
   "requirements": {
     "pullRequestRequired": true,
-    "codeOwnerReviewRequired": true,
-    "requiredApprovals": 1,
+    "codeOwnerReviewRequired": false,
+    "requiredApprovals": 0,
     "dismissStaleReviews": true,
     "requireConversationResolution": true,
     "blockForcePush": true,
@@ -16,7 +17,15 @@
       "verify-conway",
       "verify-boundaries",
       "verify-development-artifacts",
-      "verify-pr-governance"
+      "verify-pr-governance",
+      "role-aware-fast-path",
+      "phenotype",
+      "verify-control-harness"
     ]
+  },
+  "upgradeWhenSecondTrustedReviewerExists": {
+    "soloMaintainerMode": false,
+    "codeOwnerReviewRequired": true,
+    "requiredApprovals": 1
   }
 }
