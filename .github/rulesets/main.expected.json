@@ -20,7 +20,8 @@
       "verify-pr-governance",
       "role-aware-fast-path",
       "phenotype",
-      "verify-control-harness"
+      "verify-control-harness",
+      "verify-browser-entrypoints"
     ]
   },
   "upgradeWhenSecondTrustedReviewerExists": {
