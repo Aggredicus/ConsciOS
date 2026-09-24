@@ -1,7 +1,4 @@
 {
   "version": 1,
-  "pullRequests": [
-    {"number":49,"expires":"2026-10-31T00:00:00Z","reason":"Open before PR provenance enforcement; branch uses legacy fix/ prefix."},
-    {"number":56,"expires":"2026-10-31T00:00:00Z","reason":"Open before PR provenance enforcement; branch uses legacy ci/ prefix."}
-  ]
+  "pullRequests": []
 }
