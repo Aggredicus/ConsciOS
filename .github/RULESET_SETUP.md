@@ -13,11 +13,13 @@ Create one active branch ruleset targeting `main` with these requirements:
 3. do **not** require CODEOWNERS approval while there is no second trusted human reviewer;
 4. require conversation resolution;
 5. require branches/status checks to be up to date;
-6. require the Inverse Conway structure, boundary, development-artifact, PR-provenance, role-aware CI, phenotype, and Conway-control checks;
+6. require the Inverse Conway structure, boundary, development-artifact, PR-provenance, role-aware CI, phenotype, Conway-control, and browser-entrypoint integrity checks;
 7. block force pushes;
 8. block branch deletion.
 
 Human governance is still explicit in solo-maintainer mode: protected paths require a Guardian-origin/participating role, an affirmative protected-path declaration, compliant commit provenance, green CI, and an intentional human merge action. `CODEOWNERS` documents human ownership even though server-side CODEOWNERS review is not yet mandatory.
+
+The browser-entrypoint gate is included because `local/**` is part of the deployed browser body and therefore part of the accepted phenotype. It checks that critical browser/runtime ES modules parse, relative imports resolve, and the Encounter model selector remains connected to a non-empty model manifest.
 
 ## Upgrade when a second trusted human reviewer exists
 
