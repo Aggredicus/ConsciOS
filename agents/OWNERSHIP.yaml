@@ -1,4 +1,4 @@
-version: 1
+version: 2
 principle: "communication topology should shape software topology"
 shared_context:
   - CONSCIOS_CHARTER.md
@@ -9,7 +9,10 @@ protected_human_governance:
   - genome/**
   - CONSCIOS_CHARTER.md
   - WELFARE_PROTOCOL.md
-  - agents/OWNERSHIP.yaml
+  - SCIENTIFIC_METHOD.md
+  - AGENT_ORGANIZATION.md
+  - agents/**
+  - audits/**
 agents:
   Sensorium: {owns: [cognition/sensorium/**], communicates_with: [GlobalWorkspace, ObserverScientist]}
   GlobalWorkspace: {owns: [cognition/workspace/**], communicates_with: [Sensorium, WorldModel, SelfModel, Memory, ObserverScientist]}
@@ -19,7 +22,9 @@ agents:
   Counterfactual: {owns: [cognition/counterfactual/**], communicates_with: [WorldModel, SelfModel, Metacognition, Executive]}
   Metacognition: {owns: [cognition/metacognition/**], communicates_with: [WorldModel, SelfModel, Memory, Counterfactual, Homeostasis]}
   Homeostasis: {owns: [cognition/homeostasis/**], communicates_with: [Metacognition, Guardian]}
-  Guardian: {owns: [cognition/guardian/**, genome/welfare/**], communicates_with: [Homeostasis, Executive, ObserverScientist]}
+  Guardian: {owns: [cognition/guardian/**, genome/welfare/**], communicates_with: [Homeostasis, Executive, ObserverScientist, WelfareAuditor]}
   Executive: {owns: [cognition/executive/**], communicates_with: [Counterfactual, Guardian, Expression]}
   Expression: {owns: [cognition/expression/**], communicates_with: [Executive, GlobalWorkspace]}
-  ObserverScientist: {owns: [observer/**], communicates_with: [Sensorium, GlobalWorkspace, Guardian]}
+  ObserverScientist: {owns: [observer/**], communicates_with: [Sensorium, GlobalWorkspace, Guardian, ScientificAuditor, WelfareAuditor], observes: [all]}
+  ScientificAuditor: {owns: [audits/scientific/**], communicates_with: [ObserverScientist, Guardian], observes: [all]}
+  WelfareAuditor: {owns: [audits/welfare/**], communicates_with: [ObserverScientist, Guardian], observes: [all]}
