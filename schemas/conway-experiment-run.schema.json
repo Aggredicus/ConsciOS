@@ -1,0 +1,14 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://conscios.local/schemas/conway-experiment-run.schema.json",
+  "title":"ConsciOS Conway Control Run",
+  "type":"object",
+  "additionalProperties":false,
+  "required":["condition","requirementId","startingCommit","metrics"],
+  "properties":{
+    "condition":{"enum":["inverse-conway","conventional"]},
+    "requirementId":{"type":"string","minLength":1},
+    "startingCommit":{"type":"string","minLength":7},
+    "metrics":{"type":"object","additionalProperties":{"type":"number"}}
+  }
+}

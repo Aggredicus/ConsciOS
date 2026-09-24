@@ -1,0 +1,21 @@
+name: Verify Inverse Conway boundaries
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-boundaries:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify declared communication graph against source imports
+        run: node scripts/verify-conway-boundaries.mjs

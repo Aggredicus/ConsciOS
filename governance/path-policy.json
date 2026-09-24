@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "branchPrefixes": {
+    "Sensorium": "sensorium",
+    "GlobalWorkspace": "workspace",
+    "WorldModel": "world-model",
+    "SelfModel": "self-model",
+    "Memory": "memory",
+    "Counterfactual": "counterfactual",
+    "Metacognition": "metacognition",
+    "Homeostasis": "homeostasis",
+    "Guardian": "guardian",
+    "Executive": "executive",
+    "Expression": "expression",
+    "ObserverScientist": "observer",
+    "ScientificAuditor": "scientific-auditor",
+    "WelfareAuditor": "welfare-auditor"
+  },
+  "integrationPaths": [
+    {"prefix":"agents/","roles":["Guardian"]},
+    {"prefix":"audits/","roles":["ScientificAuditor","WelfareAuditor","Guardian"]},
+    {"prefix":"artifacts/","roles":["ObserverScientist"]},
+    {"prefix":"schemas/","roles":["ObserverScientist","Executive"]},
+    {"prefix":"interfaces/","roles":["Executive","ObserverScientist"]},
+    {"prefix":"runtime/","roles":["Executive"]},
+    {"prefix":"live/","roles":["Expression","Executive"]},
+    {"prefix":"encounter/","roles":["Expression","Executive"]},
+    {"prefix":"scripts/","roles":["Guardian","ObserverScientist","Executive"]},
+    {"prefix":"phenotype/","roles":["Executive","ObserverScientist"]},
+    {"prefix":"governance/","roles":["Guardian"]},
+    {"prefix":".github/","roles":["Guardian"]},
+    {"prefix":"ci/","roles":["Executive","Guardian"]}
+  ],
+  "protectedPaths": [
+    "genome/",
+    "CONSCIOS_CHARTER.md",
+    "WELFARE_PROTOCOL.md",
+    "SCIENTIFIC_METHOD.md",
+    "AGENT_ORGANIZATION.md",
+    "agents/",
+    "audits/",
+    ".github/"
+  ]
+}

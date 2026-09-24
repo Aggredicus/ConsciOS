@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "include": [
+    "CONSCIOS_CHARTER.md",
+    "WELFARE_PROTOCOL.md",
+    "SCIENTIFIC_METHOD.md",
+    "AGENT_ORGANIZATION.md",
+    "agents",
+    "cognition",
+    "genome",
+    "interfaces",
+    "schemas",
+    "runtime",
+    "live",
+    "encounter"
+  ],
+  "excludePrefixes": ["dist/","node_modules/",".git/"]
+}

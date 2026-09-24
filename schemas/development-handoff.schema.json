@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conscios.local/schemas/development-handoff.schema.json",
+  "title": "ConsciOS Development Handoff",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version","id","producer","consumers","epistemicStatus","summary","artifactPaths","causalParents","confidence","sourceCommit"],
+  "properties": {
+    "version": {"const": 1},
+    "id": {"type":"string","pattern":"^H-[A-Za-z0-9._-]+$"},
+    "producer": {"type":"string","minLength":1},
+    "consumers": {"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "epistemicStatus": {"enum":["observation","belief","hypothesis","prediction","interface-request","counterfactual","governance","audit","result","decision"]},
+    "summary": {"type":"string","minLength":1},
+    "artifactPaths": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "causalParents": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "confidence": {"type":["number","null"],"minimum":0,"maximum":1},
+    "sourceCommit": {"type":"string","pattern":"^(example|[0-9a-f]{7,40})$"},
+    "constraints": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}}
+  }
+}

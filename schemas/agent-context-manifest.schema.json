@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conscios.local/schemas/agent-context-manifest.schema.json",
+  "title": "ConsciOS Agent Context Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version","id","role","task","sharedArtifacts","ownedArtifacts","interfaceArtifacts","incomingArtifacts","contextExpansions","forbiddenRoots","files"],
+  "properties": {
+    "version": {"const":1},
+    "id": {"type":"string","pattern":"^CTX-[A-Za-z0-9._-]+$"},
+    "role": {"type":"string","minLength":1},
+    "task": {"type":"string","minLength":1},
+    "sharedArtifacts": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "ownedArtifacts": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "interfaceArtifacts": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "incomingArtifacts": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "contextExpansions": {"type":"array","items":{"type":"object","additionalProperties":false,"required":["artifact","reason"],"properties":{"artifact":{"type":"string","minLength":1},"reason":{"type":"string","minLength":1}}}},
+    "forbiddenRoots": {"type":"array","uniqueItems":true,"items":{"type":"string","minLength":1}},
+    "files": {"type":"array","items":{"type":"object","additionalProperties":false,"required":["path","sha256","source"],"properties":{"path":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"source":{"enum":["shared","owned","interface","incoming","expansion"]}}}}
+  }
+}

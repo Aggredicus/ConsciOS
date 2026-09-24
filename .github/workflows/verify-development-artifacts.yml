@@ -1,0 +1,22 @@
+name: Verify development handoffs and scoped context
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-development-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Validate typed handoffs and context manifests
+        run: node scripts/validate-development-artifacts.mjs
+      - name: Prove role-scoped context materialization
+        run: node scripts/verify-agent-context.mjs

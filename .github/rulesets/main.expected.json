@@ -1,0 +1,31 @@
+{
+  "name": "ConsciOS main governance",
+  "target": "branch",
+  "enforcement": "active",
+  "ref": "refs/heads/main",
+  "soloMaintainerMode": true,
+  "requirements": {
+    "pullRequestRequired": true,
+    "codeOwnerReviewRequired": false,
+    "requiredApprovals": 0,
+    "dismissStaleReviews": true,
+    "requireConversationResolution": true,
+    "blockForcePush": true,
+    "blockDeletion": true,
+    "strictStatusChecks": true,
+    "requiredStatusChecks": [
+      "verify-conway",
+      "verify-boundaries",
+      "verify-development-artifacts",
+      "verify-pr-governance",
+      "role-aware-fast-path",
+      "phenotype",
+      "verify-control-harness"
+    ]
+  },
+  "upgradeWhenSecondTrustedReviewerExists": {
+    "soloMaintainerMode": false,
+    "codeOwnerReviewRequired": true,
+    "requiredApprovals": 1
+  }
+}
