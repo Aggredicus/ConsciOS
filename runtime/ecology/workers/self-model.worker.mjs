@@ -1,10 +1,11 @@
 import { bindWorkerEndpoint } from './endpoint.mjs';
+import { createWorkerEventContext } from './event-context.mjs';
 import { compileRuntimePhenotype } from '../phenotype-compiler.mjs';
 import { createShadowEnvelopeValidator, shadowEnvelopeFromEvent } from '../cognitive-envelope-v1.mjs';
-import { createV0Runtime, V0_ARCHITECTURE_VERSION } from '../../v0-modular.mjs';
 import { updateSelfModelV0 } from '../../../cognition/self-model/v0.mjs';
-import { V0_WORKSPACE_CAPACITY } from '../../../cognition/workspace/v0-runtime.mjs';
 
+const V0_ARCHITECTURE_VERSION='0.6.0';
+const V0_WORKSPACE_CAPACITY=2;
 let configuration=null;
 
 await bindWorkerEndpoint(async message=>{
@@ -26,8 +27,7 @@ await bindWorkerEndpoint(async message=>{
     return structuredClone(envelope.payload);
   });
 
-  const runtime=createV0Runtime();
-  runtime.state.tick=message.initialTick??13;
+  const runtime=createWorkerEventContext({initialTick:message.initialTick??13});
   const result=updateSelfModelV0(broadcasts,{
     makeEvent:runtime.makeEvent,
     pushEvent:runtime.pushEvent,
