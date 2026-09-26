@@ -149,6 +149,9 @@ function runPolicy(candidates,{
     selected.push(winner);
     selectionTrace.push(Object.freeze({step:selected.length,winnerId:winner.id,ranking:Object.freeze(ranked)}));
 
+    // Inhibition after the final admission cannot affect a decision. Omitting it keeps
+    // structured and randomized controls matched on causally relevant message budget.
+    if(selected.length>=parameters.capacity)break;
     if(!fastInhibition)continue;
     const unselected=input.filter(candidate=>!selected.some(item=>item.id===candidate.id)&&!gatedIds.has(candidate.id));
     const sameRoot=unselected.filter(candidate=>candidate.rootObservationId===winner.rootObservationId);
