@@ -1,7 +1,7 @@
 import { bindWorkerEndpoint } from './endpoint.mjs';
+import { createWorkerEventContext } from './event-context.mjs';
 import { compileRuntimePhenotype } from '../phenotype-compiler.mjs';
 import { createShadowEnvelopeValidator, shadowEnvelopeFromEvent } from '../cognitive-envelope-v1.mjs';
-import { createV0Runtime } from '../../v0-modular.mjs';
 import { updateWorldModelV0 } from '../../../cognition/world-model/v0.mjs';
 
 let configuration=null;
@@ -25,8 +25,7 @@ await bindWorkerEndpoint(async message=>{
     return structuredClone(envelope.payload);
   });
 
-  const runtime=createV0Runtime();
-  runtime.state.tick=message.initialTick??12;
+  const runtime=createWorkerEventContext({initialTick:message.initialTick??12});
   const result=updateWorldModelV0(broadcasts,{makeEvent:runtime.makeEvent,pushEvent:runtime.pushEvent});
   const envelope=shadowEnvelopeFromEvent(result.event,{program:configuration.program,phenotype:configuration.phenotype,cycleId:message.cycleId??1,payload:result.event});
   return {kind:'world-model.update.v0',role:'WorldModel',model:result.world,envelope};
