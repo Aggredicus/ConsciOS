@@ -1,7 +1,7 @@
 import { bindWorkerEndpoint } from './endpoint.mjs';
+import { createWorkerEventContext } from './event-context.mjs';
 import { compileRuntimePhenotype } from '../phenotype-compiler.mjs';
 import { shadowEnvelopeFromEvent } from '../cognitive-envelope-v1.mjs';
-import { createV0Runtime } from '../../v0-modular.mjs';
 import { perceiveV0 } from '../../../cognition/sensorium/v0.mjs';
 import { scoreV0 } from '../../../cognition/workspace/v0-runtime.mjs';
 
@@ -16,8 +16,7 @@ await bindWorkerEndpoint(async message=>{
   }
   if(message?.kind!=='run-fixture-v0')throw new Error(`Sensorium worker rejects command ${message?.kind??'<missing>'}`);
   if(!configuration)throw new Error('Sensorium worker is not configured');
-  const runtime=createV0Runtime();
-  runtime.state.run=message.cycleId??1;
+  const runtime=createWorkerEventContext();
   const observations=perceiveV0({makeEvent:runtime.makeEvent,pushEvent:runtime.pushEvent,score:scoreV0});
   const envelopes=observations.map(event=>shadowEnvelopeFromEvent(event,{
     program:configuration.program,
