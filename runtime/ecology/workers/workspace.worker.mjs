@@ -1,7 +1,7 @@
 import { bindWorkerEndpoint } from './endpoint.mjs';
+import { createWorkerEventContext } from './event-context.mjs';
 import { compileRuntimePhenotype } from '../phenotype-compiler.mjs';
 import { createShadowEnvelopeValidator, shadowEnvelopeFromEvent } from '../cognitive-envelope-v1.mjs';
-import { createV0Runtime } from '../../v0-modular.mjs';
 import { workspaceCompetitionV0, V0_WORKSPACE_CAPACITY } from '../../../cognition/workspace/v0-runtime.mjs';
 
 let configuration=null;
@@ -29,8 +29,7 @@ await bindWorkerEndpoint(async message=>{
     return structuredClone(envelope.payload);
   });
 
-  const runtime=createV0Runtime();
-  runtime.state.tick=message.initialTick??10;
+  const runtime=createWorkerEventContext({initialTick:message.initialTick??10});
   const competition=workspaceCompetitionV0(candidates,{
     makeEvent:runtime.makeEvent,
     pushEvent:runtime.pushEvent,
