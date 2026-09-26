@@ -10,9 +10,9 @@
     "Metacognition": ["observer/experiments/model-adapter/verify.mjs","observer/experiments/self-prediction/verify.mjs"],
     "Homeostasis": ["observer/experiments/complete-loop/verify.mjs"],
     "Guardian": ["observer/experiments/complete-loop/verify.mjs","scripts/verify-conway-boundaries.mjs"],
-    "Executive": ["observer/experiments/agency-attribution/verify.mjs","observer/experiments/complete-loop/verify.mjs"],
+    "Executive": ["observer/experiments/agency-attribution/verify.mjs","observer/experiments/complete-loop/verify.mjs","observer/experiments/cortical-ecology-v1/verify-phenotype.mjs"],
     "Expression": ["observer/experiments/live-theater/verify.mjs"],
-    "ObserverScientist": ["scripts/verify-conway.mjs","scripts/verify-conway-boundaries.mjs","scripts/validate-development-artifacts.mjs","observer/experiments/cortical-ecology-v1/verify.mjs"],
+    "ObserverScientist": ["scripts/verify-conway.mjs","scripts/verify-conway-boundaries.mjs","scripts/validate-development-artifacts.mjs","observer/experiments/cortical-ecology-v1/verify.mjs","observer/experiments/cortical-ecology-v1/verify-phenotype.mjs"],
     "ScientificAuditor": ["scripts/verify-conway-boundaries.mjs"],
     "WelfareAuditor": ["scripts/verify-conway.mjs","scripts/verify-conway-boundaries.mjs"]
   }
