@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conscios.dev/schemas/cortical-ecology-baseline.schema.json",
+  "title": "ConsciOS Cortical Ecology Baseline Measurement v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schemaVersion", "epistemicStatus", "causalAuthority", "accepted", "recurrence", "providerTelemetry", "envelopeCount", "caveats"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "epistemicStatus": {"const": "measurement"},
+    "causalAuthority": {"const": "none"},
+    "accepted": {"type": "object"},
+    "recurrence": {"type": "object"},
+    "providerTelemetry": {"type": "object"},
+    "envelopeCount": {"$ref": "#/$defs/measurement"},
+    "envelopeNote": {"type": "string"},
+    "caveats": {"type": "array", "items": {"type": "string"}, "minItems": 1}
+  },
+  "$defs": {
+    "measurement": {
+      "type": "object",
+      "required": ["status", "value"],
+      "properties": {
+        "status": {"enum": ["measured", "unavailable"]},
+        "value": {},
+        "unit": {"type": ["string", "null"]},
+        "source": {"type": "string"},
+        "reason": {"type": "string"}
+      }
+    }
+  }
+}

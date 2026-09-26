@@ -12,7 +12,7 @@
     "Guardian": ["observer/experiments/complete-loop/verify.mjs","scripts/verify-conway-boundaries.mjs"],
     "Executive": ["observer/experiments/agency-attribution/verify.mjs","observer/experiments/complete-loop/verify.mjs"],
     "Expression": ["observer/experiments/live-theater/verify.mjs"],
-    "ObserverScientist": ["scripts/verify-conway.mjs","scripts/verify-conway-boundaries.mjs","scripts/validate-development-artifacts.mjs"],
+    "ObserverScientist": ["scripts/verify-conway.mjs","scripts/verify-conway-boundaries.mjs","scripts/validate-development-artifacts.mjs","observer/experiments/cortical-ecology-v1/verify.mjs"],
     "ScientificAuditor": ["scripts/verify-conway-boundaries.mjs"],
     "WelfareAuditor": ["scripts/verify-conway.mjs","scripts/verify-conway-boundaries.mjs"]
   }
