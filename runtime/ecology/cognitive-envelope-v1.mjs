@@ -13,23 +13,35 @@ function deepFreeze(value){
   return value;
 }
 
-export function shadowEnvelopeFromEvent(event,{program,phenotype,cycleId=1,phase='online',capabilityContextId='current-deterministic-v0',ttlCycles=1,providerProvenance=null}={}){
+export function shadowEnvelopeFromEvent(event,{
+  program,
+  phenotype,
+  cycleId=1,
+  phase='online',
+  capabilityContextId='current-deterministic-v0',
+  ttlCycles=1,
+  providerProvenance=null,
+  targetOverride=undefined,
+  logicalTime=event?.timestamp,
+  payload=event?.content
+}={}){
   if(!event||typeof event!=='object')fail('source event is required');
   const source=resolveRole(program,event.source);
-  const targetDomain=resolveTargetDomain(program,event.target,{globallyAvailable:event.globallyAvailable===true});
+  const target=targetOverride===undefined?event.target:targetOverride;
+  const targetDomain=resolveTargetDomain(program,target,{globallyAvailable:targetOverride===undefined&&event.globallyAvailable===true});
   if(!edgeIsDeclared(program,source.role,targetDomain))fail(`undeclared edge ${source.role}->${targetDomain}`);
   const envelope={
     schemaVersion:'1.0.0',
     messageId:event.id,
     cycleId,
-    logicalTime:event.timestamp,
+    logicalTime,
     phase,
     sourceDomain:source.domain,
     sourceRole:source.role,
     targetDomain,
     type:event.type,
     payloadSchema:'https://conscios.dev/schemas/cognitive-event.schema.json#content',
-    payload:structuredClone(event.content),
+    payload:structuredClone(payload),
     epistemicStatus:event.epistemicStatus,
     confidence:Number.isFinite(event.confidence)?event.confidence:null,
     causalParents:[...(event.causalParents??[])],
