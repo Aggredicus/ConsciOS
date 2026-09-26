@@ -27,12 +27,6 @@ function commonPrefixBytes(left,right){
   return i;
 }
 
-function eventOrder(event,index){
-  if(Number.isFinite(event.timestamp))return event.timestamp;
-  if(Number.isFinite(event.logicalTime))return event.logicalTime;
-  return index+1;
-}
-
 function sourceOf(event){return typeof event?.source==='string'?event.source:'unknown';}
 function typeOf(event){return typeof event?.type==='string'?event.type:'unknown';}
 function parentsOf(event){return Array.isArray(event?.causalParents)?event.causalParents:[];}
@@ -94,7 +88,8 @@ export function inspectSuppressedLeakage(state){
     const candidateContent=typeof candidate.content==='string'&&candidate.content.length?candidate.content:null;
     for(const event of downstream){
       if(parentsOf(event).includes(candidate.id))leaks.push({candidateId:candidate.id,eventId:event.id,kind:'causal-parent'});
-      if(candidateContent&&json(event.content).includes(candidateContent))leaks.push({candidateId:candidate.id,eventId:event.id,kind:'verbatim-content'});
+      const serializedContent=json(event.content);
+      if(candidateContent&&typeof serializedContent==='string'&&serializedContent.includes(candidateContent))leaks.push({candidateId:candidate.id,eventId:event.id,kind:'verbatim-content'});
     }
   }
   return Object.freeze({status:'measured',suppressedCount:suppressed.length,leaks});
@@ -104,11 +99,11 @@ export function inspectActionPath(events){
   const byId=new Map(events.filter(event=>typeof event?.id==='string').map(event=>[event.id,event]));
   const expression=[...events].reverse().find(event=>sourceOf(event)==='Expression'||typeOf(event)==='expression.report')??null;
   if(!expression)return Object.freeze({complete:false,expressionEventId:null,executiveEventId:null,guardianEventId:null,reason:'expression event unavailable'});
-  const executive=parentsOf(expression).map(id=>byId.get(id)).find(event=>sourceOf(event)==='Executive')??null;
-  if(!executive)return Object.freeze({complete:false,expressionEventId:expression.id,executiveEventId:null,guardianEventId:null,reason:'Expression lacks causal Executive parent'});
-  const guardian=parentsOf(executive).map(id=>byId.get(id)).find(event=>sourceOf(event)==='Guardian')??null;
-  if(!guardian)return Object.freeze({complete:false,expressionEventId:expression.id,executiveEventId:executive.id,guardianEventId:null,reason:'Executive lacks causal Guardian parent'});
-  return Object.freeze({complete:true,expressionEventId:expression.id,executiveEventId:executive.id,guardianEventId:guardian.id,reason:'Guardian -> Executive -> Expression ancestry observed'});
+  const executive=parentsOf(expression).map(id=>byId.get(id)).find(event=>sourceOf(event)==='Executive'||typeOf(event)==='action.selection')??null;
+  if(!executive)return Object.freeze({complete:false,expressionEventId:expression.id,executiveEventId:null,guardianEventId:null,reason:'Expression lacks causal Executive action-selection parent'});
+  const guardian=parentsOf(executive).map(id=>byId.get(id)).find(event=>typeOf(event)==='governance.decision')??null;
+  if(!guardian)return Object.freeze({complete:false,expressionEventId:expression.id,executiveEventId:executive.id,guardianEventId:null,reason:'Executive lacks causal governance.decision parent'});
+  return Object.freeze({complete:true,expressionEventId:expression.id,executiveEventId:executive.id,guardianEventId:guardian.id,guardianSource:sourceOf(guardian),reason:'governance.decision -> Executive action.selection -> Expression ancestry observed'});
 }
 
 export function exactInputMeasurement(value,label='input'){
