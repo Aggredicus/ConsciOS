@@ -1,6 +1,6 @@
 import { compileRuntimePhenotype } from './phenotype-compiler.mjs';
 import { createShadowEnvelopeValidator, shadowEnvelopeFromEvent } from './cognitive-envelope-v1.mjs';
-import { createV0Runtime } from '../v0-modular.mjs';
+import { createWorkerEventContext } from './workers/event-context.mjs';
 import { localProcessV0, scoreV0, V0_WORKSPACE_CAPACITY } from '../../cognition/workspace/v0-runtime.mjs';
 
 const WORKER_URLS=Object.freeze({
@@ -13,7 +13,7 @@ const WORKER_URLS=Object.freeze({
 let requestCounter=0;
 function nextRequestId(){return `cortical-worker-request-${++requestCounter}`;}
 
-function workerCall(worker,message){
+export function callCorticalWorker(worker,message){
   const requestId=nextRequestId();
   const request={...structuredClone(message),requestId};
   return new Promise((resolve,reject)=>{
@@ -79,25 +79,24 @@ export async function runCorticalWorkerLaboratoryV1({program,workerFactory=defau
   const workerList=Object.values(workers);
   try{
     const configure=await Promise.all(Object.entries(workers).map(async ([name,worker])=>{
-      const result=await workerCall(worker,{kind:'configure',program:compiled.program,phenotypeHash:compiled.phenotype.phenotypeHash});
+      const result=await callCorticalWorker(worker,{kind:'configure',program:compiled.program,phenotypeHash:compiled.phenotype.phenotypeHash});
       if(result.phenotypeHash!==compiled.phenotype.phenotypeHash)throw new Error(`${name} returned the wrong phenotype hash`);
       return result;
     }));
 
-    const sensoriumResult=await workerCall(workers.sensorium,{kind:'run-fixture-v0',cycleId});
+    const sensoriumResult=await callCorticalWorker(workers.sensorium,{kind:'run-fixture-v0',cycleId});
     const auditValidator=createShadowEnvelopeValidator({program:compiled.program,phenotype:compiled.phenotype});
     for(const envelope of sensoriumResult.envelopes)auditValidator.validate(envelope);
     const observations=sensoriumResult.envelopes.map(envelope=>structuredClone(envelope.payload));
 
-    const hostRuntime=createV0Runtime();
-    hostRuntime.state.tick=Math.max(0,...observations.map(event=>event.timestamp));
+    const hostRuntime=createWorkerEventContext({initialTick:Math.max(0,...observations.map(event=>event.timestamp))});
     const baselineCandidates=localProcessV0(observations,{makeEvent:hostRuntime.makeEvent,pushEvent:hostRuntime.pushEvent,score:scoreV0});
     const candidates=[...baselineCandidates,...structuredClone(extraCandidates)];
     const candidateEnvelopes=candidates.map(event=>shadowEnvelopeFromEvent(event,{program:compiled.program,phenotype:compiled.phenotype,cycleId,payload:event}));
     for(const envelope of candidateEnvelopes)auditValidator.validate(envelope);
 
     const initialWorkspaceTick=Math.max(...candidates.map(event=>event.timestamp));
-    const workspaceResult=await workerCall(workers.workspace,{
+    const workspaceResult=await callCorticalWorker(workers.workspace,{
       kind:'compete-v0',cycleId,envelopes:candidateEnvelopes,
       knownParentIds:observations.map(event=>event.id),
       initialTick:initialWorkspaceTick,capacity:V0_WORKSPACE_CAPACITY
@@ -107,11 +106,11 @@ export async function runCorticalWorkerLaboratoryV1({program,workerFactory=defau
     const winningCandidateIds=workspace.flatMap(event=>event.causalParents);
 
     const [worldResult,selfResult]=await Promise.all([
-      workerCall(workers.world,{
+      callCorticalWorker(workers.world,{
         kind:'model-v0',cycleId,envelopes:workspaceResult.envelopes,
         knownParentIds:winningCandidateIds,initialTick:Math.max(...workspace.map(event=>event.timestamp))
       }),
-      workerCall(workers.self,{
+      callCorticalWorker(workers.self,{
         kind:'model-v0',cycleId,envelopes:workspaceResult.envelopes,
         knownParentIds:winningCandidateIds,initialTick:Math.max(...workspace.map(event=>event.timestamp))+1
       })
