@@ -53,6 +53,7 @@ function readRepositoryFiles(root) {
       throw new Error(`Refusing to package likely secret material: ${relativePath}`);
     }
     const absolutePath = path.join(root, relativePath);
+    if (!fs.existsSync(absolutePath)) continue; // tracked deletion is preserved by the Git diff and absent from the snapshot
     const stat = fs.lstatSync(absolutePath);
     if (stat.isSymbolicLink()) {
       throw new Error(`Refusing to follow symbolic link in continuation package: ${relativePath}`);
@@ -207,20 +208,6 @@ function jsonBuffer(value) {
   return Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
-function assertOutputLocationSafe(root, outputPath) {
-  const relative = path.relative(root, outputPath);
-  const insideRepository = relative && !relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative);
-  if (!insideRepository) return;
-  const normalized = normalizeArchivePath(relative);
-  const ignored = spawnGitCheckIgnore(root, normalized);
-  if (!ignored) {
-    throw new Error(
-      `Refusing to write continuation ZIP to non-ignored repository path: ${normalized}. ` +
-      'Use .conscios/, another ignored path, or a path outside the repository.',
-    );
-  }
-}
-
 function spawnGitCheckIgnore(root, relativePath) {
   try {
     execFileSync('git', ['check-ignore', '-q', '--', relativePath], {
@@ -230,6 +217,19 @@ function spawnGitCheckIgnore(root, relativePath) {
     return true;
   } catch {
     return false;
+  }
+}
+
+function assertOutputLocationSafe(root, outputPath) {
+  const relative = path.relative(root, outputPath);
+  const insideRepository = relative && !relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative);
+  if (!insideRepository) return;
+  const normalized = normalizeArchivePath(relative);
+  if (!spawnGitCheckIgnore(root, normalized)) {
+    throw new Error(
+      `Refusing to write continuation ZIP to non-ignored repository path: ${normalized}. ` +
+      'Use .conscios/, another ignored path, or a path outside the repository.',
+    );
   }
 }
 
