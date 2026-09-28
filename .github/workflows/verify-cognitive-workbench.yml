@@ -23,4 +23,4 @@ jobs:
       - name: Verify notebook and provider boundaries
         run: node observer/experiments/notebook-workbench/verify.mjs
       - name: Verify existing browser entrypoints
-        run: node scripts/verify-browser-entrypoints.mjs
+        run: node observer/experiments/browser-entrypoints/verify.mjs
