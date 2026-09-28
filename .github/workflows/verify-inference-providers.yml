@@ -1,0 +1,34 @@
+name: Verify Inference Providers
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'runtime/models/**'
+      - 'observer/experiments/provider-abstraction/**'
+      - 'development/EXO_INTEGRATION.md'
+      - '.github/workflows/verify-inference-providers.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'runtime/models/**'
+      - 'observer/experiments/provider-abstraction/**'
+      - 'development/EXO_INTEGRATION.md'
+      - '.github/workflows/verify-inference-providers.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-provider-abstraction:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Verify existing deterministic CognitiveModel boundary
+        run: node observer/experiments/model-adapter/verify.mjs
+      - name: Verify explicit provider and mocked exo boundary
+        run: node observer/experiments/provider-abstraction/verify.mjs
