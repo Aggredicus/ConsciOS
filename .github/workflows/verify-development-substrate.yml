@@ -1,0 +1,55 @@
+name: Verify development substrate
+
+on:
+  pull_request:
+    paths:
+      - '.devcontainer/**'
+      - '.gitignore'
+      - 'development/CODESPACE_DEVELOPMENT_SUBSTRATE.md'
+      - 'scripts/development-doctor.mjs'
+      - 'scripts/build-development-save-state.mjs'
+      - 'observer/experiments/development-substrate-v1/**'
+      - '.github/workflows/verify-development-substrate.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - '.devcontainer/**'
+      - '.gitignore'
+      - 'development/CODESPACE_DEVELOPMENT_SUBSTRATE.md'
+      - 'scripts/development-doctor.mjs'
+      - 'scripts/build-development-save-state.mjs'
+      - 'observer/experiments/development-substrate-v1/**'
+      - '.github/workflows/verify-development-substrate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-development-substrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate dev container JSON
+        run: node -e "JSON.parse(require('node:fs').readFileSync('.devcontainer/devcontainer.json','utf8')); console.log('devcontainer JSON valid')"
+
+      - name: Verify deterministic continuation package
+        run: node observer/experiments/development-substrate-v1/verify.mjs
+
+      - name: Run core ConsciOS development checks
+        run: node scripts/development-doctor.mjs --verify
+
+      - name: Build real repository continuation checkpoint
+        run: |
+          node scripts/build-development-save-state.mjs --output /tmp/conscios-development-save.zip
+          test -s /tmp/conscios-development-save.zip
