@@ -1,0 +1,13 @@
+# ConsciOS local development state
+.conscios/
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Optional local runtimes / notebooks
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+node_modules/
