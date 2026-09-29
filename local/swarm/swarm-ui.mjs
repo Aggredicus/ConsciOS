@@ -11,7 +11,8 @@ function setStatus(message,tone=''){$('globalStatus').textContent=message;$('glo
 function pretty(value){try{return JSON.stringify(value,null,2)}catch{return String(value)}}
 function updateProvenance(extra={}){$('provenance').textContent=pretty({protocol:'conscios-swarm/v1',transport:'WebRTC DataChannel',signaling:'QR URL fragment / same-origin handoff only',iceServers:[],qrRenderer:QR_MODULE_URL,role:activePeer?.role??null,sessionId:activePeer?.sessionId??null,exoEndpoint:activePeer?.exoEndpoint??null,remoteNickname:activePeer?.remoteNickname??null,remoteCapabilities:activePeer?.remoteCapabilities??null,lastRttMs:activePeer?.lastRttMs??null,...extra})}
 async function copyText(text){await navigator.clipboard.writeText(text);setStatus('Copied pairing link.','ok')}
-function nickname(){return $('nickname').value.trim()||'Phone'}
+function hostNickname(){return $('nickname').value.trim()||'Phone'}
+function guestNickname(){return $('joinNickname').value.trim()||'Phone'}
 
 function bindPeer(peer){
   activePeer=peer;
@@ -31,7 +32,7 @@ function bindPeer(peer){
 }
 
 async function createHost(){
-  cleanupPeer();const peer=new QrSwarmPeer({role:'host',nickname:nickname()});bindPeer(peer);
+  cleanupPeer();const peer=new QrSwarmPeer({role:'host',nickname:hostNickname()});bindPeer(peer);
   setStatus('Creating local WebRTC offer…','warn');
   const result=await peer.createOffer({exoEndpoint:$('exoEndpoint').value.trim()||null});
   $('offerLink').value=result.url;$('offerCode').textContent=displayCode(peer.sessionId);show('inviteCard');show('joinCard',false);show('answerCard',false);
@@ -49,7 +50,7 @@ async function loadOffer(encoded){
 }
 
 async function joinOffer(){
-  if(!pendingOffer)throw new Error('No invitation loaded.');cleanupPeer();const peer=new QrSwarmPeer({role:'guest',nickname:nickname()});bindPeer(peer);
+  if(!pendingOffer)throw new Error('No invitation loaded.');cleanupPeer();const peer=new QrSwarmPeer({role:'guest',nickname:guestNickname()});bindPeer(peer);
   $('joinStatus').textContent='Creating direct WebRTC answer…';const result=await peer.acceptOffer(pendingOffer.encoded);
   $('answerLink').value=result.url;show('answerCard');$('joinStatus').textContent='Answer ready. Let the host scan the answer QR.';
   const qrMeta=await renderQr($('answerQr'),result.url,{cellSize:3,margin:12});updateProvenance({pairing:'guest-answer-ready',qrCharacters:qrMeta.characters,qrModules:qrMeta.moduleCount});setStatus('Joined locally. Host must scan the answer QR to complete pairing.','ok');
