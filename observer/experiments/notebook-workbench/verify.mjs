@@ -56,6 +56,11 @@ const ui=readFileSync('local/workbench/workbench.mjs','utf8');
 const html=readFileSync('local/workbench/index.html','utf8');
 const dashboardHtml=readFileSync('local/exo-dashboard/index.html','utf8');
 const dashboardUi=readFileSync('local/exo-dashboard/dashboard.mjs','utf8');
+const visualSystem=readFileSync('local/conscios-ui.css','utf8');
+const localLabHtml=readFileSync('local/index.html','utf8');
+const swarmHtml=readFileSync('local/swarm/index.html','utf8');
+const encounterHtml=readFileSync('local/encounter/index.html','utf8');
+const liveHtml=readFileSync('live/index.html','utf8');
 assert.ok(ui.includes("createExoInferenceProvider"),'workbench is not wired to exo provider');
 assert.ok(ui.includes("createBrowserLocalInferenceProvider"),'workbench is not wired to browser-local provider');
 assert.ok(ui.includes("createDeterministicMockModel"),'deterministic control is missing');
@@ -80,6 +85,27 @@ assert.ok(dashboardUi.includes("location.protocol==='https:'&&url.protocol==='ht
 assert.ok(dashboardUi.includes("['http:','https:'].includes(url.protocol)"),'dashboard must restrict endpoint URL schemes');
 assert.ok(dashboardUi.includes('url.username||url.password'),'dashboard must reject credentials embedded in URLs');
 
+assert.ok(visualSystem.includes('--cs-accent'),'shared visual system must expose stable design tokens');
+assert.ok(visualSystem.includes('.cs-appbar'),'shared visual system must define product chrome');
+assert.ok(visualSystem.includes('prefers-reduced-motion'),'shared visual system must preserve reduced-motion support');
+const surfaces=[
+  ['Local AI Lab',localLabHtml,'./conscios-ui.css'],
+  ['Cognitive Workbench',html,'../conscios-ui.css'],
+  ['Swarm',swarmHtml,'../conscios-ui.css'],
+  ['exo Dashboard',dashboardHtml,'../conscios-ui.css'],
+  ['First Encounter',encounterHtml,'../conscios-ui.css'],
+  ['Live Cognitive Theater',liveHtml,'../local/conscios-ui.css']
+];
+for(const [name,markup,stylesheet] of surfaces){
+  assert.ok(markup.includes(stylesheet),`${name} must load the shared ConsciOS visual system`);
+  assert.ok(markup.includes('cs-appbar'),`${name} must expose consistent product navigation`);
+  assert.ok(markup.includes('cs-brandmark'),`${name} must expose the shared ConsciOS brand mark`);
+}
+assert.ok(localLabHtml.includes('This is not a consciousness indicator')||localLabHtml.includes('consciousness indicator'),'Local AI Lab must retain consciousness disclosure');
+assert.ok(encounterHtml.includes('not evidence of subjective experience'),'First Encounter must retain interpretation boundary');
+assert.ok(liveHtml.includes('does not establish subjective experience'),'Live Theater must retain interpretation boundary');
+assert.ok(swarmHtml.includes('does not grant photo, file, password, repository, or cognitive-role access'),'Swarm must retain bounded-capability disclosure');
+
 for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden)&&!dashboardHtml.includes(forbidden)&&!dashboardUi.includes(forbidden),`workbench unexpectedly references credential material: ${forbidden}`);
 
-console.log('Cognitive Workbench verification passed: explicit neural-vs-mock disclosure, live multi-turn conversation, randomized paired stateful/stateless control, exo dashboard shell boundaries, and no consciousness claim.');
+console.log('Cognitive Workbench verification passed: explicit neural-vs-mock disclosure, live multi-turn conversation, randomized paired stateful/stateless control, exo dashboard shell boundaries, shared UI-system coverage, and no consciousness claim.');
