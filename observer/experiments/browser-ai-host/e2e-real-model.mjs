@@ -1,11 +1,17 @@
 import assert from 'node:assert/strict';
+import {randomInt} from 'node:crypto';
 import { chromium } from 'playwright';
 
 const baseURL=(process.env.CONSCIOS_BASE_URL||'http://127.0.0.1:8000').replace(/\/$/,'');
-const modelId='smollm2-135m-instruct';
-const modelRepository='SmolLM2-135M-Instruct-ONNX';
+const modelId='smollm2-360m-instruct';
+const modelRepository='SmolLM2-360M-Instruct-ONNX';
 const modelRequests=[];
 const browser=await chromium.launch({headless:true});
+
+function exactToken(text){
+  const normalized=String(text??'').trim().toUpperCase().replace(/^["'`“”‘’]+|["'`“”‘’]+$/g,'').replace(/[.!]+$/,'').trim();
+  return /^[A-Z]+$/.test(normalized)?normalized:null;
+}
 
 try{
   const context=await browser.newContext();
@@ -28,38 +34,61 @@ try{
   await page.click('#loadBrowser');
 
   await page.waitForFunction(()=>document.querySelector('#providerStatus')?.textContent?.includes('Browser model ready'),null,{timeout:720_000});
-  const providerStatus=await page.textContent('#providerStatus');
-  assert.match(providerStatus,/Browser model ready/,'browser-local provider did not become ready');
+  assert.match(await page.textContent('#providerStatus'),/Browser model ready/,'browser-local provider did not become ready');
 
-  const aiCell=page.locator('article.cell').filter({has:page.locator('.cellType',{hasText:'AI prompt'})}).first();
-  await aiCell.locator('[data-source]').fill('Write one short sentence confirming that a garden can grow plants.');
-  const maxUnits=aiCell.locator('[data-config="maxResponseUnits"]');
-  if(await maxUnits.count())await maxUnits.fill('32');
-  await aiCell.locator('[data-action="run"]').click();
-
-  await page.waitForFunction(()=>{
-    try{
+  async function readAICell(){
+    return page.evaluate(()=>{
       const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1')||'null');
       const cell=notebook?.cells?.find(item=>item.type==='ai');
-      return cell?.status==='ok'||cell?.status==='error';
-    }catch{return false}
-  },null,{timeout:360_000});
-  await page.waitForTimeout(1000);
+      return cell?structuredClone(cell):null;
+    });
+  }
 
-  const result=await page.evaluate(()=>{
-    const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1'));
-    const cell=notebook.cells.find(item=>item.type==='ai');
-    return {status:cell.status,output:cell.output,provenance:cell.provenance};
-  });
+  async function runOneShot(prompt){
+    const aiCell=page.locator('article.cell').filter({has:page.locator('.cellType',{hasText:'AI prompt'})}).first();
+    const before=await readAICell();
+    await aiCell.locator('[data-source]').fill(prompt);
+    const maxUnits=aiCell.locator('[data-config="maxResponseUnits"]');
+    if(await maxUnits.count())await maxUnits.fill('8');
+    await aiCell.locator('[data-action="run"]').click();
+    await page.waitForFunction(previousUpdatedAt=>{
+      try{
+        const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1')||'null');
+        const cell=notebook?.cells?.find(item=>item.type==='ai');
+        return cell&&cell.updatedAt!==previousUpdatedAt&&(cell.status==='ok'||cell.status==='error');
+      }catch{return false}
+    },before?.updatedAt??null,{timeout:360_000});
+    return readAICell();
+  }
 
-  assert.equal(result.status,'ok',`real browser inference did not complete successfully: ${JSON.stringify(result.output)}`);
-  assert.equal(typeof result.output,'string','real browser inference output must be text');
-  assert.ok(result.output.trim().length>0,'real browser inference returned empty text');
-  assert.equal(result.provenance?.provider?.kind,'browser-transformers-local','inference was not produced by the real browser-local neural provider');
-  assert.match(result.provenance?.provider?.modelId||'',/SmolLM2-135M-Instruct-ONNX/,'unexpected model provenance');
-  assert.ok(modelRequests.some(url=>url.includes(modelRepository)),`no network request to the declared model repository was observed; saw ${modelRequests.length} model-related request(s)`);
+  // Stimulus sensitivity: two different browser inputs must yield two different neural outputs.
+  const sun=await runOneShot('Reply only SUN.');
+  const moon=await runOneShot('Reply only MOON.');
+  assert.equal(sun.status,'ok',`SUN inference failed: ${JSON.stringify(sun.output)}`);
+  assert.equal(moon.status,'ok',`MOON inference failed: ${JSON.stringify(moon.output)}`);
+  assert.equal(exactToken(sun.output),'SUN',`SUN stimulus was not followed exactly: ${sun.output}`);
+  assert.equal(exactToken(moon.output),'MOON',`MOON stimulus was not followed exactly: ${moon.output}`);
+  assert.notEqual(exactToken(sun.output),exactToken(moon.output),'different inputs produced matching outputs');
 
-  console.log(`Real browser model verification passed: downloaded ${modelRepository}, loaded it in headless Chromium/WASM, and produced non-empty neural output (${result.output.trim().slice(0,120)}).`);
+  // Closed-loop reactivity: the model's ACTUAL randomized output determines the next browser prompt and expected answer.
+  const requestedSource=randomInt(2)===0?'SUN':'MOON';
+  const sourceReply=await runOneShot(`Reply only ${requestedSource}.`);
+  const actualSource=exactToken(sourceReply.output);
+  assert.equal(actualSource,requestedSource,`randomized source stimulus was not followed: expected ${requestedSource}, got ${sourceReply.output}`);
+
+  const target=actualSource==='SUN'?'DAY':'NIGHT';
+  const followUpPrompt=`${actualSource} -> ${target}. Reply ${target}.`;
+  const reaction=await runOneShot(followUpPrompt);
+  assert.equal(exactToken(reaction.output),target,`closed-loop reaction failed: ${actualSource} dynamically selected ${target}, got ${reaction.output}`);
+  assert.notEqual(actualSource,target,'closed-loop target must differ from source output');
+
+  for(const result of [sun,moon,sourceReply,reaction]){
+    assert.equal(result.provenance?.provider?.kind,'browser-transformers-local','result was not produced by browser-local neural provider');
+  }
+  assert.ok(modelRequests.some(url=>url.includes(modelRepository)),`no network request to ${modelRepository} was observed`);
+  assert.match(sun.provenance?.provider?.modelId||'',/SmolLM2-360M-Instruct-ONNX/,'unexpected model provenance');
+
+  console.log(`Real browser reactivity passed with ${modelRepository}: SUN/MOON differed; actual output ${actualSource} generated follow-up ${JSON.stringify(followUpPrompt)} and produced ${target}.`);
 } finally {
   await browser.close();
 }

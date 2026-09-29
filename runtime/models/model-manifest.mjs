@@ -48,6 +48,23 @@ export const STARTER_MODELS=Object.freeze([
     notes:'Small instruction-tuned starter chosen for browser feasibility. Model quality is intentionally secondary to proving real local inference.'
   }),
   Object.freeze({
+    id:'smollm2-360m-instruct',
+    label:'SmolLM2 360M Instruct — lightweight reactive',
+    task:'text-generation',
+    source:'hub',
+    model:'onnx-community/SmolLM2-360M-Instruct-ONNX',
+    revision:'fe7c7db4c8921c9e3fa1c65cfd296fb3b1b1a8f9',
+    webgpuDtype:'q4f16',
+    wasmDtype:'q4',
+    maxContextTokens:8192,
+    defaultMaxNewTokens:192,
+    remoteDownloadAllowed:true,
+    approximatePrimaryWeightMB:{webgpu:272,wasm:386},
+    provenance:{library:'@huggingface/transformers',libraryVersion:'4.3.0',format:'ONNX'},
+    license:{name:'Apache-2.0',modelFamily:'SmolLM2'},
+    notes:'Intermediate instruction-tuned browser model used for reactive E2E validation when the 135M starter is too weak for reliable instruction following.'
+  }),
+  Object.freeze({
     id:'qwen3-0.6b',
     label:'Qwen3 0.6B — higher capability',
     task:'text-generation',
