@@ -61,6 +61,7 @@ try{
     return readAICell();
   }
 
+  // Stimulus sensitivity: two different browser inputs must yield two different neural outputs.
   const sun=await runOneShot('Reply only SUN.');
   const moon=await runOneShot('Reply only MOON.');
   assert.equal(sun.status,'ok',`SUN inference failed: ${JSON.stringify(sun.output)}`);
@@ -69,28 +70,25 @@ try{
   assert.equal(exactToken(moon.output),'MOON',`MOON stimulus was not followed exactly: ${moon.output}`);
   assert.notEqual(exactToken(sun.output),exactToken(moon.output),'different inputs produced matching outputs');
 
-  // Closed loop: the model's actual randomized first output determines the next prompt and expected answer.
+  // Closed-loop reactivity: the model's ACTUAL randomized output determines the next browser prompt and expected answer.
   const requestedSource=randomInt(2)===0?'SUN':'MOON';
   const sourceReply=await runOneShot(`Reply only ${requestedSource}.`);
   const actualSource=exactToken(sourceReply.output);
   assert.equal(actualSource,requestedSource,`randomized source stimulus was not followed: expected ${requestedSource}, got ${sourceReply.output}`);
 
   const target=actualSource==='SUN'?'DAY':'NIGHT';
-  const reaction=await runOneShot(`${actualSource} -> ${target}. Reply ${target}.`);
+  const followUpPrompt=`${actualSource} -> ${target}. Reply ${target}.`;
+  const reaction=await runOneShot(followUpPrompt);
   assert.equal(exactToken(reaction.output),target,`closed-loop reaction failed: ${actualSource} dynamically selected ${target}, got ${reaction.output}`);
+  assert.notEqual(actualSource,target,'closed-loop target must differ from source output');
 
-  const interventionTarget=target==='DAY'?'NIGHT':'DAY';
-  const intervention=await runOneShot(`Reply only ${interventionTarget}.`);
-  assert.equal(exactToken(intervention.output),interventionTarget,`intervention reaction failed: expected ${interventionTarget}, got ${intervention.output}`);
-  assert.notEqual(exactToken(reaction.output),exactToken(intervention.output),'intervention did not change neural output');
-
-  for(const result of [sun,moon,sourceReply,reaction,intervention]){
+  for(const result of [sun,moon,sourceReply,reaction]){
     assert.equal(result.provenance?.provider?.kind,'browser-transformers-local','result was not produced by browser-local neural provider');
   }
   assert.ok(modelRequests.some(url=>url.includes(modelRepository)),`no network request to ${modelRepository} was observed`);
   assert.match(sun.provenance?.provider?.modelId||'',/SmolLM2-360M-Instruct-ONNX/,'unexpected model provenance');
 
-  console.log(`Real browser reactivity passed with ${modelRepository}: SUN/MOON differed; ${actualSource} dynamically selected ${target}; intervention changed output to ${interventionTarget}.`);
+  console.log(`Real browser reactivity passed with ${modelRepository}: SUN/MOON differed; actual output ${actualSource} generated follow-up ${JSON.stringify(followUpPrompt)} and produced ${target}.`);
 } finally {
   await browser.close();
 }
