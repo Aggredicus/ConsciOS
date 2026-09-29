@@ -9,7 +9,7 @@ const modelRequests=[];
 const browser=await chromium.launch({headless:true});
 
 function exactToken(text){
-  const normalized=String(text??'').trim().toUpperCase().replace(/[.!]+$/,'').trim();
+  const normalized=String(text??'').trim().toUpperCase().replace(/^["'`“”‘’]+|["'`“”‘’]+$/g,'').replace(/[.!]+$/,'').trim();
   return /^[A-Z]+$/.test(normalized)?normalized:null;
 }
 
