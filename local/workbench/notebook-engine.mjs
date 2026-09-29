@@ -6,6 +6,8 @@ export const CELL_TYPES=Object.freeze({
   markdown:{label:'Markdown / note',language:'text'},
   parameters:{label:'Parameters',language:'json'},
   ai:{label:'AI prompt',language:'text'},
+  conversation:{label:'Conversation',language:'text'},
+  'conversation-test':{label:'Conversation Reality Test',language:'text'},
   javascript:{label:'JavaScript',language:'javascript'},
   python:{label:'Python',language:'python'},
   procedure:{label:'Tool procedure',language:'json'},
@@ -21,6 +23,8 @@ const DEFAULT_SOURCE={
   markdown:'# Cognitive Workbench\nInterleave notes, AI, executable code, parameters, and explicit tool calls. Every AI cell records its provider.',
   parameters:'{\n  "project": "ConsciOS",\n  "scale": 1\n}',
   ai:'Use the declared notebook context only. Propose the next concrete step.',
+  conversation:'Hello. Let’s have an actual conversation.',
+  'conversation-test':'Paired randomized stateful-vs-stateless test. Press “Run paired test” with a neural provider selected.',
   javascript:'const value = Number(context.parameters.scale ?? 1);\nreturn {scaled: value * 2, project: context.parameters.project};',
   python:'project = context.get("project", "ConsciOS")\nscale = context.get("scale", 1)\n{"project": project, "scaled": scale * 2}',
   procedure:'{\n  "procedure": "describe-scene",\n  "arguments": {}\n}',
@@ -37,9 +41,10 @@ const DEFAULT_ACTION={procedure:'run-procedure','world-inspect':'inspect-world',
 function id(prefix='cell'){return `${prefix}-${crypto.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}`}
 export function createCell(type='markdown',options={}){
   if(!CELL_TYPES[type])throw new TypeError(`unsupported cell type '${type}'`);
+  const conversational=type==='conversation'||type==='conversation-test';
   return {
     id:id(),type,title:options.title??CELL_TYPES[type].label,source:options.source??DEFAULT_SOURCE[type]??'',
-    config:{includePrevious:false,maxResponseUnits:256,endpoint:'',method:'POST',action:DEFAULT_ACTION[type]??'',...(options.config??{})},
+    config:{includePrevious:false,maxResponseUnits:conversational?512:256,endpoint:'',method:'POST',action:DEFAULT_ACTION[type]??'',...(options.config??{})},
     output:null,provenance:null,status:'idle',updatedAt:new Date().toISOString()
   };
 }
