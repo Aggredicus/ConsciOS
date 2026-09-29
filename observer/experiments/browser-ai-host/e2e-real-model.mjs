@@ -3,8 +3,8 @@ import {randomInt} from 'node:crypto';
 import { chromium } from 'playwright';
 
 const baseURL=(process.env.CONSCIOS_BASE_URL||'http://127.0.0.1:8000').replace(/\/$/,'');
-const modelId='smollm2-135m-instruct';
-const modelRepository='SmolLM2-135M-Instruct-ONNX';
+const modelId='smollm2-360m-instruct';
+const modelRepository='SmolLM2-360M-Instruct-ONNX';
 const modelRequests=[];
 const browser=await chromium.launch({headless:true});
 
@@ -92,7 +92,7 @@ try{
     assert.equal(result.provenance?.provider?.kind,'browser-transformers-local','result was not produced by browser-local neural provider');
   }
   assert.ok(modelRequests.some(url=>url.includes(modelRepository)),`no network request to ${modelRepository} was observed`);
-  assert.match(sun.provenance?.provider?.modelId||'',/SmolLM2-135M-Instruct-ONNX/,'unexpected model provenance');
+  assert.match(sun.provenance?.provider?.modelId||'',/SmolLM2-360M-Instruct-ONNX/,'unexpected model provenance');
 
   console.log(`Real browser reactivity passed with ${modelRepository}: SUN/MOON differed; ${actualSource} dynamically selected ${target}; intervention changed output to ${interventionTarget}.`);
 } finally {
