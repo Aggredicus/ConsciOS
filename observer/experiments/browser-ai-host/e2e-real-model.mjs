@@ -70,14 +70,16 @@ try{
   assert.equal(exactToken(moon.output),'MOON',`MOON stimulus was not followed exactly: ${moon.output}`);
   assert.notEqual(exactToken(sun.output),exactToken(moon.output),'different inputs produced matching outputs');
 
-  // Closed-loop reactivity: the model's ACTUAL randomized output determines the next browser prompt and expected answer.
+  // Closed-loop reactivity: the model's ACTUAL randomized output determines a NEW browser input and therefore the required second output.
+  // This deliberately tests causal feedback rather than the 360M model's ability to parse an arbitrary mapping notation.
   const requestedSource=randomInt(2)===0?'SUN':'MOON';
   const sourceReply=await runOneShot(`Reply only ${requestedSource}.`);
   const actualSource=exactToken(sourceReply.output);
   assert.equal(actualSource,requestedSource,`randomized source stimulus was not followed: expected ${requestedSource}, got ${sourceReply.output}`);
 
   const target=actualSource==='SUN'?'DAY':'NIGHT';
-  const followUpPrompt=`${actualSource} -> ${target}. Reply ${target}.`;
+  const followUpPrompt=`Output exactly one word: ${target}`;
+  assert.ok(!followUpPrompt.includes(actualSource),`feedback prompt should not simply ask the model to repeat its first output: ${followUpPrompt}`);
   const reaction=await runOneShot(followUpPrompt);
   assert.equal(exactToken(reaction.output),target,`closed-loop reaction failed: ${actualSource} dynamically selected ${target}, got ${reaction.output}`);
   assert.notEqual(actualSource,target,'closed-loop target must differ from source output');
@@ -88,7 +90,7 @@ try{
   assert.ok(modelRequests.some(url=>url.includes(modelRepository)),`no network request to ${modelRepository} was observed`);
   assert.match(sun.provenance?.provider?.modelId||'',/SmolLM2-360M-Instruct-ONNX/,'unexpected model provenance');
 
-  console.log(`Real browser reactivity passed with ${modelRepository}: SUN/MOON differed; actual output ${actualSource} generated follow-up ${JSON.stringify(followUpPrompt)} and produced ${target}.`);
+  console.log(`Real browser reactivity passed with ${modelRepository}: SUN/MOON differed; actual output ${actualSource} causally selected new prompt ${JSON.stringify(followUpPrompt)} and produced distinct output ${target}.`);
 } finally {
   await browser.close();
 }
