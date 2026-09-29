@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {createExoInferenceProvider} from '../../../runtime/models/exo-provider.mjs';
 import {normalizeHttpEndpoint} from '../../../runtime/models/inference-provider.mjs';
 import {createInferenceProviderRouter} from '../../../runtime/models/provider-router.mjs';
-import {validateCognitiveModelOutput} from '../../../runtime/models/validation.mjs';
+import {validateCognitiveModelInput,validateCognitiveModelOutput} from '../../../runtime/models/validation.mjs';
 
 const input={requestId:'exo-provider-001',requestingModule:'ObserverScientist',inferenceType:'engineering-conversation',contextManifest:[{artifactId:'observation-1',epistemicStatus:'observation',content:{userText:'Summarize the declared observation only.'}}],causalSourceIds:['observation-1'],maxResponseUnits:64,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'};
 
@@ -19,10 +19,8 @@ const fetchImpl=async (url,options={})=>{
     const body=JSON.parse(options.body);
     assert.equal(body.model,'mlx-community/Qwen3-test');
     assert.equal(body.temperature,0);
-    assert.equal(body.messages.length,2);
-    assert.match(body.messages[1].content,/observation-1/);
-    assert.ok(!body.messages[1].content.includes('undeclared-secret'));
-    return new Response(JSON.stringify({choices:[{message:{content:'Only the declared observation was available.'}}]}),{status:200,headers:{'Content-Type':'application/json'}});
+    const last=body.messages.at(-1)?.content||'';
+    return new Response(JSON.stringify({choices:[{message:{content:last.includes('call sign')?'cedar-42':'Only the declared observation was available.'}}]}),{status:200,headers:{'Content-Type':'application/json'}});
   }
   return new Response('not found',{status:404});
 };
@@ -41,6 +39,25 @@ assert.equal(output.provider.inferenceLocation,'lan-cluster');
 assert.deepEqual(output.causalSourceIds,input.causalSourceIds);
 assert.deepEqual(output.content.accessibleArtifactIds,['observation-1']);
 assert.equal(validateCognitiveModelOutput(output).valid,true);
+const oneShotBody=JSON.parse(requests.find(request=>request.url.endsWith('/v1/chat/completions')).options.body);
+assert.equal(oneShotBody.messages.length,2);
+assert.match(oneShotBody.messages[1].content,/observation-1/);
+assert.ok(!oneShotBody.messages[1].content.includes('undeclared-secret'));
+
+const conversationMessages=[{role:'user',content:'My temporary call sign is cedar-42.'},{role:'assistant',content:'Got it. What are you working on?'},{role:'user',content:'What call sign did I give you?'}];
+const conversationInput={...input,requestId:'exo-conversation-001',inferenceType:'conversation-turn',conversationMessages};
+assert.equal(validateCognitiveModelInput(conversationInput).valid,true);
+assert.equal(validateCognitiveModelInput({...conversationInput,conversationMessages:[{role:'assistant',content:'invalid first role'}]}).valid,false);
+assert.equal(validateCognitiveModelInput({...conversationInput,conversationMessages:[{role:'user',content:'a'},{role:'user',content:'b'}]}).valid,false);
+assert.equal(validateCognitiveModelInput({...conversationInput,conversationMessages:[{role:'user',content:'a'},{role:'assistant',content:'b'}]}).valid,false);
+assert.equal(validateCognitiveModelInput({...conversationInput,conversationMessages:[{role:'system',content:'hidden'}]}).valid,false);
+const conversationOutput=await exo.infer(conversationInput);
+assert.equal(conversationOutput.status,'ok');
+assert.equal(conversationOutput.content.text,'cedar-42');
+assert.equal(conversationOutput.content.conversationMessageCount,3);
+const conversationBody=JSON.parse(requests.filter(request=>request.url.endsWith('/v1/chat/completions')).at(-1).options.body);
+assert.deepEqual(conversationBody.messages.slice(-3).map(message=>message.role),['user','assistant','user']);
+assert.equal(conversationBody.messages.at(-1).content,'What call sign did I give you?');
 
 const router=createInferenceProviderRouter();
 router.register(exo);
@@ -48,7 +65,6 @@ assert.rejects(()=>router.connectSelected(),/no inference provider selected/);
 router.select('exo');
 assert.equal((await router.connectSelected()).status,'ready');
 assert.equal(router.current(),exo);
-assert.equal(requests.some(request=>request.url.endsWith('/v1/chat/completions')),true);
 
 const failing=createExoInferenceProvider({endpoint:'http://offline.local:52415',modelId:'model-a',fetchImpl:async()=>new Response('offline',{status:503})});
 const failed=await failing.infer(input);
@@ -57,4 +73,4 @@ assert.equal(failed.confidence,0);
 assert.match(failed.failure,/HTTP 503/);
 assert.equal(failed.provider.kind,'exo-cluster');
 
-console.log('Provider abstraction verification passed: explicit exo boundary, declared context only, no silent fallback.');
+console.log('Provider abstraction verification passed: explicit exo boundary, true alternating conversation history, declared context only, no silent fallback.');

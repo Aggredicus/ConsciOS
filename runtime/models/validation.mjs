@@ -14,6 +14,17 @@ function httpEndpoint(value){
   if(!nonEmpty(value))return false;
   try{const url=new URL(value);return url.protocol==='http:'||url.protocol==='https:'}catch{return false}
 }
+function validateConversationMessages(messages,errors){
+  if(messages===undefined)return;
+  if(!Array.isArray(messages)||messages.length<1||messages.length>80){errors.push('conversationMessages must be an array with 1..80 messages');return}
+  let expected='user';
+  messages.forEach((message,index)=>{
+    if(!isObject(message)||!['user','assistant'].includes(message.role)||!nonEmpty(message.content)){errors.push(`conversationMessages[${index}] is invalid`);return}
+    if(message.role!==expected)errors.push(`conversationMessages[${index}] must have role ${expected}`);
+    expected=expected==='user'?'assistant':'user';
+  });
+  if(messages.at(-1)?.role!=='user')errors.push('conversationMessages must end with the current user turn');
+}
 
 export function validateCognitiveModelInput(input){
   const errors=[];
@@ -25,6 +36,7 @@ export function validateCognitiveModelInput(input){
   else input.contextManifest.forEach((artifact,index)=>{
     if(!isObject(artifact)||!nonEmpty(artifact.artifactId)||!nonEmpty(artifact.epistemicStatus)||!Object.prototype.hasOwnProperty.call(artifact,'content'))errors.push(`contextManifest[${index}] is invalid`);
   });
+  validateConversationMessages(input.conversationMessages,errors);
   if(!uniqueStrings(input.causalSourceIds))errors.push('causalSourceIds must contain unique non-empty strings');
   if(!Number.isInteger(input.maxResponseUnits)||input.maxResponseUnits<1||input.maxResponseUnits>65536)errors.push('maxResponseUnits must be an integer in [1,65536]');
   if(!EXPECTED_EPISTEMIC.has(input.expectedEpistemicStatus))errors.push('expectedEpistemicStatus is invalid');
