@@ -20,7 +20,7 @@ try{
   await guest.waitForSelector('#joinCard:not(.hidden)');
   assert.equal(await guest.textContent('#joinHost'),'Host phone');
   assert.equal(await guest.textContent('#joinExo'),'http://192.168.50.10:52415');
-  await guest.fill('#nickname','Guest phone');
+  await guest.fill('#joinNickname','Guest phone');
   await guest.click('#joinButton');
   await guest.waitForFunction(()=>document.querySelector('#answerLink')?.value?.includes('#answer='));
   const answerUrl=await guest.inputValue('#answerLink');
