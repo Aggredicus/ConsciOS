@@ -69,9 +69,11 @@ export class ExoInferenceProvider{
         'Do not claim access to undeclared context, hidden state, repository state, credentials, or cognitive authority.'
       ].join(' ');
       const messages=[{role:'system',content:taskInstruction}];
-      if(input.contextManifest.length)messages.push({role:'system',content:`Declared ConsciOS context artifacts (and only these artifacts):\n${declaredContextText(input)}`});
-      if(Array.isArray(input.conversationMessages)&&input.conversationMessages.length)messages.push(...input.conversationMessages.map(message=>({role:message.role,content:message.content})));
-      else messages.push({role:'user',content:declaredContextText(input)});
+      const hasConversation=Array.isArray(input.conversationMessages)&&input.conversationMessages.length>0;
+      if(hasConversation){
+        if(input.contextManifest.length)messages.push({role:'system',content:`Declared ConsciOS context artifacts (and only these artifacts):\n${declaredContextText(input)}`});
+        messages.push(...input.conversationMessages.map(message=>({role:message.role,content:message.content})));
+      }else messages.push({role:'user',content:declaredContextText(input)});
       const response=await this.fetchImpl(`${this.endpoint}/v1/chat/completions`,{
         method:'POST',signal:this._abortController.signal,headers:{'Content-Type':'application/json',Accept:'application/json'},
         body:JSON.stringify({model:this.modelId,temperature:0,max_tokens:input.maxResponseUnits,messages})
@@ -80,7 +82,7 @@ export class ExoInferenceProvider{
       const text=payload?.choices?.[0]?.message?.content;
       if(typeof text!=='string')throw new Error('exo response did not contain choices[0].message.content');
       const elapsedMs=Math.max(0,performance.now()-started);
-      const conversationMessageCount=Array.isArray(input.conversationMessages)?input.conversationMessages.length:0;
+      const conversationMessageCount=hasConversation?input.conversationMessages.length:0;
       return assertValidModelOutput({requestId:input.requestId,provider:this.provenance(),status:'ok',content:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds:input.contextManifest.map(item=>item.artifactId),conversationMessageCount,text,confidenceBasis:'uncalibrated-generative-output'},confidence:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs,ttftMs:null,streamed:false},failure:null,epistemicStatus:input.expectedEpistemicStatus});
     }catch(error){
       const cancelled=error?.name==='AbortError';
