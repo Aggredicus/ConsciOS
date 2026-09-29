@@ -21,6 +21,15 @@ function explicitUserTurn(input){
   return null;
 }
 
+function oneShotHostContext(input,explicitTurn){
+  if(!explicitTurn)return input.contextManifest;
+  return input.contextManifest.filter(artifact=>{
+    if(artifact.artifactId===explicitTurn.artifactId)return false;
+    if(typeof artifact.artifactId==='string'&&artifact.artifactId.endsWith(':parameters'))return false;
+    return true;
+  });
+}
+
 function providerFromHost(host){
   const provenance=host.provenance();
   return {
@@ -48,12 +57,11 @@ export class BrowserTransformersCognitiveModel {
         :explicitTurn
           ?[{role:'system',content:buildTaskInstruction(input)},{role:'user',content:explicitTurn.text}]
           :null;
-      const hostContextManifest=explicitTurn
-        ?input.contextManifest.filter(artifact=>artifact.artifactId!==explicitTurn.artifactId)
-        :input.contextManifest;
+      const hostContextManifest=oneShotHostContext(input,explicitTurn);
       const result=await this.host.generate({userText:messages?undefined:buildTaskInstruction(input),messages,contextManifest:hostContextManifest,maxNewTokens:input.maxResponseUnits,doSample:false,onText:this.onText||undefined});
       const cancelled=result.status==='cancelled';
-      return assertValidModelOutput({requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds:input.contextManifest.map(artifact=>artifact.artifactId),conversationMessageCount:hasConversation?input.conversationMessages.length:0,text:result.text,confidenceBasis:'uncalibrated-generative-output'},confidence:cancelled?0:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null,epistemicStatus:cancelled?'error':input.expectedEpistemicStatus});
+      const accessibleArtifactIds=[...(explicitTurn?[explicitTurn.artifactId]:[]),...hostContextManifest.map(artifact=>artifact.artifactId)];
+      return assertValidModelOutput({requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds,conversationMessageCount:hasConversation?input.conversationMessages.length:0,text:result.text,confidenceBasis:'uncalibrated-generative-output'},confidence:cancelled?0:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null,epistemicStatus:cancelled?'error':input.expectedEpistemicStatus});
     }catch(error){
       return assertValidModelOutput({requestId:input.requestId,provider,status:'error',content:null,confidence:0,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:0,ttftMs:null,streamed:false},failure:String(error?.message||error),epistemicStatus:'error'});
     }
