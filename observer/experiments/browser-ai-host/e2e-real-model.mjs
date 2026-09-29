@@ -3,8 +3,8 @@ import {randomInt} from 'node:crypto';
 import { chromium } from 'playwright';
 
 const baseURL=(process.env.CONSCIOS_BASE_URL||'http://127.0.0.1:8000').replace(/\/$/,'');
-const modelId='smollm2-135m-instruct';
-const modelRepository='SmolLM2-135M-Instruct-ONNX';
+const modelId='qwen3-0.6b';
+const modelRepository='Qwen3-0.6B-ONNX';
 const modelRequests=[];
 const browser=await chromium.launch({headless:true});
 
@@ -50,7 +50,7 @@ try{
     const before=await readNotebookCell('ai');
     await aiCell.locator('[data-source]').fill(prompt);
     const maxUnits=aiCell.locator('[data-config="maxResponseUnits"]');
-    if(await maxUnits.count())await maxUnits.fill('24');
+    if(await maxUnits.count())await maxUnits.fill('64');
     await aiCell.locator('[data-action="run"]').click();
     await page.waitForFunction(previousUpdatedAt=>{
       try{
@@ -62,13 +62,13 @@ try{
     return readNotebookCell('ai');
   }
 
-  const sun=await runOneShot('Reply with only the single word SUN.');
+  const sun=await runOneShot('Reply with only the single word SUN. Do not explain.');
   assert.equal(sun.status,'ok',`SUN inference failed: ${JSON.stringify(sun.output)}`);
   assert.equal(typeof sun.output,'string','SUN inference output must be text');
   assert.ok(hasToken(sun.output,'SUN'),`SUN prompt did not produce a SUN-sensitive response: ${sun.output}`);
   assert.equal(sun.provenance?.provider?.kind,'browser-transformers-local','SUN inference was not produced by browser-local neural provider');
 
-  const moon=await runOneShot('Reply with only the single word MOON.');
+  const moon=await runOneShot('Reply with only the single word MOON. Do not explain.');
   assert.equal(moon.status,'ok',`MOON inference failed: ${JSON.stringify(moon.output)}`);
   assert.equal(typeof moon.output,'string','MOON inference output must be text');
   assert.ok(hasToken(moon.output,'MOON'),`MOON prompt did not produce a MOON-sensitive response: ${moon.output}`);
@@ -89,7 +89,7 @@ try{
   async function sendConversation(prompt,expectedAssistantTurns){
     const article=page.locator(`[data-cell-id="${conversationId}"]`);
     const maxUnits=article.locator('[data-config="maxResponseUnits"]');
-    if(await maxUnits.count())await maxUnits.fill('24');
+    if(await maxUnits.count())await maxUnits.fill('64');
     await article.locator('[data-source]').fill(prompt);
     await article.locator('[data-action="run"]').click();
     await page.waitForFunction(({id,expectedAssistantTurns})=>{
@@ -109,22 +109,22 @@ try{
     return latest?.content??'';
   }
 
-  const firstReply=await sendConversation(`Choose exactly one token from this pair: ${selected[0]} or ${selected[1]}. Reply with only the chosen token.`,1);
+  const firstReply=await sendConversation(`Choose exactly one token from this pair: ${selected[0]} or ${selected[1]}. Reply with only the chosen token. Do not explain.`,1);
   const firstHits=selected.filter(token=>hasToken(firstReply,token));
   assert.equal(firstHits.length,1,`first conversation reply must choose exactly one randomized token ${selected.join('/')}: ${firstReply}`);
   const firstChoice=firstHits[0];
   const otherChoice=selected.find(token=>token!==firstChoice);
 
-  const secondReply=await sendConversation('Now reply with only the OTHER token from the original pair—the one you did not choose. Do not repeat your first choice.',2);
+  const secondReply=await sendConversation('Now reply with only the OTHER token from the original pair—the one you did not choose. Do not repeat your first choice and do not explain.',2);
   assert.ok(hasToken(secondReply,otherChoice),`closed-loop reaction failed: expected unchosen token ${otherChoice} after first choice ${firstChoice}, got: ${secondReply}`);
   assert.ok(!hasToken(secondReply,firstChoice),`second reply repeated the original choice instead of reacting: ${secondReply}`);
 
-  const thirdReply=await sendConversation('Now switch back. Reply with only the token you chose on the FIRST turn.',3);
+  const thirdReply=await sendConversation('Now switch back. Reply with only the token you chose on the FIRST turn. Do not explain.',3);
   assert.ok(hasToken(thirdReply,firstChoice),`state-reversal reaction failed: expected original token ${firstChoice}, got: ${thirdReply}`);
   assert.ok(!hasToken(thirdReply,otherChoice),`third reply did not switch back cleanly: ${thirdReply}`);
 
   assert.ok(modelRequests.some(url=>url.includes(modelRepository)),`no network request to the declared model repository was observed; saw ${modelRequests.length} model-related request(s)`);
-  assert.match(sun.provenance?.provider?.modelId||'',/SmolLM2-135M-Instruct-ONNX/,'unexpected model provenance');
+  assert.match(sun.provenance?.provider?.modelId||'',/Qwen3-0.6B-ONNX/,'unexpected model provenance');
 
   console.log([
     `Real browser reactivity verification passed with ${modelRepository}.`,
