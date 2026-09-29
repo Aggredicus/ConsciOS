@@ -49,7 +49,7 @@ try{
     const before=await readAICell();
     await aiCell.locator('[data-source]').fill(prompt);
     const maxUnits=aiCell.locator('[data-config="maxResponseUnits"]');
-    if(await maxUnits.count())await maxUnits.fill('12');
+    if(await maxUnits.count())await maxUnits.fill('8');
     await aiCell.locator('[data-action="run"]').click();
     await page.waitForFunction(previousUpdatedAt=>{
       try{
@@ -61,26 +61,26 @@ try{
     return readAICell();
   }
 
-  const sun=await runOneShot('Reply with only SUN.');
-  const moon=await runOneShot('Reply with only MOON.');
+  const sun=await runOneShot('Reply only SUN.');
+  const moon=await runOneShot('Reply only MOON.');
   assert.equal(sun.status,'ok',`SUN inference failed: ${JSON.stringify(sun.output)}`);
   assert.equal(moon.status,'ok',`MOON inference failed: ${JSON.stringify(moon.output)}`);
   assert.equal(exactToken(sun.output),'SUN',`SUN stimulus was not followed exactly: ${sun.output}`);
   assert.equal(exactToken(moon.output),'MOON',`MOON stimulus was not followed exactly: ${moon.output}`);
   assert.notEqual(exactToken(sun.output),exactToken(moon.output),'different inputs produced matching outputs');
 
-  // Closed loop: a randomized first model output determines the next browser prompt and expected answer.
+  // Closed loop: the model's actual randomized first output determines the next prompt and expected answer.
   const requestedSource=randomInt(2)===0?'SUN':'MOON';
-  const sourceReply=await runOneShot(`Reply with only ${requestedSource}.`);
+  const sourceReply=await runOneShot(`Reply only ${requestedSource}.`);
   const actualSource=exactToken(sourceReply.output);
   assert.equal(actualSource,requestedSource,`randomized source stimulus was not followed: expected ${requestedSource}, got ${sourceReply.output}`);
 
   const target=actualSource==='SUN'?'DAY':'NIGHT';
-  const reaction=await runOneShot(`The browser model just returned ${actualSource}. React to that result: reply with only ${target}.`);
+  const reaction=await runOneShot(`${actualSource} -> ${target}. Reply ${target}.`);
   assert.equal(exactToken(reaction.output),target,`closed-loop reaction failed: ${actualSource} dynamically selected ${target}, got ${reaction.output}`);
 
   const interventionTarget=target==='DAY'?'NIGHT':'DAY';
-  const intervention=await runOneShot(`Intervention: change the required response. Reply with only ${interventionTarget}.`);
+  const intervention=await runOneShot(`Change. Reply ${interventionTarget}.`);
   assert.equal(exactToken(intervention.output),interventionTarget,`intervention reaction failed: expected ${interventionTarget}, got ${intervention.output}`);
   assert.notEqual(exactToken(reaction.output),exactToken(intervention.output),'intervention did not change neural output');
 
