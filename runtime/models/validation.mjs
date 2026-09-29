@@ -2,7 +2,7 @@ const MODULES=new Set(['Sensorium','GlobalWorkspace','WorldModel','SelfModel','M
 const OUTPUT_STATUSES=new Set(['ok','timeout','error','cancelled']);
 const EXPECTED_EPISTEMIC=new Set(['inference','prediction','counterfactual','memory']);
 const OUTPUT_EPISTEMIC=new Set([...EXPECTED_EPISTEMIC,'error']);
-const PROVIDER_KINDS=new Set(['deterministic-mock','browser-transformers-local']);
+const PROVIDER_KINDS=new Set(['deterministic-mock','browser-transformers-local','exo-cluster']);
 const DEVICES=new Set(['webgpu','wasm']);
 
 function isObject(value){return value!==null&&typeof value==='object'&&!Array.isArray(value)}
@@ -10,6 +10,10 @@ function nonEmpty(value){return typeof value==='string'&&value.length>0}
 function uniqueStrings(values){return Array.isArray(values)&&values.every(nonEmpty)&&new Set(values).size===values.length}
 function unitInterval(value){return typeof value==='number'&&Number.isFinite(value)&&value>=0&&value<=1}
 function nonNegativeNumber(value){return typeof value==='number'&&Number.isFinite(value)&&value>=0}
+function httpEndpoint(value){
+  if(!nonEmpty(value))return false;
+  try{const url=new URL(value);return url.protocol==='http:'||url.protocol==='https:'}catch{return false}
+}
 
 export function validateCognitiveModelInput(input){
   const errors=[];
@@ -39,6 +43,13 @@ function validateProvider(provider,errors){
     if(!nonEmpty(provider.dtype))errors.push('browser provider dtype is required');
     if(provider.inferenceLocation!=='browser-local'||provider.remoteInference!==false)errors.push('browser provider must declare local inference');
   }
+  if(provider.kind==='exo-cluster'){
+    if(!nonEmpty(provider.modelId))errors.push('exo provider modelId is required');
+    if(!httpEndpoint(provider.endpoint))errors.push('exo provider endpoint must use http or https');
+    if(provider.runtime!=='exo-openai-compatible')errors.push('exo provider runtime is invalid');
+    if(provider.inferenceLocation!=='lan-cluster'||provider.remoteInference!==true)errors.push('exo provider must declare LAN-cluster inference');
+    if(!(provider.clusterNodeCount===null||(Number.isInteger(provider.clusterNodeCount)&&provider.clusterNodeCount>=0)))errors.push('exo provider clusterNodeCount is invalid');
+  }
 }
 
 function validateTiming(output,errors){
@@ -46,7 +57,7 @@ function validateTiming(output,errors){
   if(!isObject(timing)){errors.push('timing is invalid');return}
   if(output.provider?.kind==='deterministic-mock'){
     if(!Number.isInteger(timing.deterministicSteps)||timing.deterministicSteps<0)errors.push('timing.deterministicSteps must be a non-negative integer');
-  }else if(output.provider?.kind==='browser-transformers-local'){
+  }else if(output.provider?.kind==='browser-transformers-local'||output.provider?.kind==='exo-cluster'){
     if(!nonNegativeNumber(timing.elapsedMs))errors.push('timing.elapsedMs must be a non-negative number');
     if(!(timing.ttftMs===null||nonNegativeNumber(timing.ttftMs)))errors.push('timing.ttftMs must be null or a non-negative number');
     if(typeof timing.streamed!=='boolean')errors.push('timing.streamed must be boolean');
