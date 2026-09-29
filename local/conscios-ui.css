@@ -32,6 +32,7 @@
 }
 html{scroll-behavior:smooth;background:var(--cs-bg)}
 body{color:var(--cs-text);font-family:var(--cs-font);background:radial-gradient(circle at 8% -8%,rgba(56,126,101,.20),transparent 34rem),radial-gradient(circle at 92% 2%,rgba(31,88,70,.13),transparent 30rem),var(--cs-bg);text-rendering:optimizeLegibility;-webkit-font-smoothing:antialiased}
+body.live-surface{background:radial-gradient(circle at 12% -10%,#173b30 0,transparent 34%),radial-gradient(circle at 90% 0,#102a24 0,transparent 28%),#050b0a}
 ::selection{background:rgba(140,224,185,.24);color:var(--cs-accent-strong)}
 a{color:var(--cs-accent);text-underline-offset:3px;text-decoration-thickness:1px}
 a:hover{color:var(--cs-accent-strong)}
