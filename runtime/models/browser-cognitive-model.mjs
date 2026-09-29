@@ -1,12 +1,7 @@
 import { assertValidModelInput, assertValidModelOutput } from './validation.mjs';
 
-function buildTaskInstruction(input){
-  return [
-    `ConsciOS inference task: ${input.inferenceType}.`,
-    'Use only the explicitly declared context artifacts and conversation turns supplied by the host.',
-    'Respond naturally to the current user turn while preserving relevant conversational continuity.',
-    'Do not claim access to undeclared context, hidden system state, repository state, credentials, or cognitive authority.'
-  ].join(' ');
+function buildTaskInstruction(){
+  return 'Answer the current user message directly. Use only supplied context. You have no hidden access, credentials, repository access, or external authority.';
 }
 
 function explicitUserTurn(input){
@@ -53,12 +48,12 @@ export class BrowserTransformersCognitiveModel {
       const hasConversation=Array.isArray(input.conversationMessages)&&input.conversationMessages.length>0;
       const explicitTurn=hasConversation?null:explicitUserTurn(input);
       const messages=hasConversation
-        ?[{role:'system',content:buildTaskInstruction(input)},...input.conversationMessages]
+        ?[{role:'system',content:buildTaskInstruction()},...input.conversationMessages]
         :explicitTurn
-          ?[{role:'system',content:buildTaskInstruction(input)},{role:'user',content:explicitTurn.text}]
+          ?[{role:'system',content:buildTaskInstruction()},{role:'user',content:explicitTurn.text}]
           :null;
       const hostContextManifest=oneShotHostContext(input,explicitTurn);
-      const result=await this.host.generate({userText:messages?undefined:buildTaskInstruction(input),messages,contextManifest:hostContextManifest,maxNewTokens:input.maxResponseUnits,doSample:false,onText:this.onText||undefined});
+      const result=await this.host.generate({userText:messages?undefined:buildTaskInstruction(),messages,contextManifest:hostContextManifest,maxNewTokens:input.maxResponseUnits,doSample:false,onText:this.onText||undefined});
       const cancelled=result.status==='cancelled';
       const accessibleArtifactIds=[...(explicitTurn?[explicitTurn.artifactId]:[]),...hostContextManifest.map(artifact=>artifact.artifactId)];
       return assertValidModelOutput({requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds,conversationMessageCount:hasConversation?input.conversationMessages.length:0,text:result.text,confidenceBasis:'uncalibrated-generative-output'},confidence:cancelled?0:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null,epistemicStatus:cancelled?'error':input.expectedEpistemicStatus});
