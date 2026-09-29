@@ -68,7 +68,11 @@ export class BrowserTransformersHost {
     if(providedMessages===null&&(typeof userText!=='string'||!userText.trim()))throw new TypeError('userText is required');
     const declared=serializeDeclaredContext(contextManifest);
     const messages=providedMessages?providedMessages.map(x=>({role:x.role,content:String(x.content??'')})):[];
-    if(declared.length)messages.push({role:'system',content:`Declared ConsciOS context artifacts (and only these artifacts):\n${JSON.stringify(declared)}`});
+    if(declared.length){
+      const contextMessage={role:'system',content:`Declared ConsciOS context artifacts (and only these artifacts):\n${JSON.stringify(declared)}`};
+      let insertAt=0;while(messages[insertAt]?.role==='system')insertAt++;
+      messages.splice(insertAt,0,contextMessage);
+    }
     if(providedMessages===null)messages.push({role:'user',content:userText});
     this.cancelRequested=false;
     const inputJson=stableJson(messages);
