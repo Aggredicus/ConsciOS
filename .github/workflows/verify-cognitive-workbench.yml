@@ -1,0 +1,26 @@
+name: Verify Cognitive Workbench
+
+on:
+  pull_request:
+    paths:
+      - 'local/workbench/**'
+      - 'local/index.html'
+      - 'observer/experiments/notebook-workbench/**'
+      - '.github/workflows/verify-cognitive-workbench.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-workbench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Verify notebook and provider boundaries
+        run: node observer/experiments/notebook-workbench/verify.mjs
+      - name: Verify existing browser entrypoints
+        run: node observer/experiments/browser-entrypoints/verify.mjs
