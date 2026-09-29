@@ -35,3 +35,30 @@ jobs:
         run: node observer/experiments/browser-ai-host/verify-architecture-trace.mjs
       - name: Verify recurrent scientific controls
         run: node observer/experiments/browser-ai-host/verify-scientific-controls.mjs
+
+  real-browser-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start ConsciOS browser host
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 > /tmp/conscios-http.log 2>&1 &
+          echo $! > /tmp/conscios-http.pid
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/local/workbench/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/conscios-http.log
+          exit 1
+      - name: Download and run a real model in Chromium
+        env:
+          CONSCIOS_BASE_URL: http://127.0.0.1:8000
+        run: node observer/experiments/browser-ai-host/e2e-real-model.mjs
