@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {randomInt} from 'node:crypto';
 import { chromium } from 'playwright';
 
 const baseURL=(process.env.CONSCIOS_BASE_URL||'http://127.0.0.1:8000').replace(/\/$/,'');
@@ -6,6 +7,11 @@ const modelId='smollm2-135m-instruct';
 const modelRepository='SmolLM2-135M-Instruct-ONNX';
 const modelRequests=[];
 const browser=await chromium.launch({headless:true});
+
+function hasToken(text,token){
+  return String(text??'').toUpperCase().split(/[^A-Z]+/).includes(token.toUpperCase());
+}
+function normalizeText(text){return String(text??'').trim().replace(/\s+/g,' ').toLowerCase()}
 
 try{
   const context=await browser.newContext();
@@ -31,35 +37,102 @@ try{
   const providerStatus=await page.textContent('#providerStatus');
   assert.match(providerStatus,/Browser model ready/,'browser-local provider did not become ready');
 
-  const aiCell=page.locator('article.cell').filter({has:page.locator('.cellType',{hasText:'AI prompt'})}).first();
-  await aiCell.locator('[data-source]').fill('Write one short sentence confirming that a garden can grow plants.');
-  const maxUnits=aiCell.locator('[data-config="maxResponseUnits"]');
-  if(await maxUnits.count())await maxUnits.fill('32');
-  await aiCell.locator('[data-action="run"]').click();
-
-  await page.waitForFunction(()=>{
-    try{
+  async function readNotebookCell(type,id=null){
+    return page.evaluate(({type,id})=>{
       const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1')||'null');
-      const cell=notebook?.cells?.find(item=>item.type==='ai');
-      return cell?.status==='ok'||cell?.status==='error';
-    }catch{return false}
-  },null,{timeout:360_000});
-  await page.waitForTimeout(1000);
+      const cell=id?notebook?.cells?.find(item=>item.id===id):notebook?.cells?.find(item=>item.type===type);
+      return cell?structuredClone(cell):null;
+    },{type,id});
+  }
 
-  const result=await page.evaluate(()=>{
+  async function runOneShot(prompt){
+    const aiCell=page.locator('article.cell').filter({has:page.locator('.cellType',{hasText:'AI prompt'})}).first();
+    const before=await readNotebookCell('ai');
+    await aiCell.locator('[data-source]').fill(prompt);
+    const maxUnits=aiCell.locator('[data-config="maxResponseUnits"]');
+    if(await maxUnits.count())await maxUnits.fill('24');
+    await aiCell.locator('[data-action="run"]').click();
+    await page.waitForFunction(previousUpdatedAt=>{
+      try{
+        const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1')||'null');
+        const cell=notebook?.cells?.find(item=>item.type==='ai');
+        return cell&&cell.updatedAt!==previousUpdatedAt&&(cell.status==='ok'||cell.status==='error');
+      }catch{return false}
+    },before?.updatedAt??null,{timeout:360_000});
+    return readNotebookCell('ai');
+  }
+
+  const sun=await runOneShot('Reply with only the single word SUN.');
+  assert.equal(sun.status,'ok',`SUN inference failed: ${JSON.stringify(sun.output)}`);
+  assert.equal(typeof sun.output,'string','SUN inference output must be text');
+  assert.ok(hasToken(sun.output,'SUN'),`SUN prompt did not produce a SUN-sensitive response: ${sun.output}`);
+  assert.equal(sun.provenance?.provider?.kind,'browser-transformers-local','SUN inference was not produced by browser-local neural provider');
+
+  const moon=await runOneShot('Reply with only the single word MOON.');
+  assert.equal(moon.status,'ok',`MOON inference failed: ${JSON.stringify(moon.output)}`);
+  assert.equal(typeof moon.output,'string','MOON inference output must be text');
+  assert.ok(hasToken(moon.output,'MOON'),`MOON prompt did not produce a MOON-sensitive response: ${moon.output}`);
+  assert.equal(moon.provenance?.provider?.kind,'browser-transformers-local','MOON inference was not produced by browser-local neural provider');
+  assert.notEqual(normalizeText(sun.output),normalizeText(moon.output),'two different prompts produced matching neural outputs');
+
+  const pairs=[['MAPLE','RIVER'],['CEDAR','STONE'],['MOSS','CLOUD'],['ORCHARD','HARBOR']];
+  const selected=[...pairs[randomInt(pairs.length)]];
+  if(randomInt(2)===1)selected.reverse();
+
+  await page.selectOption('#addCellType','conversation');
+  await page.click('#addCell');
+  const conversation=await page.evaluate(()=>{
     const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1'));
-    const cell=notebook.cells.find(item=>item.type==='ai');
-    return {status:cell.status,output:cell.output,provenance:cell.provenance};
+    return notebook.cells.filter(cell=>cell.type==='conversation').at(-1);
   });
+  assert.ok(conversation?.id,'conversation cell was not created through the Workbench UI');
 
-  assert.equal(result.status,'ok',`real browser inference did not complete successfully: ${JSON.stringify(result.output)}`);
-  assert.equal(typeof result.output,'string','real browser inference output must be text');
-  assert.ok(result.output.trim().length>0,'real browser inference returned empty text');
-  assert.equal(result.provenance?.provider?.kind,'browser-transformers-local','inference was not produced by the real browser-local neural provider');
-  assert.match(result.provenance?.provider?.modelId||'',/SmolLM2-135M-Instruct-ONNX/,'unexpected model provenance');
+  async function sendConversation(prompt,expectedAssistantTurns){
+    const article=page.locator(`[data-cell-id="${conversation.id}"]`);
+    const maxUnits=article.locator('[data-config="maxResponseUnits"]');
+    if(await maxUnits.count())await maxUnits.fill('24');
+    await article.locator('[data-source]').fill(prompt);
+    await article.locator('[data-action="run"]').click();
+    await page.waitForFunction(({id,expectedAssistantTurns})=>{
+      try{
+        const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1')||'null');
+        const cell=notebook?.cells?.find(item=>item.id===id);
+        if(cell?.status==='error')return true;
+        const assistants=cell?.output?.messages?.filter(message=>message.role==='assistant')??[];
+        return cell?.status==='ok'&&assistants.length>=expectedAssistantTurns;
+      }catch{return false}
+    },{id:conversation.id,expectedAssistantTurns},{timeout:360_000});
+    const cell=await readNotebookCell('conversation',conversation.id);
+    assert.equal(cell.status,'ok',`conversation turn ${expectedAssistantTurns} failed: ${JSON.stringify(cell.output)}`);
+    const assistants=cell.output?.messages?.filter(message=>message.role==='assistant')??[];
+    const latest=assistants.at(-1);
+    assert.equal(latest?.provider?.kind,'browser-transformers-local',`conversation turn ${expectedAssistantTurns} was not browser-local neural inference`);
+    return latest?.content??'';
+  }
+
+  const firstReply=await sendConversation(`Choose exactly one token from this pair: ${selected[0]} or ${selected[1]}. Reply with only the chosen token.`,1);
+  const firstHits=selected.filter(token=>hasToken(firstReply,token));
+  assert.equal(firstHits.length,1,`first conversation reply must choose exactly one randomized token ${selected.join('/')}: ${firstReply}`);
+  const firstChoice=firstHits[0];
+  const otherChoice=selected.find(token=>token!==firstChoice);
+
+  const secondReply=await sendConversation('Now reply with only the OTHER token from the original pair—the one you did not choose. Do not repeat your first choice.',2);
+  assert.ok(hasToken(secondReply,otherChoice),`closed-loop reaction failed: expected unchosen token ${otherChoice} after first choice ${firstChoice}, got: ${secondReply}`);
+  assert.ok(!hasToken(secondReply,firstChoice),`second reply repeated the original choice instead of reacting: ${secondReply}`);
+
+  const thirdReply=await sendConversation('Now switch back. Reply with only the token you chose on the FIRST turn.',3);
+  assert.ok(hasToken(thirdReply,firstChoice),`state-reversal reaction failed: expected original token ${firstChoice}, got: ${thirdReply}`);
+  assert.ok(!hasToken(thirdReply,otherChoice),`third reply did not switch back cleanly: ${thirdReply}`);
+
   assert.ok(modelRequests.some(url=>url.includes(modelRepository)),`no network request to the declared model repository was observed; saw ${modelRequests.length} model-related request(s)`);
+  assert.match(sun.provenance?.provider?.modelId||'',/SmolLM2-135M-Instruct-ONNX/,'unexpected model provenance');
 
-  console.log(`Real browser model verification passed: downloaded ${modelRepository}, loaded it in headless Chromium/WASM, and produced non-empty neural output (${result.output.trim().slice(0,120)}).`);
+  console.log([
+    `Real browser reactivity verification passed with ${modelRepository}.`,
+    `Distinct-input check: SUN => ${JSON.stringify(sun.output.trim().slice(0,80))}; MOON => ${JSON.stringify(moon.output.trim().slice(0,80))}.`,
+    `Closed-loop randomized pair: ${selected.join('/')} · first=${firstChoice} · second=${otherChoice} · third=${firstChoice}.`,
+    'The second expected answer was computed from the model’s own first answer, and the original pair was not restated.'
+  ].join(' '));
 } finally {
   await browser.close();
 }
