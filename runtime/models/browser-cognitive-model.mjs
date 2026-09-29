@@ -3,8 +3,9 @@ import { assertValidModelInput, assertValidModelOutput } from './validation.mjs'
 function buildTaskInstruction(input){
   return [
     `ConsciOS inference task: ${input.inferenceType}.`,
-    'Use only the explicitly declared context artifacts supplied by the host.',
-    'Return only the requested inference; do not claim access to undeclared context or system state.'
+    'Use only the explicitly declared context artifacts and conversation turns supplied by the host.',
+    'Respond naturally to the current user turn while preserving relevant conversational continuity.',
+    'Do not claim access to undeclared context, hidden system state, repository state, credentials, or cognitive authority.'
   ].join(' ');
 }
 
@@ -28,9 +29,11 @@ export class BrowserTransformersCognitiveModel {
   async infer(input){
     assertValidModelInput(input);const provider=providerFromHost(this.host);
     try{
-      const result=await this.host.generate({userText:buildTaskInstruction(input),contextManifest:input.contextManifest,maxNewTokens:input.maxResponseUnits,doSample:false,onText:this.onText||undefined});
+      const hasConversation=Array.isArray(input.conversationMessages)&&input.conversationMessages.length>0;
+      const messages=hasConversation?[{role:'system',content:buildTaskInstruction(input)},...input.conversationMessages]:null;
+      const result=await this.host.generate({userText:hasConversation?undefined:buildTaskInstruction(input),messages,contextManifest:input.contextManifest,maxNewTokens:input.maxResponseUnits,doSample:false,onText:this.onText||undefined});
       const cancelled=result.status==='cancelled';
-      return assertValidModelOutput({requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds:[...result.contextArtifactIds],text:result.text,confidenceBasis:'uncalibrated-generative-output'},confidence:cancelled?0:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null,epistemicStatus:cancelled?'error':input.expectedEpistemicStatus});
+      return assertValidModelOutput({requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds:[...result.contextArtifactIds],conversationMessageCount:hasConversation?input.conversationMessages.length:0,text:result.text,confidenceBasis:'uncalibrated-generative-output'},confidence:cancelled?0:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null,epistemicStatus:cancelled?'error':input.expectedEpistemicStatus});
     }catch(error){
       return assertValidModelOutput({requestId:input.requestId,provider,status:'error',content:null,confidence:0,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:0,ttftMs:null,streamed:false},failure:String(error?.message||error),epistemicStatus:'error'});
     }
