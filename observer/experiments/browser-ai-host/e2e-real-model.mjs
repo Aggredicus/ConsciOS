@@ -81,14 +81,13 @@ try{
 
   await page.selectOption('#addCellType','conversation');
   await page.click('#addCell');
-  const conversation=await page.evaluate(()=>{
-    const notebook=JSON.parse(localStorage.getItem('conscios-cognitive-workbench-v1'));
-    return notebook.cells.filter(cell=>cell.type==='conversation').at(-1);
-  });
-  assert.ok(conversation?.id,'conversation cell was not created through the Workbench UI');
+  const conversationArticle=page.locator('article.cell').filter({has:page.locator('.cellType',{hasText:/^Conversation$/})}).last();
+  await conversationArticle.waitFor({state:'visible'});
+  const conversationId=await conversationArticle.getAttribute('data-cell-id');
+  assert.ok(conversationId,'conversation cell was not created through the Workbench UI');
 
   async function sendConversation(prompt,expectedAssistantTurns){
-    const article=page.locator(`[data-cell-id="${conversation.id}"]`);
+    const article=page.locator(`[data-cell-id="${conversationId}"]`);
     const maxUnits=article.locator('[data-config="maxResponseUnits"]');
     if(await maxUnits.count())await maxUnits.fill('24');
     await article.locator('[data-source]').fill(prompt);
@@ -101,8 +100,8 @@ try{
         const assistants=cell?.output?.messages?.filter(message=>message.role==='assistant')??[];
         return cell?.status==='ok'&&assistants.length>=expectedAssistantTurns;
       }catch{return false}
-    },{id:conversation.id,expectedAssistantTurns},{timeout:360_000});
-    const cell=await readNotebookCell('conversation',conversation.id);
+    },{id:conversationId,expectedAssistantTurns},{timeout:360_000});
+    const cell=await readNotebookCell('conversation',conversationId);
     assert.equal(cell.status,'ok',`conversation turn ${expectedAssistantTurns} failed: ${JSON.stringify(cell.output)}`);
     const assistants=cell.output?.messages?.filter(message=>message.role==='assistant')??[];
     const latest=assistants.at(-1);
