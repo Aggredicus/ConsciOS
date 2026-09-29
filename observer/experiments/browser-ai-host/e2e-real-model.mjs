@@ -69,21 +69,17 @@ try{
   assert.equal(exactToken(moon.output),'MOON',`MOON stimulus was not followed exactly: ${moon.output}`);
   assert.notEqual(exactToken(sun.output),exactToken(moon.output),'different inputs produced matching outputs');
 
-  const sourcePairs=[['MAPLE','RIVER'],['CEDAR','STONE'],['MOSS','CLOUD'],['ORCHARD','HARBOR']];
-  const targetPairs=[['GREEN','BLUE'],['NORTH','SOUTH'],['ALPHA','BETA'],['DAWN','DUSK']];
-  const source=sourcePairs[randomInt(sourcePairs.length)];
-  const requestedSource=source[randomInt(2)];
+  // Closed loop: a randomized first model output determines the next browser prompt and expected answer.
+  const requestedSource=randomInt(2)===0?'SUN':'MOON';
   const sourceReply=await runOneShot(`Reply with only ${requestedSource}.`);
   const actualSource=exactToken(sourceReply.output);
   assert.equal(actualSource,requestedSource,`randomized source stimulus was not followed: expected ${requestedSource}, got ${sourceReply.output}`);
 
-  const targets=targetPairs[randomInt(targetPairs.length)];
-  const actualSourceIndex=source.indexOf(actualSource);
-  const target=targets[actualSourceIndex];
-  const reaction=await runOneShot(`Your previous browser output was ${actualSource}. React to that result now: reply with only ${target}.`);
+  const target=actualSource==='SUN'?'DAY':'NIGHT';
+  const reaction=await runOneShot(`The browser model just returned ${actualSource}. React to that result: reply with only ${target}.`);
   assert.equal(exactToken(reaction.output),target,`closed-loop reaction failed: ${actualSource} dynamically selected ${target}, got ${reaction.output}`);
 
-  const interventionTarget=targets[1-actualSourceIndex];
+  const interventionTarget=target==='DAY'?'NIGHT':'DAY';
   const intervention=await runOneShot(`Intervention: change the required response. Reply with only ${interventionTarget}.`);
   assert.equal(exactToken(intervention.output),interventionTarget,`intervention reaction failed: expected ${interventionTarget}, got ${intervention.output}`);
   assert.notEqual(exactToken(reaction.output),exactToken(intervention.output),'intervention did not change neural output');
