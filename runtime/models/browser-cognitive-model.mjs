@@ -9,6 +9,18 @@ function buildTaskInstruction(input){
   ].join(' ');
 }
 
+function explicitUserTurn(input){
+  for(const artifact of input.contextManifest||[]){
+    const content=artifact?.content;
+    if(!content||typeof content!=='object'||Array.isArray(content))continue;
+    for(const key of ['userText','text']){
+      const value=content[key];
+      if(typeof value==='string'&&value.trim())return value.trim();
+    }
+  }
+  return null;
+}
+
 function providerFromHost(host){
   const provenance=host.provenance();
   return {
@@ -30,8 +42,13 @@ export class BrowserTransformersCognitiveModel {
     assertValidModelInput(input);const provider=providerFromHost(this.host);
     try{
       const hasConversation=Array.isArray(input.conversationMessages)&&input.conversationMessages.length>0;
-      const messages=hasConversation?[{role:'system',content:buildTaskInstruction(input)},...input.conversationMessages]:null;
-      const result=await this.host.generate({userText:hasConversation?undefined:buildTaskInstruction(input),messages,contextManifest:input.contextManifest,maxNewTokens:input.maxResponseUnits,doSample:false,onText:this.onText||undefined});
+      const oneShotUserTurn=hasConversation?null:explicitUserTurn(input);
+      const messages=hasConversation
+        ?[{role:'system',content:buildTaskInstruction(input)},...input.conversationMessages]
+        :oneShotUserTurn
+          ?[{role:'system',content:buildTaskInstruction(input)},{role:'user',content:oneShotUserTurn}]
+          :null;
+      const result=await this.host.generate({userText:messages?undefined:buildTaskInstruction(input),messages,contextManifest:input.contextManifest,maxNewTokens:input.maxResponseUnits,doSample:false,onText:this.onText||undefined});
       const cancelled=result.status==='cancelled';
       return assertValidModelOutput({requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds:[...result.contextArtifactIds],conversationMessageCount:hasConversation?input.conversationMessages.length:0,text:result.text,confidenceBasis:'uncalibrated-generative-output'},confidence:cancelled?0:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null,epistemicStatus:cancelled?'error':input.expectedEpistemicStatus});
     }catch(error){
