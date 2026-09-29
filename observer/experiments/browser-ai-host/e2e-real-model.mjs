@@ -80,7 +80,7 @@ try{
   assert.equal(exactToken(reaction.output),target,`closed-loop reaction failed: ${actualSource} dynamically selected ${target}, got ${reaction.output}`);
 
   const interventionTarget=target==='DAY'?'NIGHT':'DAY';
-  const intervention=await runOneShot(`Change. Reply ${interventionTarget}.`);
+  const intervention=await runOneShot(`Reply only ${interventionTarget}.`);
   assert.equal(exactToken(intervention.output),interventionTarget,`intervention reaction failed: expected ${interventionTarget}, got ${intervention.output}`);
   assert.notEqual(exactToken(reaction.output),exactToken(intervention.output),'intervention did not change neural output');
 
