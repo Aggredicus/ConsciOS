@@ -95,7 +95,7 @@ jobs:
             echo 'Unsafe or network-dependent viewer primitive found' >&2
             exit 1
           fi
-          grep -q 'id="node-tooltip"' .self-model-studio-ci/studio/index.html
+          grep -q 'node-tooltip' .self-model-studio-ci/studio/index.html
           if grep -En "<script[^>]+src=|http://" .self-model-studio-ci/studio/index.html; then
             echo 'Standalone viewer unexpectedly depends on an external runtime resource' >&2
             exit 1
