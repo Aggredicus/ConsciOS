@@ -12,4 +12,10 @@ canvas.addEventListener('conscios:node-selected',e=>showAt(e.detail?.clientX,e.d
 canvas.addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&e.isPrimary===false)hide()});
 canvas.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch')hide()});
 window.addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
+
+// Post-bundle temporal QoL hooks. They interact only through the public controls so
+// the core graph state remains encapsulated inside the main static viewer script.
+const mode4d=document.getElementById('mode4d'),historyTime=document.getElementById('historyTime'),timeBadge=document.getElementById('timeBadge'),play=document.getElementById('play');
+if(mode4d&&historyTime&&timeBadge){const original=mode4d.onclick;mode4d.onclick=()=>{original?.();queueMicrotask(()=>{if(timeBadge.textContent!=='no history'){historyTime.value='1';historyTime.dispatchEvent(new Event('input',{bubbles:true}));}});};}
+if(play&&historyTime){const original=play.onclick;play.onclick=()=>{const starting=play.getAttribute('aria-pressed')!=='true';if(starting&&Number(historyTime.value)>=.999){historyTime.value='0';historyTime.dispatchEvent(new Event('input',{bubbles:true}));}original?.();};}
 })();
