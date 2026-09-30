@@ -27,6 +27,7 @@ jobs:
           node --check observer/experiments/consciousness-battery-v2/human-ux-audit.mjs
           node --check observer/experiments/consciousness-battery-v2/agent-ux-audit.mjs
           node --check observer/experiments/consciousness-battery-v2/agent-experience-survey.mjs
+          node --check observer/experiments/consciousness-battery-v2/agent-experience-cli.mjs
           node --check observer/experiments/consciousness-battery-v2/verify.mjs
           node --check scripts/plan-agent-context.mjs
           node observer/experiments/consciousness-battery-v2/verify.mjs
@@ -47,6 +48,7 @@ jobs:
           node observer/experiments/consciousness-battery-v2/architecture-fidelity.mjs --out .consciousness-ux-v2/architecture-fidelity.json
           node observer/experiments/consciousness-battery-v2/human-ux-audit.mjs --out .consciousness-ux-v2/human-ux.json
           node observer/experiments/consciousness-battery-v2/agent-ux-audit.mjs --out .consciousness-ux-v2/agent-ux.json
+          node observer/experiments/consciousness-battery-v2/agent-experience-cli.mjs prompt --condition condition-blinded-ci --session review-template --out .consciousness-ux-v2/agent-experience-survey-packet.json
           node scripts/plan-agent-context.mjs SelfModel --task 'inspect Self Model capabilities limitations permissions uncertainty memory' > .consciousness-ux-v2/self-model-context-plan.json
           node scripts/plan-agent-context.mjs ObserverScientist --task 'review consciousness evidence recurrence continuity metacognition counterfactual' > .consciousness-ux-v2/observer-context-plan.json
 
@@ -60,6 +62,8 @@ jobs:
           for (const [name,d] of Object.entries(x.dimensions)) if (!['measured','partial','not-established'].includes(d.status)) throw new Error(`invalid evidence status ${name}`);
           const plan=JSON.parse(fs.readFileSync('.consciousness-ux-v2/self-model-context-plan.json','utf8'));
           if (plan.authority !== 'none') throw new Error('context planner gained causal authority');
+          const packet=JSON.parse(fs.readFileSync('.consciousness-ux-v2/agent-experience-survey-packet.json','utf8'));
+          if (!packet.blindConditionId || !Array.isArray(packet.dimensions) || !packet.dimensions.includes('consciousnessSimulationExperience')) throw new Error('blinded experience survey packet invalid');
           NODE
 
       - name: Upload review and UX evidence
