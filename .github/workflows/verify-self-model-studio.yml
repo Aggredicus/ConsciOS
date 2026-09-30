@@ -96,7 +96,7 @@ jobs:
             exit 1
           fi
           grep -q 'node-tooltip' .self-model-studio-ci/studio/index.html
-          if grep -En "<script[^>]+src=|http://" .self-model-studio-ci/studio/index.html; then
+          if grep -Eiq "<script[^>]+src=[\"']?https?://|<link[^>]+href=[\"']?https?://|<iframe[^>]+src=[\"']?https?://" .self-model-studio-ci/studio/index.html; then
             echo 'Standalone viewer unexpectedly depends on an external runtime resource' >&2
             exit 1
           fi
