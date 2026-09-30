@@ -39,6 +39,13 @@ jobs:
       - name: Build current self-model when no comparison is available
         if: github.event_name == 'push' && github.event.before == '0000000000000000000000000000000000000000'
         run: node scripts/self-model-memory.mjs build --out .self-model-ci/after
+      - name: Build compact heading catalogs
+        run: |
+          for d in .self-model-ci/before .self-model-ci/after; do
+            if [ -f "$d/index/sections.jsonl" ]; then
+              node scripts/self-model-section-catalog.mjs "$d"
+            fi
+          done
       - name: Upload inspectable self-model artifact
         uses: actions/upload-artifact@v4
         with:
