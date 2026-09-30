@@ -13,7 +13,7 @@ function verified(rel){
   try{execFileSync(process.execPath,[path.join(ROOT,rel)],{cwd:ROOT,stdio:'pipe',encoding:'utf8',maxBuffer:8*1024*1024});return true;}catch{return false;}
 }
 function stageCoverage(state){
-  const expected=['Sensorium','GlobalWorkspace','WorldModel','SelfModel','Counterfactual','Metacognition','Homeostasis','Guardian','Executive','Expression'];
+  const expected=['Sensorium','GlobalWorkspace','WorldModel','SelfModel','Counterfactual','Metacognition','Homeostasis','EthicsWelfareGuardian','Executive','Expression'];
   const seen=new Set((state.events||[]).map(e=>e.source));
   const present=expected.filter(x=>seen.has(x));
   return {expected,present,value:round(present.length/expected.length)};
@@ -69,7 +69,7 @@ export function runConsciousnessBatteryV2(){
     agencyAttribution:dimension(agencyPass?'measured':'partial',agencyPass?1:null,['observer/experiments/agency-attribution/verify.mjs'],'Agency attribution has a dedicated causal laboratory and verifier.',['Agency attribution is a cognitive function, not evidence of phenomenal agency.'])
   };
   const counts=Object.values(dimensions).reduce((a,d)=>(a[d.status]=(a[d.status]||0)+1,a),{});
-  return Object.freeze({version:'2.0.0',interpretation:'Vector of consciousness-associated functional evidence. Not a consciousness score, probability, or sentience verdict.',dimensions,measurementCoverage:counts,provenance:{canonicalArchitecture:'runtime/v0-modular.mjs',scientificMethod:'SCIENTIFIC_METHOD.md',preRegistration:'observer/experiments/consciousness-battery-v2/PREREGISTRATION.md'}});
+  return Object.freeze({version:'2.0.1',interpretation:'Vector of consciousness-associated functional evidence. Not a consciousness score, probability, or sentience verdict.',dimensions,measurementCoverage:counts,provenance:{canonicalArchitecture:'runtime/v0-modular.mjs',scientificMethod:'SCIENTIFIC_METHOD.md',preRegistration:'observer/experiments/consciousness-battery-v2/PREREGISTRATION.md'}});
 }
 
 if(import.meta.url===new URL(`file://${process.argv[1]}`).href)process.stdout.write(JSON.stringify(runConsciousnessBatteryV2(),null,2)+'\n');
