@@ -18,7 +18,7 @@ const isText=p=>baseNames.has(path.basename(p))||textExt.has(path.extname(p).toL
 const safeRead=p=>{try{return fs.readFileSync(path.join(root,p),'utf8')}catch{return null}};
 const sectionsPath=path.join(root,snapshot,'index','sections.jsonl');
 const sections=fs.existsSync(sectionsPath)?fs.readFileSync(sectionsPath,'utf8').split(/\r?\n/).filter(Boolean).map(JSON.parse):[];
-const byFile=new Map();for(const s of sections){if(!byFile.has(s.file))byFile.set(s.file,[]);byFile.get(s.file).push(s)};
+const byFile=new Map();for(const s of sections){if(!byFile.has(s.file))byFile.set(s.file,[]);byFile.get(s.file).push(s)}
 const sectionAt=(p,line)=>{const ss=byFile.get(p)||[];let best=null;for(const s of ss){if(line>=s.startLine&&line<=s.subtreeEndLine&&(!best||s.level>best.level))best=s;}return best;};
 const related=(p,line)=>{const s=sectionAt(p,line);return s?[`file:${p}`,`section:${s.id.replace(/^section:/,'')}`]:[`file:${p}`];};
 const findings=[];const decisions=[];
@@ -55,8 +55,8 @@ for(const p of files.filter(p=>p.startsWith('.github/workflows/')&&/\.ya?ml$/i.t
   const t=safeRead(p)||'',ls=t.split(/\r?\n/);
   if(/\bpull_request_target\s*:/i.test(t))addFinding({category:'security',severity:'high',rule:'SEC-PR-TARGET',path:p,line:ls.findIndex(x=>/pull_request_target\s*:/.test(x))+1,message:'pull_request_target executes with base-repository privileges; require explicit threat review.'});
   if(!/^permissions\s*:/m.test(t))addFinding({category:'security',severity:'medium',rule:'SEC-WORKFLOW-PERMISSIONS',path:p,line:1,message:'Workflow has no explicit top-level permissions block; default token scope may be broader than necessary.'});
-  ls.forEach((raw,i)=>{const m=raw.match(/^\s*-?\s*uses:\s*([^\s#]+)\s*/);if(m&&/^[\w.-]+\/[\w.-]+@/.test(m[1])){const ref=m[1].split('@')[1]||'';if(!/^[a-f0-9]{40}$/i.test(ref))addFinding({category:'security',severity:'low',rule:'SEC-ACTION-PIN',path:p,line:i+1,message:'Action is not pinned to an immutable full commit SHA.',excerpt:m[1]});}});
-  ls.forEach((raw,i)=>{if(/^\s*(contents|pull-requests|issues|actions|checks|deployments|packages|id-token)\s*:\s*write\s*$/i.test(raw))addFinding({category:'security',severity:'medium',rule:'SEC-WORKFLOW-WRITE',path:p,line:i+1,message:'Workflow requests write privilege; verify least privilege and role ownership.',excerpt:raw.trim()});});
+  ls.forEach((raw,i)=>{const m=raw.match(/^\s*-?\s*uses:\s*([^\s#]+)\s*/);if(m&&/^[\w.-]+\/[\w.-]+@/.test(m[1])){const ref=m[1].split('@')[1]||'';if(!/^[a-f0-9]{40}$/i.test(ref))addFinding({category:'security',severity:'low',rule:'SEC-ACTION-PIN',path:p,line:i+1,message:'Third-party/GitHub Action is not pinned to an immutable full commit SHA.',excerpt:m[1]});}});
+  ls.forEach((raw,i)=>{if(/^\s*(contents|pull-requests|issues|actions|checks|deployments|packages)\s*:\s*write\s*$/i.test(raw))addFinding({category:'security',severity:'medium',rule:'SEC-WORKFLOW-WRITE',path:p,line:i+1,message:'Workflow requests write privilege; verify least privilege and role ownership.',excerpt:raw.trim()});});
 }
 const sm=safeRead('scripts/self-model-memory.mjs')||'';
 if(sm&&!sm.includes("'artifacts/self-model/'"))addFinding({category:'governance',severity:'high',rule:'GOV-OBSERVER-RECURSION',path:'scripts/self-model-memory.mjs',line:1,message:'Self-model generator no longer visibly excludes its generated artifact surface.'});
@@ -65,12 +65,13 @@ for(const required of ['CONSCIOS_CHARTER.md','WELFARE_PROTOCOL.md','SCIENTIFIC_M
 const groups=new Map();
 for(const d of decisions){const core=d.text.toLowerCase().replace(/\b(must not|may not|shall not|must|shall|required|forbidden|prohibited|never)\b/g,' ').replace(/[^a-z0-9]+/g,' ').trim();if(core.length<24)continue;if(!groups.has(core))groups.set(core,[]);groups.get(core).push(d);}
 for(const ds of groups.values()){const pol=new Set(ds.map(d=>d.polarity));if(pol.size>1){const a=ds[0];addFinding({category:'governance',severity:'high',rule:'GOV-CONTRADICTORY-NORM',path:a.source.path,line:a.source.line,message:'Potentially contradictory normative statements share the same normalized rule body.',excerpt:a.text,decisionIds:ds.map(d=>d.id)});}}
-const sevRank={high:3,medium:2,low:1,info:0};findings.sort((a,b)=>(sevRank[b.severity]-sevRank[a.severity])||a.category.localeCompare(b.category)||String(a.path).localeCompare(String(b.path))||(a.line||0)-(b.line||0));
-const summary={filesScanned:files.filter(isText).length,decisions:decisions.length,findings:findings.length,bySeverity:Object.fromEntries(['high','medium','low','info'].map(s=>[s,findings.filter(f=>f.severity===s).length])),byCategory:Object.fromEntries([...new Set(findings.map(f=>f.category))].sort().map(c=>[c,findings.filter(f=>f.category===c).length]))};
-const result={version:1,generatedAt:new Date().toISOString(),summary,decisions,findings};
+const uniqueFindings=[...new Map(findings.map(f=>[f.id,f])).values()];
+const sevRank={high:3,medium:2,low:1,info:0};uniqueFindings.sort((a,b)=>(sevRank[b.severity]-sevRank[a.severity])||a.category.localeCompare(b.category)||String(a.path).localeCompare(String(b.path))||(a.line||0)-(b.line||0));
+const summary={filesScanned:files.filter(isText).length,decisions:decisions.length,findings:uniqueFindings.length,bySeverity:Object.fromEntries(['high','medium','low','info'].map(s=>[s,uniqueFindings.filter(f=>f.severity===s).length])),byCategory:Object.fromEntries([...new Set(uniqueFindings.map(f=>f.category))].sort().map(c=>[c,uniqueFindings.filter(f=>f.category===c).length]))};
+const result={version:1,generatedAt:new Date().toISOString(),summary,decisions,findings:uniqueFindings};
 fs.mkdirSync(path.join(root,outDir),{recursive:true});fs.writeFileSync(path.join(root,outDir,'audit.json'),JSON.stringify(result,null,2)+'\n');
 const md=['# Repository quality and governance audit','',`Scanned **${summary.filesScanned}** text files and extracted **${summary.decisions}** normative decisions.`,`Findings: **${summary.findings}** (${summary.bySeverity.high} high, ${summary.bySeverity.medium} medium, ${summary.bySeverity.low} low).`,'','## Findings',''];
-for(const f of findings.slice(0,200))md.push(`- **${f.severity.toUpperCase()} · ${f.category} · ${f.rule}** — ${f.path||'repository'}${f.line?`:${f.line}`:''} — ${f.message}`);
+for(const f of uniqueFindings.slice(0,200))md.push(`- **${f.severity.toUpperCase()} · ${f.category} · ${f.rule}** — ${f.path||'repository'}${f.line?`:${f.line}`:''} — ${f.message}`);
 fs.writeFileSync(path.join(root,outDir,'REPORT.md'),md.join('\n')+'\n');
 console.log(JSON.stringify(summary));
 if(arg('--fail-high','false')==='true'&&summary.bySeverity.high>0)process.exitCode=2;
