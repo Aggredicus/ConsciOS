@@ -27,6 +27,7 @@ jobs:
           node --check scripts/self-model-mcp.mjs
           node --check scripts/self-model-studio-bundle.mjs
           node --check scripts/governance-issue-candidates.mjs
+          node --check tools/self-model-studio/tooltip.js
           node scripts/self-model-memory.mjs verify
 
       - name: Capture PR before and after snapshots
@@ -90,8 +91,13 @@ jobs:
             echo 'Network server primitive found in local stdio MCP adapter' >&2
             exit 1
           fi
-          if grep -En "innerHTML\s*=|insertAdjacentHTML|document\.write|<script[^>]+src=|http://" tools/self-model-studio/index.html; then
+          if grep -En "innerHTML\s*=|insertAdjacentHTML|document\.write|<script[^>]+src=|http://" tools/self-model-studio/index.html tools/self-model-studio/tooltip.js; then
             echo 'Unsafe or network-dependent viewer primitive found' >&2
+            exit 1
+          fi
+          grep -q 'id="node-tooltip"' .self-model-studio-ci/studio/index.html
+          if grep -En "<script[^>]+src=|http://" .self-model-studio-ci/studio/index.html; then
+            echo 'Standalone viewer unexpectedly depends on an external runtime resource' >&2
             exit 1
           fi
 
