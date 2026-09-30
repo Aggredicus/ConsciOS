@@ -1,0 +1,53 @@
+{
+  "version": 2,
+  "event": "self-model-studio-v0.2",
+  "baseRef": "02a070da547fb7c983af698a2ef6f83c19c330a3",
+  "headRef": "42239e41764139b85ecf67a4548ee53fa73275bf",
+  "baseFingerprint": "46671297813c93707e1ce7270666a232178d512367808ec5394824cde84431fd",
+  "headFingerprint": "edeecaa3e856f7322531b11327b68e420683b04bb945abd530bd82726b508ddb",
+  "baseGraphHash": "70c0b5b8af3e5d28d239045a0ac4d4e0d20ce88c84c05e82ad249cb1946a41fb",
+  "headGraphHash": "1ef08977c814821e14de1d4ab65804257c6155935f0a5ea1cc0d7c94d8867e8d",
+  "rawModel": {
+    "base": {"files":259,"sections":349,"concepts":306,"roles":14,"edges":2015},
+    "head": {"files":268,"sections":360,"concepts":316,"roles":14,"edges":2078}
+  },
+  "validatedGraph": {
+    "base": {"nodeCount":1351,"edgeCount":2274,"danglingEdges":0,"duplicateNodeIds":0},
+    "head": {"nodeCount":1584,"edgeCount":2537,"danglingEdges":0,"duplicateNodeIds":0}
+  },
+  "diffSummary": {
+    "nodes": {"added":233,"removed":0,"changed":2,"unchanged":1349},
+    "edges": {"added":263,"removed":0,"unchanged":2274}
+  },
+  "fileDelta": {
+    "added": [
+      ".github/workflows/verify-self-model-studio.yml",
+      ".mcp.json",
+      "development/SELF_MODEL_STUDIO.md",
+      "scripts/governance-issue-candidates.mjs",
+      "scripts/repo-quality-governance-audit.mjs",
+      "scripts/self-model-graph-v2.mjs",
+      "scripts/self-model-mcp.mjs",
+      "scripts/self-model-studio-bundle.mjs",
+      "tools/self-model-studio/index.html"
+    ],
+    "removed": [],
+    "changed": [".github/workflows/jekyll-gh-pages.yml"],
+    "renamed": []
+  },
+  "sectionDelta": {"added":11,"removed":0,"changed":0},
+  "auditSummary": {
+    "filesScanned":273,
+    "decisions":60,
+    "findings":130,
+    "bySeverity":{"high":0,"medium":56,"low":74,"info":0},
+    "byCategory":{"security":129,"token-cost":1}
+  },
+  "issueCandidates": {"eligibleFindings":56,"groupedCandidates":14},
+  "ciEvidence": {
+    "workflowRunId":36775667303,
+    "artifactId":11125102477,
+    "artifactDigest":"sha256:880383f5606079425f9c9779f811b9ce0ab4a8f2a335544b7e2c82dda9d831ba"
+  },
+  "observerOutputExcluded": true
+}
