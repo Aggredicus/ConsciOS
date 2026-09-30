@@ -45,4 +45,5 @@ jobs:
           name: conscios-self-model-${{ github.sha }}
           path: .self-model-ci
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 30
