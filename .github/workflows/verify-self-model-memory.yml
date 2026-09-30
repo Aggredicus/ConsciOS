@@ -1,0 +1,48 @@
+name: verify-self-model-memory
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify deterministic section-addressed self-model
+        run: node scripts/self-model-memory.mjs verify
+      - name: Capture PR before/after self-model
+        if: github.event_name == 'pull_request'
+        run: >-
+          node scripts/self-model-memory.mjs snapshot
+          --base '${{ github.event.pull_request.base.sha }}'
+          --head '${{ github.event.pull_request.head.sha }}'
+          --event pull-request
+          --out .self-model-ci
+      - name: Capture main before/after self-model
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        run: >-
+          node scripts/self-model-memory.mjs snapshot
+          --base '${{ github.event.before }}'
+          --head '${{ github.sha }}'
+          --event main-push
+          --out .self-model-ci
+      - name: Build current self-model when no comparison is available
+        if: github.event_name == 'push' && github.event.before == '0000000000000000000000000000000000000000'
+        run: node scripts/self-model-memory.mjs build --out .self-model-ci/after
+      - name: Upload inspectable self-model artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: conscios-self-model-${{ github.sha }}
+          path: .self-model-ci
+          if-no-files-found: error
+          retention-days: 30
