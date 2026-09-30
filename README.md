@@ -63,7 +63,7 @@ That constraint is part of the experiment: the communication graph should exert 
 
 ## Cognitive architecture
 
-Version 0 implements a small recurrent loop:
+Version 0 implements a small deterministic causal loop whose **target architecture is recurrent**:
 
 ```txt
 Sensorium
@@ -79,6 +79,8 @@ Sensorium
   → Environment
   → Sensorium
 ```
+
+The accepted live scheduler currently creates a fresh modular runtime for each cycle; bounded cross-cycle recurrence is demonstrated and measured in the shadow recurrent-cognition laboratory but has **not yet been promoted into the accepted causal phenotype**. This distinction is intentional: recurrence should be promoted only after matched ablations and governance review.
 
 Source ownership is now represented by matching directories under `cognition/`. The root `index.html` remains the deliberately compact, inspectable v0 implementation; future source work should increasingly live inside module boundaries and integrate back into the browser artifact.
 
