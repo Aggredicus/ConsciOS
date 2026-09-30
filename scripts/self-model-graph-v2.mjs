@@ -7,8 +7,9 @@ const VERSION=2;
 const argv=process.argv.slice(2);
 const cmd=argv.shift()||'help';
 const arg=(name,fallback=null)=>{const i=argv.indexOf(name);return i>=0?argv[i+1]:fallback;};
-const positional=()=>argv.filter((x,i)=>!x.startsWith('--')&&(i===0||!argv[i-1]?.startsWith('--'));
+const positional=()=>argv.filter((x,i)=>!x.startsWith('--')&&(i===0||!argv[i-1]?.startsWith('--')));
 const sha=v=>crypto.createHash('sha256').update(v).digest('hex');
+const stable=v=>JSON.stringify(v,Object.keys(v||{}).sort());
 const readJson=p=>JSON.parse(fs.readFileSync(p,'utf8'));
 const writeJson=(p,v)=>{fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p,JSON.stringify(v,null,2)+'\n');};
 const graphPath=d=>path.join(d,'ontology','current.json');
@@ -40,13 +41,13 @@ function normalize(snapshotDir,{findingsPath=null}={}){
     const audit=readJson(findingsPath);
     for(const f of audit.findings||[]){
       const id=f.id?.startsWith('finding:')?f.id:`finding:${f.id||sha(JSON.stringify(f)).slice(0,20)}`;
-      if(!seen.has(id)){seen.add(id);const node={...f,id,type:'GovernanceFinding'};nodes.push(node);}
-      for(const target of f.relatedNodeIds||[])edges.push({from:id,type:'RELATES_TO',to:target});
-      for(const decision of f.decisionIds||[])edges.push({from:id,type:'EVIDENCES_DECISION',to:decision});
+      if(!seen.has(id)){seen.add(id);nodes.push({id,type:'GovernanceFinding',...f,id:undefined});nodes[nodes.length-1].id=id;}
+      for(const target of f.relatedNodeIds||[]){edges.push({from:id,type:'RELATES_TO',to:target});}
+      for(const decision of f.decisionIds||[]){edges.push({from:id,type:'EVIDENCES_DECISION',to:decision});}
     }
     for(const d of audit.decisions||[]){
       const id=d.id?.startsWith('decision:')?d.id:`decision:${d.id||sha(JSON.stringify(d)).slice(0,20)}`;
-      if(!seen.has(id)){seen.add(id);const node={...d,id,type:'GovernanceDecision'};nodes.push(node);}
+      if(!seen.has(id)){seen.add(id);nodes.push({id,type:'GovernanceDecision',...d,id:undefined});nodes[nodes.length-1].id=id;}
       if(d.relatedNodeId)edges.push({from:id,type:'GOVERNS',to:d.relatedNodeId});
     }
   }
@@ -77,7 +78,7 @@ function diff(base,head){
     if(!b.has(id))return {...a.get(id),diffStatus:'removed'};
     const before=a.get(id),after=b.get(id);
     const changed=JSON.stringify(comparableNode(before))!==JSON.stringify(comparableNode(after));
-    return changed?{...after,diffStatus:'changed',before}:{...after,diffStatus:'unchanged'};
+    return changed?{...after,diffStatus:'changed',before:before}:{...after,diffStatus:'unchanged'};
   });
   const ae=new Map(base.edges.map(e=>[edgeKey(e),e])),be=new Map(head.edges.map(e=>[edgeKey(e),e]));
   const ekeys=[...new Set([...ae.keys(),...be.keys()])].sort();
