@@ -1,0 +1,16 @@
+{
+  "name": "ConsciOS Sandbox Lab",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {"version": "22"},
+    "ghcr.io/devcontainers/features/python:1": {"version": "3.12"},
+    "ghcr.io/devcontainers/features/docker-in-docker:1": {"version": "latest", "moby": true}
+  },
+  "forwardPorts": [7337, 8000],
+  "portsAttributes": {
+    "7337": {"label": "ConsciOS Sandbox API", "onAutoForward": "silent"},
+    "8000": {"label": "ConsciOS local web", "onAutoForward": "notify"}
+  },
+  "postCreateCommand": "node --version && python --version && docker --version",
+  "remoteUser": "vscode"
+}
