@@ -18,7 +18,7 @@ export function detectContainerEngine({preferred='auto',policy=DEFAULT_SANDBOX_P
   return null;
 }
 
-export function buildContainerRunArgs(spec,{workspace,networkName=null,name=safeName('job'),detach=false,remove=true}={}){
+export function buildContainerRunArgs(spec,{workspace,networkName=null,networkAlias=null,name=safeName('job'),detach=false,remove=true}={}){
   const args=['run'];
   if(detach)args.push('-d');
   if(remove)args.push('--rm');
@@ -26,7 +26,7 @@ export function buildContainerRunArgs(spec,{workspace,networkName=null,name=safe
   if(spec.profile==='strict')args.push('--cap-drop=ALL','--read-only');
   args.push('--tmpfs','/tmp:rw,nosuid,nodev,size=128m');
   if(workspace)args.push('--mount',`type=bind,src=${workspace},dst=/workspace`,'--workdir','/workspace');
-  if(networkName)args.push('--network',networkName);
+  if(networkName){args.push('--network',networkName);if(networkAlias)args.push('--network-alias',networkAlias);}
   else if(spec.network==='none')args.push('--network','none');
   for(const [key,value] of Object.entries(spec.environment))args.push('--env',`${key}=${value}`);
   args.push(spec.image,...spec.command);
@@ -76,7 +76,7 @@ export async function runContainerJob(input,{engine='auto',policy=DEFAULT_SANDBO
 
 async function startService(engine,service,{networkName,policy}){
   const workspace=await createWorkspace(service.run.files,{prefix:`conscios-${service.name}-`});const containerName=safeName(service.name);
-  const args=buildContainerRunArgs(service.run,{workspace,networkName,name:containerName,detach:true,remove:false});
+  const args=buildContainerRunArgs(service.run,{workspace,networkName,networkAlias:service.name,name:containerName,detach:true,remove:false});
   const launch=await runProcess(engine.engine,args,{timeoutMs:Math.min(service.run.timeoutMs,30_000),maxOutputBytes:service.run.maxOutputBytes});
   if(launch.exitCode!==0){await removeWorkspace(workspace);throw new Error(`service ${service.name} failed to start: ${launch.stderr||launch.stdout}`);}
   return {name:service.name,containerName,workspace,image:service.run.image,launch};
