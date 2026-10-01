@@ -20,6 +20,7 @@ const exoRepo='https://github.com/Aggredicus/exo.git';
 
 function fail(message){console.error(`\nConsciOS exo launcher: ${message}\n`);process.exit(1)}
 function hasCommand(command){const result=spawnSync(command,['--version'],{stdio:'ignore',shell:false});return result.status===0}
+function hasRustNightly(){if(!hasCommand('rustup'))return false;return spawnSync('rustup',['run','nightly','rustc','--version'],{stdio:'ignore',shell:false}).status===0}
 function run(command,commandArgs,cwd){console.log(`\n> ${command} ${commandArgs.join(' ')}`);const result=spawnSync(command,commandArgs,{cwd,stdio:'inherit',shell:false});if(result.status!==0)fail(`${command} exited with status ${result.status}`)}
 function firstLanIPv4(){for(const entries of Object.values(os.networkInterfaces()))for(const item of entries||[])if(item.family==='IPv4'&&!item.internal&&/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(item.address))return item.address;return null}
 function mime(file){const ext=path.extname(file).toLowerCase();return ({'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.ico':'image/x-icon','.txt':'text/plain; charset=utf-8','.md':'text/markdown; charset=utf-8','.wasm':'application/wasm'}[ext]||'application/octet-stream')}
@@ -29,6 +30,9 @@ if(process.platform==='win32')fail('Upstream exo does not document native Window
 for(const command of ['git','node'])if(!hasCommand(command))fail(`${command} is required but was not found on PATH.`);
 if(!hasCommand('uv'))fail('uv is required. Install it from https://docs.astral.sh/uv/ and rerun this command.');
 if(!hasCommand('npm'))fail('npm is required to build the native exo dashboard. Install Node.js/npm and rerun this command.');
+if(!hasCommand('cargo')||!hasCommand('rustup'))fail('Rust + rustup are required by exo. Install rustup from https://rustup.rs/ and rerun this command.');
+if(!hasRustNightly())fail('exo requires the Rust nightly toolchain. Run: rustup toolchain install nightly');
+if(process.platform==='darwin'&&!hasCommand('xcrun'))fail('macOS exo requires Xcode/Command Line Tools. Install Xcode, then rerun this command.');
 
 if(!fs.existsSync(exoDir)){
   fs.mkdirSync(path.dirname(exoDir),{recursive:true});
@@ -50,6 +54,7 @@ if(!skipSetup&&(forceSetup||!fs.existsSync(venvDir))){
   console.log(`\nInstalling exo dependencies (${extra}). First setup can take a while…`);
   run('uv',['sync','--extra',extra],exoDir);
   if(process.platform==='linux')console.log('\nNote: upstream exo currently documents Linux inference through its CPU backend; Linux GPU support is still under development.');
+  if(process.platform==='darwin'&&!hasCommand('macmon'))console.log('\nNote: upstream exo recommends its pinned macmon build for Apple-Silicon hardware monitoring. Inference can be attempted without launcher-managed macmon installation.');
 }
 
 const bindHost=lan?'0.0.0.0':'127.0.0.1';
@@ -77,7 +82,7 @@ server.listen(webPort,bindHost,()=>{
   if(lan){
     if(lanIp){const endpoint=`http://${lanIp}:52415`;const url=`http://${lanIp}:${webPort}/local/workbench/?provider=exo&endpoint=${encodeURIComponent(endpoint)}`;console.log(`Phone/LAN: ${url}`)}
     else console.log('Phone/LAN: no private IPv4 address was detected; use the computer\'s LAN IP manually.');
-    console.log('LAN mode exposes the ConsciOS static server to devices on your local network. Do not expose these ports directly to the public internet.');
+    console.log('LAN mode exposes the ConsciOS static server and exo API to devices on your local network. Do not expose these ports directly to the public internet.');
   }
   if(openBrowser){const target=localUrl;try{if(process.platform==='darwin')spawn('open',[target],{detached:true,stdio:'ignore'}).unref();else spawn('xdg-open',[target],{detached:true,stdio:'ignore'}).unref()}catch{}}
 });
