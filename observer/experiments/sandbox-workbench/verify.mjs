@@ -33,6 +33,13 @@ assert.ok(!devArgs.includes('--read-only'),'dev profile should permit an ephemer
 assert.ok(!devArgs.includes('--cap-drop=ALL'),'dev profile should retain ordinary container capabilities for package/build tooling');
 assert.ok(devArgs.includes('no-new-privileges:true'));
 
+const isolated=normalizeRunSpec({network:'sandbox',networkName:'sandbox',command:['true']});
+const serviceArgs=buildContainerRunArgs(isolated,{workspace:'/tmp/work',networkName:'conscios-net-test',networkAlias:'api',name:'conscios-api-test',detach:true,remove:false});
+const aliasIndex=serviceArgs.indexOf('--network-alias');
+assert.ok(aliasIndex>=0,'service run args must declare a stable network alias');
+assert.equal(serviceArgs[aliasIndex+1],'api');
+assert.ok(aliasIndex<serviceArgs.indexOf(isolated.image),'network alias must be a Docker run option before the image');
+
 const topology=normalizeTopologySpec({services:[{name:'api',image:'alpine:3.20',command:['sh','-lc','httpd -f -p 8080 -h /workspace']}],tests:[{name:'probe',image:'alpine:3.20',command:['true']}],internet:false});
 assert.equal(topology.services.length,1);assert.equal(topology.tests.length,1);assert.equal(topology.internet,false);
 assert.throws(()=>normalizeTopologySpec({services:[{name:'api'},{name:'api'}]}),/duplicate topology service/);
@@ -46,4 +53,4 @@ assert.match(engine,/no-new-privileges:true/);
 assert.ok(!engine.includes('/var/run/docker.sock'),'sandbox engine must not mount the host Docker socket into guest containers');
 assert.match(devcontainer,/docker-in-docker/,'Codespaces/devcontainer must use nested Docker rather than host-socket passthrough');
 
-console.log('Sandbox Workbench verification passed: bounded notebook context, strict/dev container profiles, safe paths/resources, origin-bounded daemon, isolated topology network, and Docker-in-Docker development environment.');
+console.log('Sandbox Workbench verification passed: bounded notebook context, strict/dev container profiles, safe paths/resources, stable service DNS aliases, origin-bounded daemon, isolated topology network, and Docker-in-Docker development environment.');
