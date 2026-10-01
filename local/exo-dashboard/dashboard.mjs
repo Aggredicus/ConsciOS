@@ -3,6 +3,7 @@ const ENDPOINT_KEY='conscios-exo-endpoint';
 const TAB_KEY='conscios-exo-active-tab';
 const QUICK_TIMEOUT_MS=8000;
 const INFERENCE_TIMEOUT_MS=180000;
+const INSTANCE_TIMEOUT_MS=185000;
 
 function normalizeEndpoint(value){
   const raw=String(value??'').trim();
@@ -55,6 +56,17 @@ async function probe(endpoint,{quiet=false}={}){
   if(!quiet)setStatus(`Checking ${endpoint}…`,'info');
   try{const payload=await request(endpoint,'/node_id',{},5000);const id=payload?.node_id??payload?.id??payload;if(id===undefined||id===null||String(id).trim()==='')throw new Error('empty node identity');if(!quiet)setStatus(`exo is running · node ${String(id).slice(0,60)}`,'ok');return true}catch(error){if(!quiet){setStatus(`exo is not reachable yet: ${error.message}`,'warn');setRuntimeBanner('No exo runtime is running at the automatic address. Open “Run exo” for the one-command local launcher.')}return false}
 }
+function instanceReadyText(value){return typeof value==='string'&&/"type"\s*:\s*"ready"/.test(value)}
+async function ensureModelInstance(endpoint,modelId){
+  const encoded=encodeURIComponent(modelId);
+  const quick=await request(endpoint,`/instance/await?model_id=${encoded}&timeout_seconds=0.2`,{},5000);
+  if(instanceReadyText(quick))return 'existing instance ready';
+  setStatus(`Placing ${modelId} on the exo cluster…`,'info');
+  await request(endpoint,'/place_instance',{method:'POST',body:JSON.stringify({model_id:modelId})},15000);
+  const awaited=await request(endpoint,`/instance/await?model_id=${encoded}&timeout_seconds=180`,{},INSTANCE_TIMEOUT_MS);
+  if(!instanceReadyText(awaited))throw new Error(`exo did not report a ready instance for ${modelId}`);
+  return 'model instance placed and ready';
+}
 
 function step(name){return document.querySelector(`[data-step="${name}"]`)}
 function resetSteps(){document.querySelectorAll('.step').forEach(item=>{item.dataset.state='idle';const detail=item.querySelector('.stepDetail');if(!detail.dataset.default)detail.dataset.default=detail.textContent;detail.textContent=detail.dataset.default});$('resultBanner').className='resultBanner';$('resultBanner').querySelector('h3').textContent='Test running…';$('resultSummary').textContent='Executing required exo checks in order.';$('testOutput').textContent='Waiting for inference step…'}
@@ -70,7 +82,7 @@ async function runAcceptance(){
     await runStep('state',async()=>{const payload=await request(endpoint,'/state');if(!payload||typeof payload!=='object')throw new Error('cluster state was not JSON');const keys=Object.keys(payload);return `state received${keys.length?` (${keys.slice(0,4).join(', ')}${keys.length>4?', …':''})`:''}`});
     await runStep('features',async()=>{const payload=await request(endpoint,'/v1/feature-flags');if(payload===null||typeof payload!=='object')throw new Error('feature flags were not JSON');return 'current feature API reachable'});
     const ids=await runStep('models',async()=>{const found=await loadModels(endpoint,{announce:false});if(!found.length)throw new Error('no downloaded model found — use Downloads first');return found});step('models').querySelector('.stepDetail').textContent=`${ids.length} downloaded model${ids.length===1?'':'s'} available`;
-    const chosen=$('testModel').value||ids[0];await runStep('inference',async()=>{setStatus(`Running real exo inference with ${chosen}…`,'info');const payload=await request(endpoint,'/v1/chat/completions',{method:'POST',body:JSON.stringify({model:chosen,messages:[{role:'user',content:'Reply briefly with the text EXO_OK.'}],stream:false,max_tokens:16,temperature:0})},INFERENCE_TIMEOUT_MS);const content=payload?.choices?.[0]?.message?.content;if(typeof content!=='string'||!content.trim())throw new Error('chat completion returned no assistant text');$('testOutput').textContent=content.trim();return `assistant returned ${content.trim().length} characters`});
+    const chosen=$('testModel').value||ids[0];await runStep('inference',async()=>{const placement=await ensureModelInstance(endpoint,chosen);setStatus(`Running real exo inference with ${chosen}…`,'info');const payload=await request(endpoint,'/v1/chat/completions',{method:'POST',body:JSON.stringify({model:chosen,messages:[{role:'user',content:'Reply briefly with the text EXO_OK.'}],stream:false,max_tokens:16,temperature:0})},INFERENCE_TIMEOUT_MS);const content=payload?.choices?.[0]?.message?.content;if(typeof content!=='string'||!content.trim())throw new Error('chat completion returned no assistant text');$('testOutput').textContent=content.trim();return `${placement}; assistant returned ${content.trim().length} characters`});
     const elapsed=((performance.now()-started)/1000).toFixed(1);$('resultBanner').className='resultBanner pass';$('resultBanner').querySelector('h3').textContent='PASS · exo is ready inside ConsciOS';$('resultSummary').textContent=`All required checks passed in ${elapsed}s using ${chosen}.`;setStatus(`PASS — live exo inference succeeded in ${elapsed}s.`,'ok');setRuntimeBanner('')
   }catch(error){$('resultBanner').className='resultBanner fail';$('resultBanner').querySelector('h3').textContent='NOT READY';$('resultSummary').textContent=error.message;setStatus(`exo acceptance test stopped: ${error.message}`,'bad')}
   finally{$('runTest').disabled=false;$('quickTest').disabled=false;$('refreshModels').disabled=false}
@@ -86,7 +98,7 @@ $('endpoint').addEventListener('change',()=>{try{const endpoint=currentEndpoint(
 $('frame').addEventListener('load',()=>{const tab=selectedTab();if(tab?.dataset.view==='dashboard')setStatus(`Native exo ${tab.dataset.route==='/'?'home':tab.dataset.route} frame loaded.`,'ok')});
 
 const endpoint=defaultEndpoint();$('endpoint').value=endpoint;saveEndpoint(endpoint);setExternal(endpoint,'/');
-const hosted=/\.github\.io$/i.test(location.hostname);if(hosted)setRuntimeBanner('Hosted demo: GitHub Pages can show the UI but cannot start exo. Desktop browsers can connect to an already-running localhost exo; phones should use the LAN URL printed by “node scripts/run-exo-local.mjs --lan”.');
+const hosted=/\.github\.io$/i.test(location.hostname);if(hosted)setRuntimeBanner('Hosted demo: GitHub Pages can show the UI but cannot start exo. Desktop browsers can connect to an already-running localhost exo where browser policy permits; phones should use the LAN URL printed by “node scripts/run-exo-local.mjs --lan”.');
 const requested=new URLSearchParams(location.search).get('tab')||localStorage.getItem(TAB_KEY)||'/';const initial=Array.from(document.querySelectorAll('.appTab')).find(tab=>tab.dataset.route===requested)||document.querySelector('.appTab[data-route="/"]');selectTab(initial);if(initial.dataset.view==='setup')showSetup();else if(initial.dataset.view==='test')showTest(endpoint);else showDashboard(endpoint,initial.dataset.route||'/');probe(endpoint,{quiet:false});
 
-export {normalizeEndpoint,isBlockedMixed,routeUrl,dashboardRouteUrl,defaultEndpoint,modelIds};
+export {normalizeEndpoint,isBlockedMixed,routeUrl,dashboardRouteUrl,defaultEndpoint,modelIds,ensureModelInstance};
