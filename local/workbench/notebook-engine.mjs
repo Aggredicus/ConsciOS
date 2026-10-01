@@ -35,7 +35,7 @@ const DEFAULT_SOURCE={
   python:'project = context.get("project", "ConsciOS")\nscale = context.get("scale", 1)\n{"project": project, "scaled": scale * 2}',
   shell:'uname -a\ncat /etc/os-release',
   container:'{\n  "image": "ubuntu:24.04",\n  "profile": "strict",\n  "command": ["bash", "-lc", "uname -a && cat /etc/os-release"],\n  "network": "none",\n  "limits": {"memoryMb": 512, "cpus": 1, "pids": 256},\n  "timeoutMs": 60000\n}',
-  topology:'{\n  "services": [\n    {"name":"api","image":"alpine:3.20","profile":"strict","files":[{"path":"health","content":"pong\\n"}],"command":["sh","-lc","httpd -f -p 8080 -h /workspace"]}\n  ],\n  "tests": [\n    {"name":"probe","image":"alpine:3.20","profile":"strict","command":["sh","-lc","for i in 1 2 3 4 5; do wget -qO- http://api:8080/health && exit 0; sleep 1; done; exit 1"]}\n  ],\n  "internet": false,\n  "settleMs": 250\n}',
+  topology:'{\n  "services": [\n    {"name":"api","image":"python:3.12-alpine","profile":"strict","files":[{"path":"health","content":"pong\\n"}],"command":["python","-m","http.server","8080","--directory","/workspace"]}\n  ],\n  "tests": [\n    {"name":"probe","image":"alpine:3.20","profile":"strict","command":["sh","-lc","for i in 1 2 3 4 5; do wget -qO- http://api:8080/health && exit 0; sleep 1; done; exit 1"]}\n  ],\n  "internet": false,\n  "settleMs": 250\n}',
   procedure:'{\n  "procedure": "describe-scene",\n  "arguments": {}\n}',
   'world-inspect':'{\n  "scope": "selection",\n  "include": ["name", "transform", "bounds"]\n}',
   'property-inspector':'{\n  "target": "selection",\n  "properties": ["transform"]\n}',
