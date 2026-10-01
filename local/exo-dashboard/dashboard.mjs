@@ -23,11 +23,16 @@ function defaultEndpoint(){
   return `http://${host}:52415`;
 }
 function routeUrl(endpoint,path='/'){return new URL(path,`${endpoint}/`).toString()}
+function dashboardRouteUrl(endpoint,route='/'){
+  if(!route||route==='/')return `${endpoint}/`;
+  const normalized=route.startsWith('/')?route:`/${route}`;
+  return `${endpoint}/#${normalized}`;
+}
 function currentEndpoint(){return normalizeEndpoint($('endpoint').value)}
 function saveEndpoint(endpoint){localStorage.setItem(ENDPOINT_KEY,endpoint)}
 function setStatus(text,tone='info'){$('statusText').textContent=text;$('status').className=`status ${tone}`}
 function setRuntimeBanner(text=''){$('runtimeBanner').textContent=text;$('runtimeBanner').classList.toggle('show',Boolean(text))}
-function setExternal(endpoint,route='/'){const href=routeUrl(endpoint,route==='test'||route==='setup'?'/':route);$('openFull').href=href}
+function setExternal(endpoint,route='/'){const href=route==='test'||route==='setup'?`${endpoint}/`:dashboardRouteUrl(endpoint,route);$('openFull').href=href}
 function selectedTab(){return document.querySelector('.appTab[aria-selected="true"]')}
 function selectTab(tab){document.querySelectorAll('.appTab').forEach(item=>item.setAttribute('aria-selected',item===tab?'true':'false'));localStorage.setItem(TAB_KEY,tab.dataset.route||'/')}
 function hideAllPanels(){$('framePanel').classList.add('hidden');$('testPanel').classList.add('hidden');$('setupPanel').classList.add('hidden')}
@@ -36,7 +41,7 @@ function showBlocked(endpoint){$('frame').removeAttribute('src');$('blocked').cl
 function showDashboard(endpoint,route='/'){
   hideAllPanels();$('framePanel').classList.remove('hidden');setExternal(endpoint,route);
   if(isBlockedMixed(endpoint)){showBlocked(endpoint);return}
-  $('blocked').classList.add('hidden');const src=routeUrl(endpoint,route);if($('frame').src!==src)$('frame').src=src;setStatus(`Loading native exo ${route==='/'?'home':route}…`,'info')
+  $('blocked').classList.add('hidden');const src=dashboardRouteUrl(endpoint,route);if($('frame').src!==src)$('frame').src=src;setStatus(`Loading native exo ${route==='/'?'home':route}…`,'info')
 }
 function showTest(endpoint){hideAllPanels();$('testPanel').classList.remove('hidden');setExternal(endpoint,'/');if(isBlockedMixed(endpoint))setStatus('Acceptance testing is blocked by HTTPS → HTTP LAN mixed content. Use the local launcher.','warn');else setStatus('Acceptance test ready. A pass requires a real model response.','info')}
 function activate(tab){selectTab(tab);let endpoint;try{endpoint=currentEndpoint();saveEndpoint(endpoint)}catch(error){setStatus(error.message,'bad');showSetup();return}if(tab.dataset.view==='setup')showSetup();else if(tab.dataset.view==='test')showTest(endpoint);else showDashboard(endpoint,tab.dataset.route||'/')}
@@ -84,4 +89,4 @@ const endpoint=defaultEndpoint();$('endpoint').value=endpoint;saveEndpoint(endpo
 const hosted=/\.github\.io$/i.test(location.hostname);if(hosted)setRuntimeBanner('Hosted demo: GitHub Pages can show the UI but cannot start exo. Desktop browsers can connect to an already-running localhost exo; phones should use the LAN URL printed by “node scripts/run-exo-local.mjs --lan”.');
 const requested=new URLSearchParams(location.search).get('tab')||localStorage.getItem(TAB_KEY)||'/';const initial=Array.from(document.querySelectorAll('.appTab')).find(tab=>tab.dataset.route===requested)||document.querySelector('.appTab[data-route="/"]');selectTab(initial);if(initial.dataset.view==='setup')showSetup();else if(initial.dataset.view==='test')showTest(endpoint);else showDashboard(endpoint,initial.dataset.route||'/');probe(endpoint,{quiet:false});
 
-export {normalizeEndpoint,isBlockedMixed,routeUrl,defaultEndpoint,modelIds};
+export {normalizeEndpoint,isBlockedMixed,routeUrl,dashboardRouteUrl,defaultEndpoint,modelIds};
