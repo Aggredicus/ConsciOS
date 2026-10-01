@@ -1,0 +1,30 @@
+name: Verify Sandbox Workbench
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Verify sandbox policy and notebook integration
+        run: |
+          node --check local/sandbox/policy.mjs
+          node --check local/sandbox/engine.mjs
+          node --check local/sandbox/daemon.mjs
+          node --check local/workbench/notebook-engine.mjs
+          node observer/experiments/sandbox-workbench/verify.mjs
+      - name: Verify real Linux container and isolated multi-service topology
+        env:
+          CONSCIOS_REQUIRE_DOCKER: '1'
+        run: node observer/experiments/sandbox-workbench/docker-smoke.mjs

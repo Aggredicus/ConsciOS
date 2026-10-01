@@ -1,6 +1,9 @@
 export const PYODIDE_VERSION='314.0.7';
 export const PYODIDE_INDEX_URL=`https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
 export const STORAGE_KEY='conscios-cognitive-workbench-v1';
+export const DEFAULT_CONTEXT_BUDGET_BYTES=32*1024;
+export const DEFAULT_CONTEXT_RESULT_LIMIT=8;
+export const DEFAULT_SANDBOX_ENDPOINT='http://127.0.0.1:7337/v1/execute';
 
 export const CELL_TYPES=Object.freeze({
   markdown:{label:'Markdown / note',language:'text'},
@@ -10,6 +13,9 @@ export const CELL_TYPES=Object.freeze({
   'conversation-test':{label:'Conversation Reality Test',language:'text'},
   javascript:{label:'JavaScript',language:'javascript'},
   python:{label:'Python',language:'python'},
+  shell:{label:'Linux shell · sandbox',language:'shell'},
+  container:{label:'Container job · sandbox',language:'json'},
+  topology:{label:'Multi-service topology · sandbox',language:'json'},
   procedure:{label:'Tool procedure',language:'json'},
   'world-inspect':{label:'World / selection inspect',language:'json'},
   'property-inspector':{label:'Property inspector',language:'json'},
@@ -20,13 +26,16 @@ export const CELL_TYPES=Object.freeze({
 });
 
 const DEFAULT_SOURCE={
-  markdown:'# Cognitive Workbench\nInterleave notes, AI, executable code, parameters, and explicit tool calls. Every AI cell records its provider.',
+  markdown:'# Cognitive Workbench\nInterleave notes, AI, executable code, parameters, bounded context, and explicit tool calls. Every AI cell records its provider.',
   parameters:'{\n  "project": "ConsciOS",\n  "scale": 1\n}',
   ai:'Use the declared notebook context only. Propose the next concrete step.',
   conversation:'Hello. Let’s have an actual conversation.',
   'conversation-test':'Paired randomized stateful-vs-stateless test. Press “Run paired test” with a neural provider selected.',
   javascript:'const value = Number(context.parameters.scale ?? 1);\nreturn {scaled: value * 2, project: context.parameters.project};',
   python:'project = context.get("project", "ConsciOS")\nscale = context.get("scale", 1)\n{"project": project, "scaled": scale * 2}',
+  shell:'uname -a\ncat /etc/os-release',
+  container:'{\n  "image": "ubuntu:24.04",\n  "profile": "strict",\n  "command": ["bash", "-lc", "uname -a && cat /etc/os-release"],\n  "network": "none",\n  "limits": {"memoryMb": 512, "cpus": 1, "pids": 256},\n  "timeoutMs": 60000\n}',
+  topology:'{\n  "services": [\n    {"name":"api","image":"python:3.12-alpine","profile":"strict","files":[{"path":"health","content":"pong\\n"}],"command":["python","-m","http.server","8080","--directory","/workspace"]}\n  ],\n  "tests": [\n    {"name":"probe","image":"alpine:3.20","profile":"strict","command":["sh","-lc","for i in 1 2 3 4 5; do wget -qO- http://api:8080/health && exit 0; sleep 1; done; exit 1"]}\n  ],\n  "internet": false,\n  "settleMs": 250\n}',
   procedure:'{\n  "procedure": "describe-scene",\n  "arguments": {}\n}',
   'world-inspect':'{\n  "scope": "selection",\n  "include": ["name", "transform", "bounds"]\n}',
   'property-inspector':'{\n  "target": "selection",\n  "properties": ["transform"]\n}',
@@ -36,15 +45,16 @@ const DEFAULT_SOURCE={
   macro:'[]'
 };
 
-const DEFAULT_ACTION={procedure:'run-procedure','world-inspect':'inspect-world','property-inspector':'inspect-properties','node-graph':'inspect-node-graph','spatial-prompt':'spatial-prompt',playtest:'playtest'};
+const DEFAULT_ACTION={shell:'sandbox-run',container:'sandbox-run',topology:'sandbox-topology',procedure:'run-procedure','world-inspect':'inspect-world','property-inspector':'inspect-properties','node-graph':'inspect-node-graph','spatial-prompt':'spatial-prompt',playtest:'playtest'};
+const SANDBOX_TYPES=new Set(['shell','container','topology']);
 
 function id(prefix='cell'){return `${prefix}-${crypto.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}`}
 export function createCell(type='markdown',options={}){
   if(!CELL_TYPES[type])throw new TypeError(`unsupported cell type '${type}'`);
-  const conversational=type==='conversation'||type==='conversation-test';
+  const conversational=type==='conversation'||type==='conversation-test',sandbox=SANDBOX_TYPES.has(type);
   return {
     id:id(),type,title:options.title??CELL_TYPES[type].label,source:options.source??DEFAULT_SOURCE[type]??'',
-    config:{includePrevious:false,maxResponseUnits:conversational?512:256,endpoint:'',method:'POST',action:DEFAULT_ACTION[type]??'',...(options.config??{})},
+    config:{includePrevious:false,maxResponseUnits:conversational?512:256,contextBudgetBytes:DEFAULT_CONTEXT_BUDGET_BYTES,contextResultLimit:DEFAULT_CONTEXT_RESULT_LIMIT,endpoint:sandbox?DEFAULT_SANDBOX_ENDPOINT:'',method:'POST',action:DEFAULT_ACTION[type]??'',...(options.config??{})},
     output:null,provenance:null,status:'idle',updatedAt:new Date().toISOString()
   };
 }
@@ -59,6 +69,7 @@ export function validateNotebook(value){
   for(const cell of value.cells){
     if(!cell||typeof cell.id!=='string'||!CELL_TYPES[cell.type]||typeof cell.source!=='string')throw new TypeError('notebook contains an invalid cell');
     if(ids.has(cell.id))throw new TypeError(`duplicate cell id '${cell.id}'`);ids.add(cell.id);
+    cell.config={includePrevious:false,maxResponseUnits:(cell.type==='conversation'||cell.type==='conversation-test')?512:256,contextBudgetBytes:DEFAULT_CONTEXT_BUDGET_BYTES,contextResultLimit:DEFAULT_CONTEXT_RESULT_LIMIT,endpoint:SANDBOX_TYPES.has(cell.type)?DEFAULT_SANDBOX_ENDPOINT:'',method:'POST',action:DEFAULT_ACTION[cell.type]??'',...(cell.config??{})};
   }
   return value;
 }
@@ -90,6 +101,21 @@ function serializable(value){
   if(value===undefined)return null;
   try{return structuredClone(value)}catch{}
   try{return JSON.parse(JSON.stringify(value))}catch{return String(value)}
+}
+
+export function serializedBytes(value){try{return new TextEncoder().encode(JSON.stringify(value)).byteLength}catch{return String(value).length}}
+
+export function previousCellResults(notebook,index,{maxBytes=DEFAULT_CONTEXT_BUDGET_BYTES,maxCells=DEFAULT_CONTEXT_RESULT_LIMIT}={}){
+  const candidates=notebook.cells.slice(0,index).filter(cell=>cell.output!==null);const selected=[];let bytes=0;
+  for(let i=candidates.length-1;i>=0&&selected.length<Math.max(0,Number(maxCells)||0);i--){
+    const cell=candidates[i],entry={cellId:cell.id,type:cell.type,title:cell.title,output:cell.output},cost=serializedBytes(entry);
+    if(cost>maxBytes)continue;if(bytes+cost>maxBytes)continue;selected.push(entry);bytes+=cost;
+  }
+  return selected.reverse();
+}
+
+export function notebookContextMetrics(results,{budgetBytes=DEFAULT_CONTEXT_BUDGET_BYTES}={}){
+  const selectedBytes=serializedBytes(results);return Object.freeze({selectedCells:results.length,selectedBytes,budgetBytes,withinBudget:selectedBytes<=budgetBytes});
 }
 
 export function executeJavaScript(source,context,{timeoutMs=30000}={}){
@@ -130,7 +156,7 @@ export async function executePython(source,context,{onStatus=()=>{}}={}){
   return {result:serializable(converted),stdout,stderr,runtime:{name:'Pyodide',version:PYODIDE_VERSION,indexURL:PYODIDE_INDEX_URL}};
 }
 
-function normalizeEndpoint(value){const url=new URL(value);if(url.protocol!=='http:'&&url.protocol!=='https:')throw new TypeError('tool endpoint must use http or https');return url.toString().replace(/\/$/,'')}
+function normalizeEndpoint(value){const url=new URL(value);if(url.protocol!=='http:'&&url.protocol!=='https:')throw new TypeError('tool endpoint must use http or https');if(url.username||url.password)throw new TypeError('tool endpoint must not contain embedded credentials');return url.toString().replace(/\/$/,'')}
 export async function executeToolRequest(cell,context){
   const endpoint=normalizeEndpoint(interpolateText(cell.config.endpoint,context.parameters));
   const method=(cell.config.method||'POST').toUpperCase();const action=cell.config.action||DEFAULT_ACTION[cell.type]||cell.type;
@@ -140,8 +166,4 @@ export async function executeToolRequest(cell,context){
   const started=performance.now();const response=await fetch(endpoint,options);const contentType=response.headers.get('content-type')||'';const result=contentType.includes('json')?await response.json():await response.text();
   if(!response.ok)throw new Error(`Tool request failed with HTTP ${response.status}: ${typeof result==='string'?result.slice(0,300):JSON.stringify(result).slice(0,300)}`);
   return {result:serializable(result),timing:{elapsedMs:Math.max(0,performance.now()-started)},request:{endpoint,method,action}};
-}
-
-export function previousCellResults(notebook,index){
-  return notebook.cells.slice(0,index).filter(cell=>cell.output!==null).map(cell=>({cellId:cell.id,type:cell.type,title:cell.title,output:cell.output}));
 }
