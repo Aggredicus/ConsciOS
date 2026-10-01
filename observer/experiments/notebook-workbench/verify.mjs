@@ -57,6 +57,7 @@ const html=readFileSync('local/workbench/index.html','utf8');
 const dashboardHtml=readFileSync('local/exo-dashboard/index.html','utf8');
 const dashboardUi=readFileSync('local/exo-dashboard/dashboard.mjs','utf8');
 const visualSystem=readFileSync('local/conscios-ui.css','utf8');
+const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
 const localLabHtml=readFileSync('local/index.html','utf8');
 const swarmHtml=readFileSync('local/swarm/index.html','utf8');
 const encounterHtml=readFileSync('local/encounter/index.html','utf8');
@@ -75,24 +76,42 @@ assert.ok(html.includes('exo cluster'));
 assert.ok(html.includes('Browser local'));
 assert.ok(html.includes('Tool bridge'));
 assert.ok(html.includes('Not a consciousness indicator'));
-assert.ok(html.includes('../exo-dashboard/'),'Workbench must expose the exo dashboard view');
-assert.ok(html.includes('Open exact exo dashboard'),'exo provider controls must expose the original dashboard');
-assert.ok(dashboardHtml.includes('exo cluster dashboard'),'dashboard shell must identify the embedded exo view');
-assert.ok(dashboardHtml.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups"'),'embedded dashboard must remain sandbox-bounded');
+assert.ok(html.includes('../exo-dashboard/'),'Workbench must expose the exo application view');
+assert.ok(html.includes('Open full exo app'),'exo provider controls must expose the native exo application');
+assert.ok(html.includes('node scripts/run-exo-local.mjs'),'Workbench must expose a concrete local exo launch path');
+assert.ok(html.includes('viewport-fit=cover'),'Workbench must support mobile safe-area viewport layout');
+
+for(const route of ['data-route="/"','data-route="/downloads"','data-route="/integrations"','data-route="/traces"','data-route="/advanced"'])assert.ok(dashboardHtml.includes(route),`exo app shell is missing native route ${route}`);
+assert.ok(dashboardHtml.includes('Acceptance Test'),'exo app shell must expose the runtime acceptance gate');
+assert.ok(dashboardHtml.includes('Run exo'),'exo app shell must expose runtime setup');
+assert.ok(dashboardHtml.includes('title="Native exo software"'),'dashboard shell must identify the embedded native exo view');
+assert.ok(dashboardHtml.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups'),'embedded dashboard must remain sandbox-bounded');
+assert.ok(!dashboardHtml.includes('allow-top-navigation'),'embedded dashboard must not gain parent-navigation authority');
 assert.ok(dashboardHtml.includes('referrerpolicy="no-referrer"'),'dashboard iframe must not send ConsciOS referrer context');
-assert.ok(dashboardUi.includes("STORAGE_KEY='conscios-exo-endpoint'"),'dashboard should reuse the shared exo endpoint key');
-assert.ok(dashboardUi.includes("location.protocol==='https:'&&url.protocol==='http:'"),'dashboard must detect HTTPS-to-HTTP mixed content');
-assert.ok(dashboardUi.includes("['http:','https:'].includes(url.protocol)"),'dashboard must restrict endpoint URL schemes');
+assert.ok(dashboardUi.includes("ENDPOINT_KEY='conscios-exo-endpoint'"),'dashboard should reuse the shared exo runtime key');
+assert.ok(dashboardUi.includes("location.protocol==='https:'")&&dashboardUi.includes("url.protocol==='http:'"),'dashboard must detect HTTPS-to-HTTP mixed content');
+assert.ok(dashboardUi.includes('isLoopback'),'dashboard must distinguish loopback from LAN mixed-content endpoints');
+assert.ok(dashboardUi.includes("['http:','https:'].includes(url.protocol)"),'dashboard must restrict runtime URL schemes');
 assert.ok(dashboardUi.includes('url.username||url.password'),'dashboard must reject credentials embedded in URLs');
+assert.ok(dashboardUi.includes("'/node_id'")&&dashboardUi.includes("'/state'")&&dashboardUi.includes("'/v1/feature-flags'")&&dashboardUi.includes("'/v1/models?status=downloaded'")&&dashboardUi.includes("'/v1/chat/completions'"),'acceptance gate must validate node, state, models, and real inference');
+
+assert.ok(exoLauncher.includes("spawn('uv',['run','exo']"),'local launcher must start the real exo runtime');
+assert.ok(exoLauncher.includes("'--lan'"),'local launcher must support phone/LAN mode');
+assert.ok(exoLauncher.includes("http://${lanIp}:52415"),'LAN launcher must provide the exo runtime address to the phone URL');
+assert.ok(exoLauncher.includes("Aggredicus/exo.git"),'launcher must use the maintained ConsciOS exo fork');
+assert.ok(exoLauncher.includes("process.platform==='darwin'?'mlx':'mlx-cpu'"),'launcher must select the documented macOS/Linux backend setup');
 
 assert.ok(visualSystem.includes('--cs-accent'),'shared visual system must expose stable design tokens');
 assert.ok(visualSystem.includes('.cs-appbar'),'shared visual system must define product chrome');
 assert.ok(visualSystem.includes('prefers-reduced-motion'),'shared visual system must preserve reduced-motion support');
+assert.ok(visualSystem.includes('overflow-x:hidden'),'shared visual system must prevent page-level horizontal overflow');
+assert.ok(visualSystem.includes('min-width:0'),'shared visual system must allow grid/flex children to shrink within the viewport');
+assert.ok(visualSystem.includes('env(safe-area-inset-left)'),'shared visual system must support device safe areas');
 const surfaces=[
   ['Local AI Lab',localLabHtml,'./conscios-ui.css'],
   ['Cognitive Workbench',html,'../conscios-ui.css'],
   ['Swarm',swarmHtml,'../conscios-ui.css'],
-  ['exo Dashboard',dashboardHtml,'../conscios-ui.css'],
+  ['exo',dashboardHtml,'../conscios-ui.css'],
   ['First Encounter',encounterHtml,'../conscios-ui.css'],
   ['Live Cognitive Theater',liveHtml,'../local/conscios-ui.css']
 ];
@@ -106,6 +125,6 @@ assert.ok(encounterHtml.includes('not evidence of subjective experience'),'First
 assert.ok(liveHtml.includes('does not establish subjective experience'),'Live Theater must retain interpretation boundary');
 assert.ok(swarmHtml.includes('does not grant photo, file, password, repository, or cognitive-role access'),'Swarm must retain bounded-capability disclosure');
 
-for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden)&&!dashboardHtml.includes(forbidden)&&!dashboardUi.includes(forbidden),`workbench unexpectedly references credential material: ${forbidden}`);
+for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden)&&!dashboardHtml.includes(forbidden)&&!dashboardUi.includes(forbidden)&&!exoLauncher.includes(forbidden),`workbench unexpectedly references credential material: ${forbidden}`);
 
-console.log('Cognitive Workbench verification passed: explicit neural-vs-mock disclosure, live multi-turn conversation, randomized paired stateful/stateless control, exo dashboard shell boundaries, shared UI-system coverage, and no consciousness claim.');
+console.log('Cognitive Workbench verification passed: explicit neural-vs-mock disclosure, live multi-turn conversation, native exo app/runtime path, real inference acceptance gate, responsive UI-system coverage, bounded iframe authority, and no consciousness claim.');
