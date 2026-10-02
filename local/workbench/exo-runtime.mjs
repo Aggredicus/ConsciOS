@@ -12,6 +12,6 @@ export async function connectExoProvider({endpoint,modelId=null}={}){
   const normalized=normalizeExoEndpoint(endpoint);
   const provider=createExoInferenceProvider({endpoint:normalized,modelId});
   const capabilities=await provider.connect();
-  if(modelId&&capabilities.models.includes(modelId))provider.setModel(modelId);
+  if(modelId&&(capabilities.availableModels??capabilities.models).includes(modelId))provider.setModel(modelId);
   return {provider,capabilities,endpoint:normalized};
 }
