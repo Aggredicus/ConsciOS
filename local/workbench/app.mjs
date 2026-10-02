@@ -21,6 +21,7 @@ function save(){
   }))}catch{}
 }
 function safeId(){return globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+function safeHttpOrigin(value){try{const url=new URL(String(value??'').trim());return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?url.origin:null}catch{return null}}
 function pushMessage(message){state.messages.push(message);if(state.messages.length>24)state.messages.splice(0,state.messages.length-24)}
 function formatBytes(value){
   if(typeof value!=='number'||!Number.isFinite(value)||value<0)return '—';
@@ -92,7 +93,7 @@ async function sendMessage(text){
     if(result.status==='cancelled'){
       pushMessage({role:'assistant',content:'Generation stopped.',provider:'system'});
       state.lastProvenance={provider:result.provider,timing:result.timing,requestId:result.requestId,status:'cancelled'};
-      save();renderMessages();setHeader(providerLabel(),'ok');return;
+      $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);save();renderMessages();setHeader(providerLabel(),'ok');return;
     }
     if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
     const content=String(result.content?.text??result.content?.result??'').trim();
@@ -192,7 +193,7 @@ function resizePrompt(){
 async function init(){
   $('browserModel').innerHTML=models.map(model=>`<option value="${model.id}">${model.label}</option>`).join('');
   const preferredModel=saved.browserModel;if(preferredModel&&models.some(model=>model.id===preferredModel))$('browserModel').value=preferredModel;
-  $('exoEndpoint').value=defaultExoEndpoint();$('openExo').href=$('exoEndpoint').value;
+  $('exoEndpoint').value=defaultExoEndpoint();const safeExo=safeHttpOrigin($('exoEndpoint').value);if(safeExo)$('openExo').href=safeExo;else $('openExo').removeAttribute('href');
   if(state.lastProvenance)$('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);
   renderMessages();
 
