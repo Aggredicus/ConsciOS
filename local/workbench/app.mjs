@@ -11,14 +11,14 @@ const state={
 
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
 function save(){
-  localStorage.setItem(STORE,JSON.stringify({
+  try{localStorage.setItem(STORE,JSON.stringify({
     messages:state.messages.slice(-24),
     preferredProvider:state.providerKind??saved.preferredProvider??'auto',
     browserModel:$('browserModel')?.value||saved.browserModel||models[0]?.id,
     exoEndpoint:$('exoEndpoint')?.value||saved.exoEndpoint||null,
     exoModel:$('exoModel')?.value||saved.exoModel||null,
     lastProvenance:state.lastProvenance
-  }));
+  }))}catch{}
 }
 function safeId(){return globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}
 function pushMessage(message){state.messages.push(message);if(state.messages.length>24)state.messages.splice(0,state.messages.length-24)}
@@ -89,6 +89,11 @@ async function sendMessage(text){
   pushMessage({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
   try{
     const result=await state.provider.infer(conversationInput());
+    if(result.status==='cancelled'){
+      pushMessage({role:'assistant',content:'Generation stopped.',provider:'system'});
+      state.lastProvenance={provider:result.provider,timing:result.timing,requestId:result.requestId,status:'cancelled'};
+      save();renderMessages();setHeader(providerLabel(),'ok');return;
+    }
     if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
     const content=String(result.content?.text??result.content?.result??'').trim();
     if(!content)throw new Error('Model returned an empty response.');
@@ -163,8 +168,8 @@ function defaultExoEndpoint(){
   const params=new URLSearchParams(location.search);const explicit=params.get('endpoint');
   if(explicit){try{return normalizeEndpoint(explicit)}catch{}}
   if(saved.exoEndpoint){try{return normalizeEndpoint(saved.exoEndpoint)}catch{}}
-  const host=location.hostname||'localhost';
-  return `http://${host}:52415`;
+  if(location.protocol==='https:')return 'http://localhost:52415';
+  const host=location.hostname||'localhost';return `http://${host}:52415`;
 }
 function mixedContent(endpoint){try{return location.protocol==='https:'&&new URL(endpoint).protocol==='http:'}catch{return false}}
 function renderExo(capabilities){
