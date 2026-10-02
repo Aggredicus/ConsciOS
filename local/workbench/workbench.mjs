@@ -9,6 +9,7 @@ import {createInferenceProviderRouter} from '../../runtime/models/provider-route
 import {createConversationChallenge,scoreConversationArm,compareConversationArms,summarizeConversationRealityResult} from './conversation-test.mjs';
 import {CELL_TYPES,PYODIDE_VERSION,cloneCell,createCell,createNotebook,interpolateText,loadNotebook,parseParameters,previousCellResults,rebuildParameterContext,saveNotebook,validateNotebook} from './notebook-engine.mjs';
 import {createDefaultWorkbenchExecutionRouter} from './execution-providers.mjs';
+import {selectPreviousResults} from './context-selector.mjs';
 
 const $=id=>document.getElementById(id);const router=createInferenceProviderRouter();const executionRouter=createDefaultWorkbenchExecutionRouter();let notebook=loadNotebook()??createNotebook();let selectedCellId=null;let saveTimer=null;let browserModel=null;let browserHost=null;let exoProvider=null;
 
@@ -46,13 +47,17 @@ function outputText(cell){
 }
 
 function configMarkup(cell){
-  if(cell.type==='ai')return `<div class="cellMeta"><label class="compact"><input data-config="includePrevious" type="checkbox" ${cell.config.includePrevious?'checked':''}> Include previous outputs</label><label class="compact">Max response units <input data-config="maxResponseUnits" type="number" min="1" max="65536" value="${esc(cell.config.maxResponseUnits)}"></label></div>`;
+  if(cell.type==='ai'){
+    const strategy=cell.config.contextStrategy??'all';const maxContextBytes=cell.config.maxContextBytes??12000;const maxContextItems=cell.config.maxContextItems??8;
+    return `<div class="cellMeta"><label class="compact"><input data-config="includePrevious" type="checkbox" ${cell.config.includePrevious?'checked':''}> Include previous outputs</label><label class="compact">Context strategy<select class="full" data-config="contextStrategy"><option value="relevant" ${strategy==='relevant'?'selected':''}>Relevant · bounded</option><option value="recent" ${strategy==='recent'?'selected':''}>Recent · bounded</option><option value="all" ${strategy==='all'?'selected':''}>All · legacy</option></select></label><label class="compact">Context budget bytes<input data-config="maxContextBytes" type="number" min="256" max="4194304" value="${esc(maxContextBytes)}"></label><label class="compact">Max context items<input data-config="maxContextItems" type="number" min="1" max="100" value="${esc(maxContextItems)}"></label><label class="compact">Max response units <input data-config="maxResponseUnits" type="number" min="1" max="65536" value="${esc(cell.config.maxResponseUnits)}"></label></div>`;
+  }
   if(cell.type==='conversation'||cell.type==='conversation-test')return `<div class="cellMeta"><label class="compact">Max response units <input data-config="maxResponseUnits" type="number" min="1" max="4096" value="${esc(cell.config.maxResponseUnits)}"></label><span class="compact ${currentProvider()?.provenance?.().kind==='deterministic-mock'?'warn':'muted'}">Provider: ${esc(currentProvider()?.provenance?.().kind??'not loaded')}</span></div>`;
   if(['procedure','world-inspect','property-inspector','node-graph','spatial-prompt','playtest'].includes(cell.type))return `<div class="cellMeta"><label class="compact">Local tool endpoint<input class="full" data-config="endpoint" value="${esc(cell.config.endpoint)}" placeholder="http://127.0.0.1:PORT/path"></label><label class="compact">Action<input class="full" data-config="action" value="${esc(cell.config.action)}"></label><label class="compact">Method<select class="full" data-config="method"><option ${cell.config.method==='POST'?'selected':''}>POST</option><option ${cell.config.method==='GET'?'selected':''}>GET</option></select></label></div>`;
   return '';
 }
 
 function sourceHelp(cell){
+  if(cell.type==='ai')return 'Previous outputs are explicit context only when enabled. New AI cells rank and pack relevant results inside the visible byte/item budget; legacy cells without a strategy retain the prior all-context behavior.';
   if(cell.type==='conversation')return 'Each Send adds a real user turn and supplies the visible alternating transcript to the selected provider. Clear removes the thread from this notebook cell.';
   if(cell.type==='conversation-test')return 'Runs the same randomized prompts in stateless and stateful conditions. Delayed values are never present in the final stateless prompt.';
   if(cell.type==='javascript')return 'Runs in an isolated Web Worker. Return a value; use context.parameters and context.previousResults.';
@@ -100,7 +105,11 @@ async function cellAction(id,action){
 function executionContext(index){return {parameters:rebuildParameterContext(notebook),previousResults:previousCellResults(notebook,index),notebook:{id:notebook.id,title:notebook.title}}}
 function aiInput(cell,index){
   const context=executionContext(index);const prompt=interpolateText(cell.source,context.parameters);const artifacts=[{artifactId:`${cell.id}:prompt`,epistemicStatus:'observation',content:{text:prompt}},{artifactId:`${cell.id}:parameters`,epistemicStatus:'observation',content:context.parameters}];
-  if(cell.config.includePrevious)artifacts.push({artifactId:`${cell.id}:previous-results`,epistemicStatus:'observation',content:context.previousResults});
+  if(cell.config.includePrevious){
+    const selection=selectPreviousResults({query:prompt,results:context.previousResults,strategy:cell.config.contextStrategy??'all',budgetBytes:cell.config.maxContextBytes??12000,maxItems:cell.config.maxContextItems??8});
+    artifacts.push({artifactId:`${cell.id}:previous-results`,epistemicStatus:'observation',content:selection.results});
+    artifacts.push({artifactId:`${cell.id}:context-selection`,epistemicStatus:'observation',content:{format:selection.format,strategy:selection.strategy,budgetApplied:selection.budgetApplied,budgetBytes:selection.budgetBytes,maxItems:selection.maxItems,candidateCount:selection.candidateCount,selectedCount:selection.selectedCount,selectedBytes:selection.selectedBytes,omittedCount:selection.omittedCount,queryTerms:selection.queryTerms,ranked:selection.ranked}});
+  }
   return {requestId:`workbench-${cell.id}-${Date.now()}`,requestingModule:'ObserverScientist',inferenceType:'notebook-assist',contextManifest:artifacts,causalSourceIds:artifacts.map(item=>item.artifactId),maxResponseUnits:Math.max(1,Math.min(65536,Number(cell.config.maxResponseUnits)||256)),expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'};
 }
 function conversationInput(cell,index,messages,{inferenceType='conversation-turn',arm='live',turn=messages.length}={}){
@@ -110,8 +119,9 @@ function conversationInput(cell,index,messages,{inferenceType='conversation-turn
 
 async function runAI(cell,index){
   const provider=currentProvider();if(!provider)throw new Error('Selected AI provider is not loaded or connected. ConsciOS will not silently use another provider.');
-  const result=await router.infer(aiInput(cell,index));if(result.status!=='ok')throw new Error(result.failure||`provider returned ${result.status}`);
-  return {output:result.content?.text??result.content?.result??result.content,provenance:{provider:result.provider,causalSourceIds:result.causalSourceIds,timing:result.timing,epistemicStatus:result.epistemicStatus}};
+  const input=aiInput(cell,index);const result=await router.infer(input);if(result.status!=='ok')throw new Error(result.failure||`provider returned ${result.status}`);
+  const contextSelection=input.contextManifest.find(item=>item.artifactId.endsWith(':context-selection'))?.content??null;
+  return {output:result.content?.text??result.content?.result??result.content,provenance:{provider:result.provider,causalSourceIds:result.causalSourceIds,timing:result.timing,epistemicStatus:result.epistemicStatus,contextSelection}};
 }
 async function runConversation(cell,index){
   const provider=currentProvider();if(!provider)throw new Error('Select and load/connect a provider before starting a conversation.');
