@@ -157,9 +157,9 @@ assert.ok(css.includes('overflow-x:hidden'),'compact UI must prevent page-level 
 assert.ok(css.includes('100dvh'),'compact UI must use dynamic viewport height');
 assert.ok(css.includes('env(safe-area-inset-bottom)'),'compact UI must respect mobile safe areas');
 assert.ok(css.includes('@media(max-width:600px)'),'compact UI must provide phone-specific responsive behavior');
-assert.ok(css.length<8000,`compact CSS budget exceeded: ${css.length} bytes`);
-assert.ok(html.length<8000,`compact HTML budget exceeded: ${html.length} bytes`);
-assert.ok(ui.length<18000,`compact controller budget exceeded: ${ui.length} bytes`);
+assert.ok(css.length<5500,`compact CSS budget exceeded: ${css.length} bytes`);
+assert.ok(html.length<5000,`compact HTML budget exceeded: ${html.length} bytes`);
+assert.ok(ui.length<16000,`compact controller budget exceeded: ${ui.length} bytes`);
 
 assert.ok(exoLauncher.includes("spawn('uv',['run','exo']"),'local launcher must start the real exo runtime');
 assert.ok(exoLauncher.includes("'--lan'"),'local launcher must support phone/LAN mode');
