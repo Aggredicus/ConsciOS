@@ -51,6 +51,20 @@ The immediately requested app shell (HTML + CSS + controller, before lazy provid
 
 This budget measures deployable source bytes, not Git history size and not downloaded model-cache size.
 
+## Chat latency rules
+
+The compact chat path optimizes **time to visible response**, not only total completion time.
+
+- Browser-local generation forwards Transformers.js token chunks directly into the visible assistant bubble.
+- exo requests OpenAI-compatible SSE streaming and forwards each `delta.content` chunk immediately.
+- The UI batches token-painting to animation frames so fast token streams do not trigger a DOM layout for every token.
+- The visible/persisted conversation may contain up to 24 messages, but inference context is independently bounded. Browser-local requests use at most 9 messages / 12,000 UTF-8 content bytes; exo uses at most 15 messages / 24,000 bytes.
+- Context selection walks backward in complete user/assistant pairs so the model always receives a valid alternating conversation ending on the current user turn.
+- Selection counts and bytes are written to inference provenance so latency/continuity trade-offs are inspectable.
+- The compact browser path opts out of the host's optional duplicate pre-generation chat-template/token-count telemetry. Scientific/runtime callers keep that telemetry by default.
+
+These limits reduce prefill cost as the visible chat grows without deleting the user's recent conversation from the interface.
+
 ## State/storage rules
 
 The browser app persists only a bounded recent conversation and runtime preferences. It does not persist notebook graphs, hidden prompts, execution-cell state, or duplicate model metadata. Conversation persistence is capped by message count and should remain small enough that localStorage is not used as a general-purpose database.
