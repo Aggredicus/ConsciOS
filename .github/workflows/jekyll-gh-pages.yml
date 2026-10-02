@@ -1,5 +1,5 @@
-# Build, verify, and deploy ConsciOS to GitHub Pages with Jekyll.
-name: Deploy ConsciOS with Jekyll
+# Build, verify, and deploy the compact ConsciOS browser surface.
+name: Deploy compact ConsciOS
 
 on:
   push:
@@ -27,20 +27,19 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Verify Live Cognitive Theater before publishing
-        run: node observer/experiments/live-theater/verify.mjs
+      - name: Verify compact UI
+        run: node observer/experiments/notebook-workbench/verify.mjs
+
+      - name: Build exact transitive Pages site
+        run: node scripts/build-pages-site.mjs --output _site --max-bytes 120000
 
       - name: Setup Pages
         uses: actions/configure-pages@v6
 
-      - name: Build with Jekyll
-        uses: actions/jekyll-build-pages@v1
-        with:
-          source: ./
-          destination: ./_site
-
-      - name: Upload artifact
+      - name: Upload compact artifact
         uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./_site
 
   deploy:
     environment:
