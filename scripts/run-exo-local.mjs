@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn,spawnSync} from 'node:child_process';
+import {buildPagesSite} from './build-pages-site.mjs';
 
 const here=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(here,'..');
@@ -17,6 +18,7 @@ const openBrowser=args.has('--open');
 const webPort=Number(valueArg('--port')||8080);
 const exoDir=path.resolve(valueArg('--exo-dir')||process.env.EXO_DIR||path.join(root,'.runtime','exo'));
 const exoRepo='https://github.com/Aggredicus/exo.git';
+const siteRoot=path.join(root,'.runtime','site');
 
 function fail(message){console.error(`\nConsciOS exo launcher: ${message}\n`);process.exit(1)}
 function hasCommand(command){const result=spawnSync(command,['--version'],{stdio:'ignore',shell:false});return result.status===0}
@@ -33,6 +35,9 @@ if(!hasCommand('npm'))fail('npm is required to build the native exo dashboard. I
 if(!hasCommand('cargo')||!hasCommand('rustup'))fail('Rust + rustup are required by exo. Install rustup from https://rustup.rs/ and rerun this command.');
 if(!hasRustNightly())fail('exo requires the Rust nightly toolchain. Run: rustup toolchain install nightly');
 if(process.platform==='darwin'&&!hasCommand('xcrun'))fail('macOS exo requires Xcode/Command Line Tools. Install Xcode, then rerun this command.');
+
+const siteReport=await buildPagesSite({output:path.relative(root,siteRoot),maxBytes:120000});
+console.log(`Prepared compact ConsciOS site: ${siteReport.totalBytes} bytes across ${siteReport.fileCount} files.`);
 
 if(!fs.existsSync(exoDir)){
   fs.mkdirSync(path.dirname(exoDir),{recursive:true});
@@ -64,8 +69,8 @@ const server=http.createServer((req,res)=>{
     const url=new URL(req.url||'/',`http://${req.headers.host||'localhost'}`);
     let pathname=decodeURIComponent(url.pathname);
     if(pathname.endsWith('/'))pathname+='index.html';
-    const candidate=path.resolve(root,`.${pathname}`);
-    if(candidate!==root&&!candidate.startsWith(`${root}${path.sep}`)){res.writeHead(403);res.end('Forbidden');return}
+    const candidate=path.resolve(siteRoot,`.${pathname}`);
+    if(candidate!==siteRoot&&!candidate.startsWith(`${siteRoot}${path.sep}`)){res.writeHead(403);res.end('Forbidden');return}
     let file=candidate;
     if(fs.existsSync(file)&&fs.statSync(file).isDirectory())file=path.join(file,'index.html');
     if(!fs.existsSync(file)||!fs.statSync(file).isFile()){res.writeHead(404,{'Content-Type':'text/plain; charset=utf-8'});res.end('Not found');return}
