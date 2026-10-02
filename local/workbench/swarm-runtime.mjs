@@ -11,11 +11,8 @@ export function openSwarmBridge(provider,{url=location.protocol==='https:'?new U
 }
 export async function connectBrowserSwarm({openIfMissing=true,timeoutMs=180000}={}){
   const provider=createBrowserSwarmProvider();
-  try{return {provider,capabilities:await provider.connect({timeoutMs:700}),opened:false}}
-  catch(error){
-    if(!openIfMissing){provider.dispose();throw error}
-    const bridge=openSwarmBridge(provider);return {provider,bridge,capabilities:await provider.waitForWorker({timeoutMs}),opened:true};
-  }
+  if(openIfMissing){const bridge=openSwarmBridge(provider);return {provider,bridge,capabilities:await provider.waitForWorker({timeoutMs}),opened:true}}
+  try{return {provider,capabilities:await provider.connect({timeoutMs:1200}),opened:false}}catch(error){provider.dispose();throw error}
 }
 export async function runHybridPoolTest({exoProvider,swarmProvider}={}){
   if(!exoProvider?.modelId)throw new Error('Connect exo and select a model first.');
