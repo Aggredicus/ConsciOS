@@ -45,7 +45,7 @@ GitHub Pages uses `scripts/build-pages-site.mjs`, which computes the exact stati
 - a tiny root redirect; and
 - `.nojekyll`.
 
-The deployed site has a hard **120,000-byte uncompressed source budget**. Model weights and Transformers.js are runtime downloads from their declared external sources and are not bundled into the Pages artifact.
+The deployed site has a hard **70,000-byte uncompressed source budget**. Model weights and Transformers.js are runtime downloads from their declared external sources and are not bundled into the Pages artifact.
 
 This budget measures deployable source bytes, not Git history size and not downloaded model-cache size.
 
