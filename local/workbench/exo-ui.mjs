@@ -66,6 +66,6 @@ export function mountExoLibrary({provider,capabilities,onSelect=()=>{}}={}){
     finally{poolButton.disabled=false}
   });
   renderMetrics();renderModels();choose();
-  status.textContent=`${caps?.cluster?.nodeCount??0} node(s) · ${catalog.length} model(s) · ${caps?.downloadedModels?.length??0} downloaded`;
+  status.textContent=`${caps?.cluster?.nodeCount??0} node(s) · ${catalog.length} model(s) · ${caps?.downloadedModels?.length??0} downloaded`;status.className='status ok';
   return {update(next){caps=next;catalog=Array.isArray(next?.modelCatalog)?next.modelCatalog:catalog;renderMetrics();renderModels();choose()}};
 }
