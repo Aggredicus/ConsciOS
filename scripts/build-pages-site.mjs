@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const DEFAULT_OUTPUT='_site';
 const DEFAULT_MAX_BYTES=70000;
+const MAX_INITIAL_BYTES=27000;
 const ENTRY='local/workbench/index.html';
 
 function args(argv){
@@ -55,10 +56,10 @@ export async function buildPagesSite({output=DEFAULT_OUTPUT,maxBytes=DEFAULT_MAX
   await rm(outRoot,{recursive:true,force:true});await mkdir(outRoot,{recursive:true});
   const html=await readFile(path.join(root,ENTRY),'utf8');
   await ensureCopy(ENTRY,outRoot);
-  const seen=new Set();
+  const seen=new Set(),initialFiles=new Set([ENTRY]);
   for(const match of html.matchAll(/\b(?:src|href)=["']([^"'#?]+)["']/g)){
     const spec=match[1];if(!localSpec(spec))continue;
-    const rel=normalized(path.posix.join(path.posix.dirname(ENTRY),spec));
+    const rel=normalized(path.posix.join(path.posix.dirname(ENTRY),spec));initialFiles.add(rel);
     if(/\.m?js$/.test(rel))await visitModule(rel,outRoot,seen);
     else await ensureCopy(rel,outRoot);
   }
@@ -76,7 +77,9 @@ export async function buildPagesSite({output=DEFAULT_OUTPUT,maxBytes=DEFAULT_MAX
   await walk(outRoot);files.sort((a,b)=>b.bytes-a.bytes);
   const forbidden=files.filter(file=>/(?:^|\/)(?:workbench\.mjs|notebook-engine\.mjs|execution-providers\.mjs|context-selector\.mjs|conversation-test\.mjs|conscios-ui\.css)$/.test(file.path));
   if(forbidden.length)throw new Error(`Compact Pages closure pulled legacy UI code: ${forbidden.map(file=>file.path).join(', ')}`);
-  const report={format:'conscios-pages-footprint/v1',totalBytes,maxBytes:Number.isFinite(maxBytes)?maxBytes:null,fileCount:files.length,files};
+  const initialBytes=files.filter(file=>initialFiles.has(file.path)).reduce((sum,file)=>sum+file.bytes,0);
+  if(initialBytes>MAX_INITIAL_BYTES)throw new Error(`Initial app shell ${initialBytes} bytes exceeds budget ${MAX_INITIAL_BYTES}`);
+  const report={format:'conscios-pages-footprint/v1',totalBytes,maxBytes:Number.isFinite(maxBytes)?maxBytes:null,initialBytes,maxInitialBytes:MAX_INITIAL_BYTES,fileCount:files.length,files};
   if(totalBytes>maxBytes)throw new Error(`Pages footprint ${totalBytes} bytes exceeds budget ${maxBytes}`);
   return report;
 }
