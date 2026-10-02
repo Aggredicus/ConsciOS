@@ -80,7 +80,7 @@ assert.equal(requests.filter(request=>request.url.endsWith('/place_instance')).l
 const conversationBody=JSON.parse(requests.filter(request=>request.url.endsWith('/v1/chat/completions')).at(-1).options.body);
 assert.deepEqual(conversationBody.messages.slice(-3).map(message=>message.role),['user','assistant','user']);
 assert.equal(conversationBody.messages.at(-1).content,'What call sign did I give you?');
-const streamedChunks=[];const streamedOutput=await exo.infer({...conversationInput,requestId:'exo-stream-001'},{onText:chunk=>streamedChunks.push(chunk)});assert.equal(streamedOutput.status,'ok');assert.equal(streamedOutput.content.text,'cedar-42');assert.deepEqual(streamedChunks,['cedar-','42']);assert.equal(streamedOutput.timing.streamed,true);assert.ok(streamedOutput.timing.ttftMs!==null);const streamedBody=JSON.parse(requests.filter(request=>request.url.endsWith('/v1/chat/completions')).at(-1).options.body);assert.equal(streamedBody.stream,true);
+const streamedChunks=[];const streamedOutput=await exo.infer({...conversationInput,requestId:'exo-stream-001'},{onText:chunk=>streamedChunks.push(chunk)});assert.equal(streamedOutput.status,'ok');assert.equal(streamedOutput.content.text,'cedar-42');assert.deepEqual(streamedChunks,['cedar-','42']);assert.equal(streamedOutput.timing.streamed,true);assert.equal(streamedOutput.timing.finishReason,'stop');assert.ok(streamedOutput.timing.ttftMs!==null);const streamedBody=JSON.parse(requests.filter(request=>request.url.endsWith('/v1/chat/completions')).at(-1).options.body);assert.equal(streamedBody.stream,true);assert.match(streamedBody.messages[0].content,/\/no_think/,'Qwen3 exo chat should suppress thinking output');
 
 const router=createInferenceProviderRouter();
 router.register(exo);
