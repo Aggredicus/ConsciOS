@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
 const STORE='conscios-lite-v1';
 const encoder=new TextEncoder;
-const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · ~117 MB'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · ~570 MB'}];
+const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · 117 MB'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · 570 MB'}];
 const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
@@ -134,7 +134,7 @@ const exoRuntime=()=>import('./exo-runtime.mjs');
 
 function progressValue(e){const n=Number(e?.progress);return Number.isFinite(n)?Math.max(0,Math.min(100,n<=1?n*100:n)):null}
 async function loadBrowser(){
-  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Starting worker…','warn');
+  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Starting…','warn');
   try{
     state.browserProvider?.dispose?.();if(state.providerKind==='browser')state.provider=null;state.browserProvider=null;
     const runtime=await browserRuntime();
@@ -239,7 +239,7 @@ $('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exo
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);
 $('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
-$('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='No inference.';save();renderMessages()});
+$('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='None.';save();renderMessages()});
 window.addEventListener('online',()=>setHeader(providerLabel(),state.provider?'ok':'warn'));
 window.addEventListener('offline',()=>setHeader('offline','warn'));
 
