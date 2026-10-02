@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "conscios-self-model": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["scripts/self-model-mcp.mjs"],
+      "env": {
+        "CONSCIOS_SELF_MODEL_DIR": "artifacts/self-model/current"
+      }
+    }
+  }
+}

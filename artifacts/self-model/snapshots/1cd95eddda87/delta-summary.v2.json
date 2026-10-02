@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "baseRef": "02a070da547fb7c983af698a2ef6f83c19c330a3",
+  "headRef": "1cd95eddda87a236e6171915da2271c9fcd4b83a",
+  "nodes": {"added":234,"removed":0,"changed":2,"unchanged":1349},
+  "edges": {"added":265,"removed":0,"unchanged":2274},
+  "addedNodeTypes": {
+    "GovernanceFinding":130,
+    "GovernanceDecision":60,
+    "SectionContentRef":12,
+    "Section":11,
+    "Concept":10,
+    "File":8,
+    "Domain":1,
+    "Workflow":1,
+    "DevelopmentDocument":1
+  },
+  "addedEdgeTypes": {
+    "RELATES_TO":131,
+    "GOVERNS":60,
+    "MATERIALIZES":22,
+    "CONTAINS":21,
+    "DESCRIBES":11,
+    "IN_DOMAIN":10,
+    "PARENT_SECTION":10
+  },
+  "changedNodeIds": ["file:.github/workflows/jekyll-gh-pages.yml", "repository:self"],
+  "files": {
+    "added": [
+      ".github/workflows/verify-self-model-studio.yml",
+      ".mcp.json",
+      "development/SELF_MODEL_STUDIO.md",
+      "scripts/governance-issue-candidates.mjs",
+      "scripts/repo-quality-governance-audit.mjs",
+      "scripts/self-model-graph-v2.mjs",
+      "scripts/self-model-mcp.mjs",
+      "scripts/self-model-studio-bundle.mjs",
+      "tools/self-model-studio/index.html",
+      "tools/self-model-studio/tooltip.js"
+    ],
+    "removed": [],
+    "changed": [".github/workflows/jekyll-gh-pages.yml"],
+    "renamed": []
+  },
+  "sections": {"added":11,"removed":0,"changed":0}
+}

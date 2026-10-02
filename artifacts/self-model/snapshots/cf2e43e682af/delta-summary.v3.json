@@ -1,0 +1,30 @@
+{
+  "version": 3,
+  "baseRef": "53a5f1724ba1c62d2617d0e347776c2924dcfed3",
+  "headRef": "cf2e43e682af62823c0b8287a7d9ca55f1f1b731",
+  "base": {
+    "fingerprint": "0a81044770655bab87f19ae4565945d2e64fb34e32e954b88bee634447859cad",
+    "graphHash": "5770e7a189bb08bb6ab1ed267280fd06f2287bf9922cbb4d7d898f5d15db1232"
+  },
+  "head": {
+    "fingerprint": "ba32657a7c9ed91acdd62f686f009ecc42c82207c59abc2524d6848eb3df4a81",
+    "graphHash": "56d88e5212a89d476f7be72b1beedfa67eb5d04df32527d147e973ae08fc07e4"
+  },
+  "nodes": {
+    "added": 225,
+    "removed": 0,
+    "changed": 6,
+    "unchanged": 1389
+  },
+  "edges": {
+    "added": 249,
+    "removed": 0,
+    "unchanged": 2348
+  },
+  "temporalHistory": {
+    "frames": 9,
+    "representedCommits": 9,
+    "sampled": false,
+    "historyHash": "348a775df6e2f60d98f09ace728df58104b24ef9f71a4533b033393fa3ce4cc0"
+  }
+}
