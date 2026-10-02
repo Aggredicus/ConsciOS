@@ -15,8 +15,10 @@ function boundedInput(input){
   if(messages.length>9)throw new Error('remote compute context exceeds 9 messages');
   for(const message of messages)if(!['user','assistant'].includes(message?.role)||typeof message?.content!=='string')throw new Error('remote compute conversation is invalid');
   if(bytes(messages)>12000)throw new Error('remote compute context exceeds 12 KB');
-  const max=Math.min(4096,Math.max(64,Number(input.maxResponseUnits)||512));
-  return {...input,conversationMessages:messages,maxResponseUnits:max,contextManifest:Array.isArray(input.contextManifest)?input.contextManifest.slice(0,4):[],causalSourceIds:Array.isArray(input.causalSourceIds)?input.causalSourceIds.slice(0,16):[],hiddenContextPolicy:'none'};
+  const max=Math.min(4096,Math.max(64,Number(input.maxResponseUnits)||512)),contextManifest=Array.isArray(input.contextManifest)?input.contextManifest.slice(0,4):[];
+  if(bytes(contextManifest)>4000||bytes({messages,contextManifest})>16000)throw new Error('remote compute declared context exceeds 16 KB');
+  const prior=input.outputBudget??{},outputBudget={...prior,initialLease:Math.min(max,Math.max(128,Number(prior.initialLease)||512)),hardLimit:max};
+  return {...input,conversationMessages:messages,maxResponseUnits:max,outputBudget,contextManifest,causalSourceIds:Array.isArray(input.causalSourceIds)?input.causalSourceIds.slice(0,16):[],hiddenContextPolicy:'none'};
 }
 function computeMessage(type,fields={}){return {protocol:SWARM_PROTOCOL,computeProtocol:BROWSER_COMPUTE_PROTOCOL,type,...fields}}
 
