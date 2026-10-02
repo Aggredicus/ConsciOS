@@ -1,19 +1,12 @@
-import {detectBrowserAICapabilities,chooseBrowserExecution} from '../../runtime/models/browser-capabilities.mjs';
-import {COMPACT_MODELS,getCompactModel} from '../../runtime/models/compact-models.mjs';
-import {createBrowserTransformersHost} from '../../runtime/models/browser-transformers-host.mjs';
-import {createBrowserTransformersCognitiveModel} from '../../runtime/models/browser-cognitive-model.mjs';
-import {createBrowserLocalInferenceProvider} from '../../runtime/models/browser-provider.mjs';
-import {createExoInferenceProvider} from '../../runtime/models/exo-provider.mjs';
-
 const $=id=>document.getElementById(id);
 const STORE='conscios-lite-v1';
-const models=COMPACT_MODELS;
+const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · fastest'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · stronger'}];
 const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
   provider:null,providerKind:null,busy:false,lastProvenance:saved.lastProvenance??null,
   browserHost:null,browserProvider:null,exoProvider:null,
-  browserCapabilities:null
+  browserCapabilities:null,browserModules:null,exoFactory:null
 };
 
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
@@ -110,19 +103,39 @@ async function sendMessage(text){
   }finally{setBusy(false);$('prompt').focus()}
 }
 
+async function browserModules(){
+  if(state.browserModules)return state.browserModules;
+  const [capabilities,manifests,host,cognitive,provider]=await Promise.all([
+    import('../../runtime/models/browser-capabilities.mjs'),
+    import('../../runtime/models/compact-models.mjs'),
+    import('../../runtime/models/browser-transformers-host.mjs'),
+    import('../../runtime/models/browser-cognitive-model.mjs'),
+    import('../../runtime/models/browser-provider.mjs')
+  ]);
+  state.browserModules={...capabilities,...manifests,...host,...cognitive,...provider};
+  return state.browserModules;
+}
+async function exoFactory(){
+  if(state.exoFactory)return state.exoFactory;
+  const module=await import('../../runtime/models/exo-provider.mjs');
+  state.exoFactory=module.createExoInferenceProvider;
+  return state.exoFactory;
+}
+
 function progressValue(event){
   const raw=Number(event?.progress);
   if(!Number.isFinite(raw))return null;
   return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
 }
 async function loadBrowser(){
-  const manifest=getCompactModel($('browserModel').value);if(!manifest)throw new Error('Select a browser model.');
-  setBusy(true);$('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Detecting browser backend…','warn');
+  setBusy(true);$('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Preparing browser runtime…','warn');
   try{
-    state.browserCapabilities=state.browserCapabilities??await detectBrowserAICapabilities();
-    const execution=chooseBrowserExecution(state.browserCapabilities,{prefer:'webgpu'});
+    const modules=await browserModules();
+    const manifest=modules.getCompactModel($('browserModel').value);if(!manifest)throw new Error('Select a browser model.');
+    state.browserCapabilities=state.browserCapabilities??await modules.detectBrowserAICapabilities();
+    const execution=modules.chooseBrowserExecution(state.browserCapabilities,{prefer:'webgpu'});
     $('browserBackend').textContent=execution.reason;
-    const host=createBrowserTransformersHost({
+    const host=modules.createBrowserTransformersHost({
       manifest,device:execution.device,dtype:execution.dtype,
       onProgress:event=>{
         const pct=progressValue(event);if(pct!==null)$('browserProgress').value=pct;
@@ -130,9 +143,9 @@ async function loadBrowser(){
         tone($('browserStatus'),`Loading ${file}${pct!==null?` · ${Math.round(pct)}%`:''}`,'warn');
       }
     });
-    const model=createBrowserTransformersCognitiveModel({host});
+    const model=modules.createBrowserTransformersCognitiveModel({host});
     await model.load();
-    const provider=createBrowserLocalInferenceProvider({model,label:manifest.label});
+    const provider=modules.createBrowserLocalInferenceProvider({model,label:manifest.label});
     await provider.connect();
     state.browserHost=host;state.browserProvider=provider;state.provider=provider;state.providerKind='browser';
     tone($('browserStatus'),`${manifest.label} ready on ${execution.device}.`,'ok');
@@ -175,6 +188,7 @@ async function connectExo({quiet=false}={}){
   const endpoint=normalizeEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
   if(mixedContent(endpoint))throw new Error('This HTTPS demo cannot call a local HTTP exo process. Run ConsciOS locally with scripts/run-exo-local.mjs --lan.');
   if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
+  const createExoInferenceProvider=await exoFactory();
   const provider=createExoInferenceProvider({endpoint});
   const capabilities=await provider.connect();
   state.exoProvider=provider;state.provider=provider;state.providerKind='exo';renderExo(capabilities);
@@ -193,11 +207,7 @@ async function init(){
   if(state.lastProvenance)$('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);
   renderMessages();
 
-  state.browserCapabilities=await detectBrowserAICapabilities().catch(()=>null);
-  if(state.browserCapabilities){
-    const summary=state.browserCapabilities.webgpu.available?'WebGPU available':state.browserCapabilities.wasm?'WASM available':'No supported backend';
-    $('browserBackend').textContent=summary;
-  }
+  $('browserBackend').textContent='Auto · WebGPU / WASM';
 
   const params=new URLSearchParams(location.search);
   const requested=params.get('provider')||saved.preferredProvider||'auto';
