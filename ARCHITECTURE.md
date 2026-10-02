@@ -27,7 +27,7 @@ Environment
    └──────────────→ Perception
 ```
 
-The architecture is recurrent. No single LLM is “the consciousness.” Models are replaceable inference components participating in a persistent causal system.
+The **design target is recurrent**. The currently accepted live v0 scheduler still instantiates a fresh modular runtime per cycle; bounded cross-cycle recurrence is implemented and experimentally measured in the shadow recurrent-cognition laboratory, where it has no production causal authority. Promotion of recurrence into the accepted phenotype requires a separate preregistered experiment and governance review. No single LLM is “the consciousness.” Models are replaceable inference components participating in a persistent causal system.
 
 ## Core modules
 

@@ -1,0 +1,76 @@
+name: Verify Consciousness UX v2
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+
+      - name: Verify evaluator syntax and preregistered tests
+        run: |
+          node --check observer/consciousness-battery-v2.mjs
+          node --check observer/experiments/consciousness-battery-v2/architecture-fidelity.mjs
+          node --check observer/experiments/consciousness-battery-v2/human-ux-audit.mjs
+          node --check observer/experiments/consciousness-battery-v2/agent-ux-audit.mjs
+          node --check observer/experiments/consciousness-battery-v2/agent-experience-survey.mjs
+          node --check observer/experiments/consciousness-battery-v2/agent-experience-cli.mjs
+          node --check observer/experiments/consciousness-battery-v2/verify.mjs
+          node --check scripts/plan-agent-context.mjs
+          node observer/experiments/consciousness-battery-v2/verify.mjs
+
+      - name: Preserve existing consciousness laboratories
+        run: |
+          node observer/experiments/consciousness-battery-v1/verify.mjs
+          node observer/experiments/recurrent-cognition/verify.mjs
+          node observer/experiments/self-prediction/verify.mjs
+          node observer/experiments/autobiographical-memory/verify.mjs
+          node observer/experiments/complete-loop/verify.mjs
+          node observer/experiments/experience-frame-v1.7/verify.mjs
+
+      - name: Generate architecture, human, and agent UX evidence
+        run: |
+          mkdir -p .consciousness-ux-v2
+          node observer/consciousness-battery-v2.mjs > .consciousness-ux-v2/functional-signature.json
+          node observer/experiments/consciousness-battery-v2/architecture-fidelity.mjs --out .consciousness-ux-v2/architecture-fidelity.json
+          node observer/experiments/consciousness-battery-v2/human-ux-audit.mjs --out .consciousness-ux-v2/human-ux.json
+          node observer/experiments/consciousness-battery-v2/agent-ux-audit.mjs --out .consciousness-ux-v2/agent-ux.json
+          node observer/experiments/consciousness-battery-v2/agent-experience-cli.mjs prompt --condition condition-blinded-ci --session review-template --out .consciousness-ux-v2/agent-experience-survey-packet.json
+          node scripts/plan-agent-context.mjs SelfModel --task 'inspect Self Model capabilities limitations permissions uncertainty memory' > .consciousness-ux-v2/self-model-context-plan.json
+          node scripts/plan-agent-context.mjs ObserverScientist --task 'review consciousness evidence recurrence continuity metacognition counterfactual' > .consciousness-ux-v2/observer-context-plan.json
+
+      - name: Enforce claims discipline
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const x=JSON.parse(fs.readFileSync('.consciousness-ux-v2/functional-signature.json','utf8'));
+          if ('score' in x || 'consciousnessScore' in x || 'consciousnessProbability' in x) throw new Error('forbidden aggregate consciousness score');
+          if (!x.dimensions || Object.keys(x.dimensions).length < 9) throw new Error('functional signature dimensions missing');
+          for (const [name,d] of Object.entries(x.dimensions)) if (!['measured','partial','not-established'].includes(d.status)) throw new Error(`invalid evidence status ${name}`);
+          const plan=JSON.parse(fs.readFileSync('.consciousness-ux-v2/self-model-context-plan.json','utf8'));
+          if (plan.authority !== 'none') throw new Error('context planner gained causal authority');
+          const packet=JSON.parse(fs.readFileSync('.consciousness-ux-v2/agent-experience-survey-packet.json','utf8'));
+          if (!packet.blindConditionId || !Array.isArray(packet.dimensions) || !packet.dimensions.includes('consciousnessSimulationExperience')) throw new Error('blinded experience survey packet invalid');
+          NODE
+
+      - name: Upload review and UX evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: conscios-consciousness-ux-v2-${{ github.sha }}
+          path: .consciousness-ux-v2
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30
