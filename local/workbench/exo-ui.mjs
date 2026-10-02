@@ -24,7 +24,8 @@ export function mountExoLibrary({provider,capabilities,onSelect=()=>{}}={}){
   if(!select||!tools)return null;
   tools.innerHTML='<div class="field"><label for="exoFilter">Filter models</label><input id="exoFilter" class="full" placeholder="Qwen, Llama, Gemma…"></div><div class="row" style="margin-top:8px"><button id="exoPreview" type="button">Preview fit</button><button id="exoPool" type="button">Pool test</button></div><p id="exoPlacement" class="status">Select a model to inspect placement.</p>';
   const filter=$('exoFilter'),placement=$('exoPlacement'),previewButton=$('exoPreview'),poolButton=$('exoPool');
-  let caps=capabilities,catalog=Array.isArray(caps?.modelCatalog)?caps.modelCatalog:[];
+  const textCatalog=rows=>rows.filter(model=>!model.tasks?.length||model.tasks.some(task=>/TextGeneration/i.test(String(task)))).sort((a,b)=>Number(b.downloaded)-Number(a.downloaded)||(a.storageSizeBytes??Infinity)-(b.storageSizeBytes??Infinity)||a.id.localeCompare(b.id));
+  let caps=capabilities,catalog=textCatalog(Array.isArray(caps?.modelCatalog)?caps.modelCatalog:[]);
   const renderMetrics=()=>{
     const cluster=caps?.cluster??{},rows=[[cluster.nodeCount??0,'nodes'],[fmt(cluster.memory?.availableBytes)||'—','RAM available'],[(caps?.activeModels??[]).length,'active models']];
     metrics.innerHTML=rows.map(([value,label])=>`<div class="metric"><b>${value}</b><span>${label}</span></div>`).join('');
@@ -67,5 +68,5 @@ export function mountExoLibrary({provider,capabilities,onSelect=()=>{}}={}){
   });
   renderMetrics();renderModels();choose();
   status.textContent=`${caps?.cluster?.nodeCount??0} node(s) · ${catalog.length} model(s) · ${caps?.downloadedModels?.length??0} downloaded`;status.className='status ok';
-  return {update(next){caps=next;catalog=Array.isArray(next?.modelCatalog)?next.modelCatalog:catalog;renderMetrics();renderModels();choose()}};
+  return {update(next){caps=next;catalog=textCatalog(Array.isArray(next?.modelCatalog)?next.modelCatalog:catalog);renderMetrics();renderModels();choose()}};
 }
