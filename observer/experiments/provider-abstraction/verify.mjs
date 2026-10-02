@@ -99,6 +99,26 @@ assert.deepEqual(conversationBody.messages.slice(-3).map(message=>message.role),
 assert.equal(conversationBody.messages.at(-1).content,'What call sign did I give you?');
 const streamedChunks=[];const streamedOutput=await exo.infer({...conversationInput,requestId:'exo-stream-001'},{onText:chunk=>streamedChunks.push(chunk)});assert.equal(streamedOutput.status,'ok');assert.equal(streamedOutput.content.text,'cedar-42');assert.deepEqual(streamedChunks,['cedar-','42']);assert.equal(streamedOutput.timing.streamed,true);assert.equal(streamedOutput.timing.finishReason,'stop');assert.ok(streamedOutput.timing.ttftMs!==null);const streamedBody=JSON.parse(requests.filter(request=>request.url.endsWith('/v1/chat/completions')).at(-1).options.body);assert.equal(streamedBody.stream,true);assert.match(streamedBody.messages[0].content,/\/no_think/,'Qwen3 exo chat should suppress thinking output');
 
+let poolPlaced=false;
+const poolFetch=async(url,options={})=>{
+  if(url.endsWith('/state'))return new Response(JSON.stringify({instances:{},tasks:{},nodeIdentities:{'desktop-a':{},'desktop-b':{}},nodeMemory:{'desktop-a':{ramAvailable:{inBytes:64_000_000_000}},'desktop-b':{ramAvailable:{inBytes:64_000_000_000}}}}),{status:200,headers:{'Content-Type':'application/json'}});
+  if(url.includes('/v1/models?status=downloaded'))return new Response(JSON.stringify({data:[]}),{status:200,headers:{'Content-Type':'application/json'}});
+  if(url.endsWith('/v1/models'))return new Response(JSON.stringify({data:[{id:'mlx-community/Qwen3-test',storage_size:{inBytes:72_000_000_000},supports_tensor:true,tasks:['TextGeneration']}]}),{status:200,headers:{'Content-Type':'application/json'}});
+  if(url.includes('/instance/previews?model_id='))return new Response(JSON.stringify({previews:[{model_id:'mlx-community/Qwen3-test',sharding:'Tensor',instance_meta:'MlxRing',instance:{id:'pooled-preview'},memory_delta_by_node:{'desktop-a':36_000_000_000,'desktop-b':36_000_000_000},error:null}]}),{status:200,headers:{'Content-Type':'application/json'}});
+  if(url.endsWith('/instance')&&options.method==='POST'){assert.deepEqual(JSON.parse(options.body),{instance:{id:'pooled-preview'}});poolPlaced=true;return new Response(JSON.stringify({message:'Command received.',command_id:'pool-1'}),{status:200,headers:{'Content-Type':'application/json'}})}
+  if(url.includes('/instance/await?model_id='))return new Response(`data: ${JSON.stringify(poolPlaced?{type:'ready',instance:{}}:{type:'timeout'})}\n\n`,{status:200,headers:{'Content-Type':'text/event-stream'}});
+  if(url.endsWith('/bench/chat/completions'))return new Response(JSON.stringify({generation_stats:{generation_tps:12.5,prompt_tps:42.0,generation_tokens:32,peak_memory_usage:72_000_000_000}}),{status:200,headers:{'Content-Type':'application/json'}});
+  return new Response('not found',{status:404});
+};
+const pooledProvider=createExoInferenceProvider({endpoint:'http://pool.local:52415',modelId:'mlx-community/Qwen3-test',fetchImpl:poolFetch});
+await pooledProvider.connect();
+const pooled=await pooledProvider.testPooling();
+assert.equal(pooled.status,'pooled');
+assert.equal(pooled.placement.nodeCount,2);
+assert.equal(pooled.placement.sharding,'Tensor');
+assert.equal(pooled.benchmark.generation_stats.generation_tps,12.5);
+assert.equal(poolPlaced,true);
+
 const router=createInferenceProviderRouter();
 router.register(exo);
 assert.rejects(()=>router.connectSelected(),/no inference provider selected/);
