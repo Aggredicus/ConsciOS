@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 
 const VERSION=1;
-const EXCLUDE=['artifacts/self-model/','.conscios/'];
+const EXCLUDE=['artifacts/self-model/','artifacts/development-landscape/','.conscios/'];
 const EXT=new Set(['.md','.mdx','.txt','.json','.jsonl','.yaml','.yml','.toml','.mjs','.js','.cjs','.ts','.tsx','.jsx','.html','.css','.py','.sh','.sql','.graphql','.gql','.xml','.csv','.ini','.conf']);
 const BASENAME=new Set(['LICENSE','Makefile','Dockerfile','.gitignore','.gitattributes','.editorconfig']);
 const norm=p=>p.split(path.sep).join('/').replace(/^\.\//,'');
