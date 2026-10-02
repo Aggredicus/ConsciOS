@@ -72,14 +72,20 @@ function chooseProvider(kind,provider=null){
   save();
 }
 function conversationInput(){
-  const [maxMessages,maxBytes]=state.providerKind==='browser'?[9,12000]:[15,24000],source=state.messages,last=source.at(-1);
+  const [maxMessages,maxBytes]=state.providerKind==='browser'?[7,6000]:[11,16000],source=state.messages,last=source.at(-1);
   let selected=last?.role==='user'?[last]:[],used=selected.length?encoder.encode(last.content).byteLength:0;
   for(let i=source.length-2;i>0&&selected.length+2<=maxMessages;i-=2){
     const user=source[i-1],assistant=source[i];if(user?.role!=='user'||assistant?.role!=='assistant')break;
     const pairBytes=encoder.encode(user.content).byteLength+encoder.encode(assistant.content).byteLength;
     if(used+pairBytes>maxBytes)break;selected=[user,assistant,...selected];used+=pairBytes;
   }
-  return {input:{requestId:`chat-${safeId()}`,requestingModule:'Expression',inferenceType:'conversation',contextManifest:[],causalSourceIds:[],conversationMessages:selected.map(({role,content})=>({role,content})),maxResponseUnits:256,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'},context:{candidateMessages:source.length,selectedMessages:selected.length,selectedBytes:used,maxMessages,maxBytes}};
+  return {input:{requestId:`chat-${safeId()}`,requestingModule:'Expression',inferenceType:'conversation',contextManifest:[],causalSourceIds:[],conversationMessages:selected.map(({role,content})=>({role,content})),maxResponseUnits:192,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'},context:{candidateMessages:source.length,selectedMessages:selected.length,selectedBytes:used,maxMessages,maxBytes}};
+}
+function latencyLabel(timing){
+  const first=Number(timing?.ttftMs),total=Number(timing?.elapsedMs);
+  if(Number.isFinite(first))return `${(first/1000).toFixed(first<1000?2:1)}s first · ${(total/1000).toFixed(total<1000?2:1)}s total`;
+  if(Number.isFinite(total))return `${(total/1000).toFixed(total<1000?2:1)}s total`;
+  return '';
 }
 function streamBubble(){
   const root=$('messages'),row=document.createElement('article'),bubble=document.createElement('div'),meta=document.createElement('div');
@@ -97,7 +103,7 @@ async function sendMessage(text){
     return;
   }
   pushMessage({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
-  const request=conversationInput(),live=streamBubble();
+  const request=conversationInput(),live=streamBubble();setHeader('responding…','warn');
   try{
     const result=await state.provider.infer(request.input,{onText:chunk=>live.push(String(chunk??''))});live.remove();
     if(result.status==='cancelled'){
@@ -112,7 +118,7 @@ async function sendMessage(text){
     pushMessage({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
     state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds,context:request.context};
     $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);
-    setHeader(providerLabel(),'ok');save();renderMessages();
+    setHeader(`${providerLabel()}${latencyLabel(result.timing)?` · ${latencyLabel(result.timing)}`:''}`,'ok');save();renderMessages();
   }catch(error){
     live.remove();pushMessage({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
     setHeader('runtime error','bad');renderMessages();
