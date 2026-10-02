@@ -38,7 +38,7 @@ function setBusy(value){
   $('messages').setAttribute('aria-busy',String(value));
 }
 function tab(name){
-  document.querySelectorAll('.tab').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.tab===name)));
+  document.querySelectorAll('.tab').forEach(button=>{const selected=button.dataset.tab===name;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});
   $('chatView').classList.toggle('active',name==='chat');$('runtimeView').classList.toggle('active',name==='runtime');
   if(name==='chat')requestAnimationFrame(()=>$('prompt').focus());
 }
