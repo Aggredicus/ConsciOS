@@ -87,7 +87,7 @@ LCS-2 adds a separately governed `BrowserSwarmProvider` for real heterogeneous c
 
 This is genuine pooled work, but it is **not** native exo tensor/pipeline sharding. ONNX/WebGPU and MLX have different model representations, caches, kernels, and collective-communication assumptions. ConsciOS therefore does not claim that browser RAM/VRAM has joined exo's coherent model-memory pool.
 
-The secure Workbench bridge can use an HTTPS Swarm page opened from a local Workbench. The bridge is tied to the exact opener window, opener origin, and a random token. This lets a phone remain in a secure context for WebGPU while the local Workbench can still talk to a LAN exo endpoint. If Swarm is served over an insecure LAN HTTP origin, the browser may fall back to WASM because WebGPU requires a secure context.
+The secure Workbench bridge can use an HTTPS Swarm page opened from a local Workbench. The bridge is tied to the exact opener window, opener origin, and a random token stored in the URL fragment so the static host never receives it. This lets a phone remain in a secure context for WebGPU while the local Workbench can still talk to a LAN exo endpoint. If Swarm is served over an insecure LAN HTTP origin, the browser may fall back to WASM because WebGPU requires a secure context.
 
 exo upstream: https://github.com/exo-explore/exo
 
