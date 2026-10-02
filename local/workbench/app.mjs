@@ -189,6 +189,7 @@ async function init(){
 
   const params=new URLSearchParams(location.search);
   const requested=params.get('provider')||saved.preferredProvider||'auto';
+  if(requested==='swarm'){chooseProvider('swarm');tone($('runtimeStatus'),'Pair / connect a browser worker.','warn');return}
   if(requested==='exo'){
     chooseProvider('exo');
     try{await connectExo({quiet:true})}catch(error){tone($('exoStatus'),String(error?.message||error),'warn');tone($('runtimeStatus'),'exo unavailable · no fallback.','warn')}
