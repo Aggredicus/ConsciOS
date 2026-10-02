@@ -33,8 +33,8 @@ function setHeader(text,tone=''){
   $('runtimeLabel').textContent=text;$('runtimeDot').className=`dot ${tone}`.trim();
 }
 function setBusy(value){
-  state.busy=value;$('send').disabled=value;$('stop').disabled=!value;
-  $('prompt').disabled=value;
+  state.busy=value;$('send').textContent=value?'Stop':'Send';$('send').classList.toggle('danger',value);$('prompt').disabled=value;
+  $('messages').setAttribute('aria-busy',String(value));
 }
 function tab(name){
   document.querySelectorAll('.tab').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.tab===name)));
@@ -128,7 +128,7 @@ function progressValue(event){
   return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
 }
 async function loadBrowser(){
-  setBusy(true);$('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Preparing browser runtime…','warn');
+  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Preparing browser runtime…','warn');
   try{
     const modules=await browserModules();
     const manifest=modules.getCompactModel($('browserModel').value);if(!manifest)throw new Error('Select a browser model.');
@@ -150,7 +150,7 @@ async function loadBrowser(){
     state.browserHost=host;state.browserProvider=provider;state.provider=provider;state.providerKind='browser';
     tone($('browserStatus'),`${manifest.label} ready on ${execution.device}.`,'ok');
     tone($('runtimeStatus'),'Browser inference ready.','ok');setHeader(providerLabel(),'ok');save();
-  }finally{$('loadBrowser').disabled=false;setBusy(false)}
+  }finally{$('loadBrowser').disabled=false}
 }
 
 function normalizeEndpoint(value){
@@ -241,14 +241,13 @@ document.querySelectorAll('.tab').forEach(button=>{
 });
 $('chooseBrowser').addEventListener('click',()=>chooseProvider('browser',state.browserProvider));
 $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvider));
-$('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');setBusy(false);$('loadBrowser').disabled=false}));
+$('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');$('loadBrowser').disabled=false}));
 $('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
 $('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
 $('exoEndpoint').addEventListener('change',()=>{try{const endpoint=normalizeEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated. Connect to verify.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
-$('composer').addEventListener('submit',event=>{event.preventDefault();sendMessage($('prompt').value)});
+$('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);
 $('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
-$('stop').addEventListener('click',()=>state.provider?.cancel?.());
 $('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='No inference yet.';save();renderMessages()});
 window.addEventListener('online',()=>setHeader(providerLabel(),state.provider?'ok':'warn'));
 window.addEventListener('offline',()=>setHeader('offline','warn'));
