@@ -133,19 +133,22 @@ const summary=summarizeConversationRealityResult({provider,challenge,stateful:{s
 assert.match(summary,/HISTORY-DEPENDENCE TEST/);
 assert.match(summary,/not a test of consciousness/i);
 
-for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mjs','local/workbench/exo-runtime.mjs'])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
+for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mjs','local/workbench/browser-inference-worker.mjs','local/workbench/exo-runtime.mjs'])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
 const ui=readFileSync('local/workbench/app.mjs','utf8');
 const browserUi=readFileSync('local/workbench/browser-runtime.mjs','utf8');
+const browserWorker=readFileSync('local/workbench/browser-inference-worker.mjs','utf8');
 const exoUi=readFileSync('local/workbench/exo-runtime.mjs','utf8');
-assert.ok(browserUi.length<2600,`browser runtime adapter budget exceeded: ${browserUi.length} bytes`);
+assert.ok(browserUi.length<3600,`browser worker proxy budget exceeded: ${browserUi.length} bytes`);
+assert.ok(browserWorker.length<5200,`browser inference worker budget exceeded: ${browserWorker.length} bytes`);
 assert.ok(exoUi.length<1400,`exo runtime adapter budget exceeded: ${exoUi.length} bytes`);
 const html=readFileSync('local/workbench/index.html','utf8');
 const css=readFileSync('local/workbench/app.css','utf8');
 const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
 
 assert.ok(ui.includes("./exo-runtime.mjs")&&exoUi.includes("exo-provider.mjs")&&exoUi.includes("createExoInferenceProvider"),'compact app is not wired to lazy exo loading');
-assert.ok(ui.includes("./browser-runtime.mjs")&&browserUi.includes("browser-transformers-host.mjs")&&browserUi.includes("browserProvider")&&browserUi.includes("host.generate")&&browserUi.includes("browser-transformers-local"),'compact app is not wired to lazy browser-local neural inference');
-assert.ok(browserUi.includes("compact-models.mjs")&&!ui.includes("STARTER_MODELS"),'compact app must lazy-load only the reduced browser model catalog');
+assert.ok(ui.includes("./browser-runtime.mjs")&&browserUi.includes("new Worker")&&browserUi.includes("browser-inference-worker.mjs"),'compact app must proxy browser inference through a dedicated worker');
+assert.ok(browserWorker.includes("browser-transformers-host.mjs")&&browserWorker.includes("host.generate")&&browserWorker.includes("executionThread:'dedicated-worker'"),'dedicated worker must own Transformers.js generation and provenance');
+assert.ok(browserWorker.includes("compact-models.mjs")&&!ui.includes("STARTER_MODELS"),'worker must load only the reduced browser model catalog');
 assert.ok(ui.includes('conversationMessages'),'compact app must send explicit visible conversation history');
 assert.ok(ui.includes("requestingModule:'Expression'"),'chat inference must declare its requesting module');
 assert.ok(ui.includes("hiddenContextPolicy:'none'"),'compact app must preserve explicit-context-only inference');
@@ -175,4 +178,4 @@ assert.ok(exoLauncher.includes("process.platform==='darwin'?'mlx':'mlx-cpu'"),'l
 
 for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden),`compact UI unexpectedly references credential material: ${forbidden}`);
 
-console.log('Compact ConsciOS verification passed: two-surface Chat/Runtime UX, explicit browser/exo inference, bounded local persistence, responsive mobile shell, and strict source-size budgets.');
+console.log('Compact ConsciOS verification passed: two-surface Chat/Runtime UX, dedicated-worker browser inference, explicit exo inference, bounded local persistence, responsive mobile shell, and strict source-size budgets.');
