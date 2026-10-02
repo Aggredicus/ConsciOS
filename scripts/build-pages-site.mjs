@@ -5,9 +5,10 @@ import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const DEFAULT_OUTPUT='_site';
-const DEFAULT_MAX_BYTES=80000;
+const DEFAULT_MAX_BYTES=170000;
 const MAX_INITIAL_BYTES=26000;
 const ENTRY='local/workbench/index.html';
+const LAZY_HTML_ENTRIES=['local/swarm/index.html'];
 
 function args(argv){
   const out={output:DEFAULT_OUTPUT,maxBytes:DEFAULT_MAX_BYTES};
@@ -66,15 +67,19 @@ export async function buildPagesSite({output=DEFAULT_OUTPUT,maxBytes=DEFAULT_MAX
   const outRoot=path.resolve(root,output);
   if(outRoot===root||!outRoot.startsWith(root+path.sep))throw new Error('output must stay inside repository');
   await rm(outRoot,{recursive:true,force:true});await mkdir(outRoot,{recursive:true});
-  const html=await readFile(path.join(root,ENTRY),'utf8');
-  await ensureCopy(ENTRY,outRoot);
   const seen=new Set(),initialFiles=new Set([ENTRY]),entryModules=[];
-  for(const match of html.matchAll(/\b(?:src|href)=["']([^"'#?]+)["']/g)){
-    const spec=match[1];if(!localSpec(spec))continue;
-    const rel=normalized(path.posix.join(path.posix.dirname(ENTRY),spec));initialFiles.add(rel);
-    if(/\.m?js$/.test(rel)){entryModules.push(rel);await visitModule(rel,outRoot,seen)}
-    else await ensureCopy(rel,outRoot);
+  async function addHtmlEntry(entry,{initial=false}={}){
+    const html=await readFile(path.join(root,entry),'utf8');await ensureCopy(entry,outRoot);const base=path.posix.dirname(entry),specs=[];
+    for(const match of html.matchAll(/\bsrc=["']([^"'#?]+)["']/g))specs.push(match[1]);
+    for(const match of html.matchAll(/<link\b[^>]*\bhref=["']([^"'#?]+)["'][^>]*>/gi))specs.push(match[1]);
+    for(const spec of new Set(specs)){
+      if(!localSpec(spec))continue;const rel=normalized(path.posix.join(base,spec));if(initial)initialFiles.add(rel);
+      if(/\.m?js$/.test(rel)){if(initial)entryModules.push(rel);await visitModule(rel,outRoot,seen)}
+      else await ensureCopy(rel,outRoot);
+    }
   }
+  await addHtmlEntry(ENTRY,{initial:true});
+  for(const entry of LAZY_HTML_ENTRIES)await addHtmlEntry(entry);
   for(const rel of entryModules)await visitEager(rel,initialFiles);
   await writeFile(path.join(outRoot,'index.html'),redirectHtml(),'utf8');
   await writeFile(path.join(outRoot,'.nojekyll'),'','utf8');
@@ -88,7 +93,7 @@ export async function buildPagesSite({output=DEFAULT_OUTPUT,maxBytes=DEFAULT_MAX
     }
   }
   await walk(outRoot);files.sort((a,b)=>b.bytes-a.bytes);
-  const forbidden=files.filter(file=>/(?:^|\/)(?:workbench\.mjs|notebook-engine\.mjs|execution-providers\.mjs|context-selector\.mjs|conversation-test\.mjs|conscios-ui\.css)$/.test(file.path));
+  const forbidden=files.filter(file=>/(?:^|\/)(?:workbench\.mjs|notebook-engine\.mjs|execution-providers\.mjs|context-selector\.mjs|conversation-test\.mjs)$/.test(file.path));
   if(forbidden.length)throw new Error(`Compact Pages closure pulled legacy UI code: ${forbidden.map(file=>file.path).join(', ')}`);
   const initialBytes=files.filter(file=>initialFiles.has(file.path)).reduce((sum,file)=>sum+file.bytes,0);
   if(initialBytes>MAX_INITIAL_BYTES)throw new Error(`Initial app shell ${initialBytes} bytes exceeds budget ${MAX_INITIAL_BYTES}`);
