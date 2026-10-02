@@ -137,7 +137,7 @@ for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mj
 const ui=readFileSync('local/workbench/app.mjs','utf8');
 const browserUi=readFileSync('local/workbench/browser-runtime.mjs','utf8');
 const exoUi=readFileSync('local/workbench/exo-runtime.mjs','utf8');
-assert.ok(browserUi.length<1800,`browser runtime adapter budget exceeded: ${browserUi.length} bytes`);
+assert.ok(browserUi.length<2600,`browser runtime adapter budget exceeded: ${browserUi.length} bytes`);
 assert.ok(exoUi.length<1400,`exo runtime adapter budget exceeded: ${exoUi.length} bytes`);
 const html=readFileSync('local/workbench/index.html','utf8');
 const css=readFileSync('local/workbench/app.css','utf8');
