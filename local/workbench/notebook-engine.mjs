@@ -42,9 +42,10 @@ function id(prefix='cell'){return `${prefix}-${crypto.randomUUID?.()??`${Date.no
 export function createCell(type='markdown',options={}){
   if(!CELL_TYPES[type])throw new TypeError(`unsupported cell type '${type}'`);
   const conversational=type==='conversation'||type==='conversation-test';
+  const aiContextDefaults=type==='ai'?{contextStrategy:'relevant',maxContextBytes:12000,maxContextItems:8}:{};
   return {
     id:id(),type,title:options.title??CELL_TYPES[type].label,source:options.source??DEFAULT_SOURCE[type]??'',
-    config:{includePrevious:false,maxResponseUnits:conversational?512:256,endpoint:'',method:'POST',action:DEFAULT_ACTION[type]??'',...(options.config??{})},
+    config:{includePrevious:false,maxResponseUnits:conversational?512:256,endpoint:'',method:'POST',action:DEFAULT_ACTION[type]??'',...aiContextDefaults,...(options.config??{})},
     output:null,provenance:null,status:'idle',updatedAt:new Date().toISOString()
   };
 }
