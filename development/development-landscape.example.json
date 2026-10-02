@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "landscapeId": "developer-local",
+  "label": "Developer software landscape",
+  "repositories": [
+    {
+      "id": "repository:self",
+      "name": "ConsciOS",
+      "path": ".",
+      "role": "self",
+      "ontologyPath": "artifacts/self-model/current/ontology/current.v2.json"
+    },
+    {
+      "id": "repository:exo",
+      "name": "exo",
+      "path": "../exo",
+      "role": "neighbor",
+      "relation": "integration-target"
+    }
+  ],
+  "relationships": [
+    {
+      "from": "repository:self",
+      "to": "repository:exo",
+      "type": "INTEGRATES_WITH",
+      "confidence": 1,
+      "evidence": "development/EXO_INTEGRATION.md"
+    }
+  ],
+  "capabilityProfiles": {
+    "local-developer": {
+      "past": {
+        "read": true,
+        "branchFrom": {
+          "allow": true,
+          "requireReason": true
+        }
+      },
+      "present": {
+        "read": true,
+        "editWorktree": {
+          "allow": true,
+          "requireReason": true
+        },
+        "createCommit": {
+          "allow": true,
+          "requireReason": true
+        },
+        "createBranch": true
+      },
+      "future": {
+        "read": true,
+        "projectGraph": true,
+        "simulate": true,
+        "createWorktree": true
+      }
+    }
+  }
+}

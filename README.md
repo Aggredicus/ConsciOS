@@ -24,6 +24,24 @@ Cognitive topology
 
 The project is therefore organized around cognitive roles rather than conventional frontend/backend/QA silos. See [`AGENT_ORGANIZATION.md`](AGENT_ORGANIZATION.md), [`CONWAY_MIGRATION.md`](CONWAY_MIGRATION.md), and [`agents/OWNERSHIP.yaml`](agents/OWNERSHIP.yaml).
 
+## Development Landscape
+
+ConsciOS can model the hosting repository in the context of a developer's wider software ecosystem through the shadow-only **Development Landscape** substrate.
+
+The landscape represents:
+
+- the current repository as `self`;
+- neighboring Git repositories as external development context;
+- commit and branch history under an explicit global cap;
+- imported file/module/symbol ontologies from `4d-codebase-graph`;
+- evidence-bearing cross-repository relationships;
+- hypothetical projected futures for A/B development and simulation;
+- separate past/present/future capability profiles for agents.
+
+A projected future is not an accepted phenotype, and a capability decision is not execution authority. The bounded stdio MCP exposes summary, search, neighborhood, and authorization queries without adding repository-write tools.
+
+See [`development/DEVELOPMENT_LANDSCAPE_V01.md`](development/DEVELOPMENT_LANDSCAPE_V01.md) and [`interfaces/development-landscape/README.md`](interfaces/development-landscape/README.md).
+
 ## Repository anatomy
 
 ```txt
