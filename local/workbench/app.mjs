@@ -28,6 +28,7 @@ function save(){
   }));
 }
 function safeId(){return globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+function pushMessage(message){state.messages.push(message);if(state.messages.length>24)state.messages.splice(0,state.messages.length-24)}
 function formatBytes(value){
   if(typeof value!=='number'||!Number.isFinite(value)||value<0)return '—';
   const units=['B','KB','MB','GB','TB'];let n=value,i=0;
@@ -92,19 +93,19 @@ async function sendMessage(text){
     tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo before chatting.':'Load a browser model before chatting.','warn');
     return;
   }
-  state.messages.push({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
+  pushMessage({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
   try{
     const result=await state.provider.infer(conversationInput());
     if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
     const content=String(result.content?.text??result.content?.result??'').trim();
     if(!content)throw new Error('Model returned an empty response.');
     const p=result.provider??state.provider.provenance?.()??{};
-    state.messages.push({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
+    pushMessage({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
     state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds};
     $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);
     setHeader(providerLabel(),'ok');save();renderMessages();
   }catch(error){
-    state.messages.push({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
+    pushMessage({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
     setHeader('runtime error','bad');renderMessages();
   }finally{setBusy(false);$('prompt').focus()}
 }
