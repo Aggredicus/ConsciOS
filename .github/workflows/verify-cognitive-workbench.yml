@@ -26,4 +26,4 @@ jobs:
       - name: Verify existing browser entrypoints
         run: node observer/experiments/browser-entrypoints/verify.mjs
       - name: Verify compact Pages footprint
-        run: node scripts/build-pages-site.mjs --output artifacts/pages-smoke --max-bytes 120000
+        run: node scripts/build-pages-site.mjs --output artifacts/pages-smoke --max-bytes 70000
