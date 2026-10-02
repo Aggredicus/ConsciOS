@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {CELL_TYPES,PYODIDE_VERSION,createCell,createNotebook,interpolateText,parseParameters,validateNotebook} from '../../../local/workbench/notebook-engine.mjs';
 import {createConversationChallenge,scoreConversationArm,compareConversationArms,summarizeConversationRealityResult} from '../../../local/workbench/conversation-test.mjs';
+import {EXECUTION_PROTOCOL,EXECUTION_RESULT_FORMAT,createExecutionProvider,createExecutionRouter,createDefaultWorkbenchExecutionRouter} from '../../../local/workbench/execution-providers.mjs';
 
 const notebook=createNotebook({title:'Verification notebook'});
 assert.equal(validateNotebook(notebook),notebook);
@@ -17,6 +18,33 @@ assert.throws(()=>parseParameters('[1,2,3]'),/JSON object/);
 assert.throws(()=>createCell('undeclared-cell'),/unsupported cell type/);
 assert.equal(createCell('conversation').config.maxResponseUnits,512);
 assert.match(PYODIDE_VERSION,/^\d+\.\d+\.\d+$/);
+
+const executionProvider=createExecutionProvider({
+  id:'ci-javascript',
+  label:'CI JavaScript',
+  location:'verification',
+  cellTypes:['javascript'],
+  capabilities:{network:false},
+  execute:async(cell,context)=>({output:{source:cell.source,scale:context.parameters.scale},provenance:{kind:'ci-execution'}})
+});
+assert.equal(executionProvider.protocol,EXECUTION_PROTOCOL);
+assert.equal(executionProvider.canExecute({type:'javascript'}),true);
+assert.equal(executionProvider.canExecute({type:'python'}),false);
+const executionRouter=createExecutionRouter();executionRouter.register(executionProvider);
+const executionResult=await executionRouter.execute({type:'javascript',source:'return scale',config:{}},{parameters:{scale:3}});
+assert.equal(executionResult.format,EXECUTION_RESULT_FORMAT);
+assert.deepEqual(executionResult.output,{source:'return scale',scale:3});
+assert.equal(executionResult.provenance.executionProvider.id,'ci-javascript');
+assert.equal(executionResult.provenance.executionProvider.location,'verification');
+await assert.rejects(()=>executionRouter.execute({type:'python',source:'',config:{}},{parameters:{}}),/No execution provider is registered/);
+await assert.rejects(()=>executionRouter.execute({type:'javascript',source:'',config:{executionProvider:'missing'}},{parameters:{}}),/No fallback is active/);
+assert.throws(()=>executionRouter.register(executionProvider),/already registered/);
+
+const defaultExecutionRouter=createDefaultWorkbenchExecutionRouter();
+assert.deepEqual(defaultExecutionRouter.records().map(item=>item.id).sort(),['browser-javascript','browser-python','http-tool-bridge']);
+assert.equal(defaultExecutionRouter.providerFor({type:'javascript',config:{}}).id,'browser-javascript');
+assert.equal(defaultExecutionRouter.providerFor({type:'python',config:{}}).id,'browser-python');
+assert.equal(defaultExecutionRouter.providerFor({type:'playtest',config:{}}).id,'http-tool-bridge');
 
 let entropyIndex=0;const entropy=['111111','222222','333333','444444'];
 const challenge=createConversationChallenge({entropyFactory:()=>entropy[entropyIndex++],numberFactory:()=>[23,19]});
@@ -65,6 +93,9 @@ const liveHtml=readFileSync('live/index.html','utf8');
 assert.ok(ui.includes("createExoInferenceProvider"),'workbench is not wired to exo provider');
 assert.ok(ui.includes("createBrowserLocalInferenceProvider"),'workbench is not wired to browser-local provider');
 assert.ok(ui.includes("createDeterministicMockModel"),'deterministic control is missing');
+assert.ok(ui.includes('createDefaultWorkbenchExecutionRouter'),'workbench must use the conscios-execution provider boundary');
+assert.ok(ui.includes('executionRouter.execute'),'workbench executable cells must route through the execution provider contract');
+assert.ok(!ui.includes('executeJavaScript(cell.source')&&!ui.includes('executeToolRequest(cell,context)'),'workbench UI must not directly dispatch browser/tool execution transports');
 assert.ok(ui.includes('conversationMessages'),'workbench does not send explicit conversation history');
 assert.ok(ui.includes('runConversationRealityTest'),'paired conversation test is missing');
 assert.ok(ui.includes('No fallback'),'provider failure must remain explicit in the UI');
@@ -131,4 +162,4 @@ assert.ok(swarmHtml.includes('does not grant photo, file, password, repository, 
 
 for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden)&&!dashboardHtml.includes(forbidden)&&!dashboardUi.includes(forbidden)&&!exoLauncher.includes(forbidden),`workbench unexpectedly references credential material: ${forbidden}`);
 
-console.log('Cognitive Workbench verification passed: explicit neural-vs-mock disclosure, live multi-turn conversation, native exo app/runtime path, real inference acceptance gate, responsive UI-system coverage, bounded iframe authority, and no consciousness claim.');
+console.log('Cognitive Workbench verification passed: explicit inference and execution provider boundaries, live multi-turn conversation, native exo app/runtime path, real inference acceptance gate, responsive UI-system coverage, bounded iframe authority, and no consciousness claim.');

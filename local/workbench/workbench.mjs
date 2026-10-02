@@ -7,9 +7,10 @@ import {createBrowserLocalInferenceProvider} from '../../runtime/models/browser-
 import {createExoInferenceProvider} from '../../runtime/models/exo-provider.mjs';
 import {createInferenceProviderRouter} from '../../runtime/models/provider-router.mjs';
 import {createConversationChallenge,scoreConversationArm,compareConversationArms,summarizeConversationRealityResult} from './conversation-test.mjs';
-import {CELL_TYPES,PYODIDE_VERSION,cloneCell,createCell,createNotebook,executeJavaScript,executePython,executeToolRequest,interpolateText,loadNotebook,parseParameters,previousCellResults,rebuildParameterContext,saveNotebook,validateNotebook} from './notebook-engine.mjs';
+import {CELL_TYPES,PYODIDE_VERSION,cloneCell,createCell,createNotebook,interpolateText,loadNotebook,parseParameters,previousCellResults,rebuildParameterContext,saveNotebook,validateNotebook} from './notebook-engine.mjs';
+import {createDefaultWorkbenchExecutionRouter} from './execution-providers.mjs';
 
-const $=id=>document.getElementById(id);const router=createInferenceProviderRouter();let notebook=loadNotebook()??createNotebook();let selectedCellId=null;let saveTimer=null;let browserModel=null;let browserHost=null;let exoProvider=null;
+const $=id=>document.getElementById(id);const router=createInferenceProviderRouter();const executionRouter=createDefaultWorkbenchExecutionRouter();let notebook=loadNotebook()??createNotebook();let selectedCellId=null;let saveTimer=null;let browserModel=null;let browserHost=null;let exoProvider=null;
 
 function esc(value){return String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))}
 function pretty(value){if(typeof value==='string')return value;try{return JSON.stringify(value,null,2)}catch{return String(value)}}
@@ -165,10 +166,11 @@ async function runCell(cell,index,stack=new Set()){
     else if(cell.type==='ai')result=await runAI(cell,index);
     else if(cell.type==='conversation')result=await runConversation(cell,index);
     else if(cell.type==='conversation-test')result=await runConversationRealityTest(cell,index);
-    else if(cell.type==='javascript'){const execution=await executeJavaScript(cell.source,context);result={output:{result:execution.result,logs:execution.logs},provenance:{kind:'browser-javascript-worker'}}}
-    else if(cell.type==='python'){const execution=await executePython(cell.source,context,{onStatus:text=>{$('pythonStatus').textContent=text;status(text,'warn')}});$('pythonStatus').textContent=`Pyodide ${PYODIDE_VERSION}`;result={output:{result:execution.result,stdout:execution.stdout,stderr:execution.stderr},provenance:{kind:'browser-python',runtime:execution.runtime}}}
     else if(cell.type==='macro')result=await runMacro(cell,stack);
-    else {const execution=await executeToolRequest(cell,context);result={output:execution.result,provenance:{kind:'explicit-tool-bridge',...execution.request,timing:execution.timing}}}
+    else {
+      result=await executionRouter.execute(cell,context,{onStatus:text=>{if(cell.type==='python')$('pythonStatus').textContent=text;status(text,'warn')}});
+      if(cell.type==='python')$('pythonStatus').textContent=`Pyodide ${PYODIDE_VERSION}`;
+    }
     cell.output=result.output;cell.provenance={...result.provenance,elapsedMs:Math.max(0,performance.now()-started)};cell.status='ok';cell.updatedAt=now();markDirty();renderCells();renderCellInspector(cell);renderProviderProvenance();status(`${cell.title} complete.`,'ok');return {status:'ok',cell};
   }catch(error){cell.status='error';if(preserveOutput)cell.output=priorOutput??{messages:[]};else cell.output={error:String(error?.message||error)};cell.provenance={kind:'execution-error',message:String(error?.message||error),elapsedMs:Math.max(0,performance.now()-started)};cell.updatedAt=now();markDirty();renderCells();renderCellInspector(cell);status(`${cell.title}: ${String(error?.message||error)}`,'bad');return {status:'error',cell,error}}
 }
