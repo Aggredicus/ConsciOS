@@ -53,7 +53,8 @@ function startFakeExo(){
     if(url.pathname==='/node_id')return json(res,200,{node_id:'node-browser-sim'});
     if(url.pathname==='/state')return json(res,200,state());
     if(url.pathname==='/v1/feature-flags')return json(res,200,{disaggregation:false});
-    if(url.pathname==='/v1/models')return json(res,200,{object:'list',data:[{id:modelId,object:'model'}]});
+    if(url.pathname==='/v1/models')return json(res,200,{object:'list',data:[{id:modelId,object:'model',family:'qwen3',quantization:'4bit',storage_size:{inBytes:2*1024**3},context_length:32768,supports_tensor:true,tasks:['TextGeneration']}]});
+    if(url.pathname==='/instance/previews')return json(res,200,{previews:[{model_id:modelId,sharding:'Pipeline',instance_meta:'MlxRing',instance:{id:'browser-single'},memory_delta_by_node:{'node-browser-sim':2*1024**3},error:null}]});
     if(url.pathname==='/place_instance'&&req.method==='POST'){placed=true;return json(res,200,{message:'Command received.',command_id:'browser-sim-command',model_card:{model_id:modelId}})}
     if(url.pathname==='/instance/await'){res.writeHead(200,{'Content-Type':'text/event-stream','Access-Control-Allow-Origin':'*'});res.end(placed?`data: {"type":"ready","instance":{"MlxRingInstance":{"shardAssignments":{"modelId":"${modelId}"}}}}\n\n`:`data: {"type":"timeout","message":"No instance"}\n\n`);return}
     if(url.pathname==='/v1/chat/completions'&&req.method==='POST'){
@@ -162,6 +163,11 @@ try{
   await workbench.locator('.tab[data-tab="runtime"]').click();
   assert.match(await workbench.locator('#exoStatus').innerText(),/1 node\(s\)/);
   assert.match(await workbench.locator('#exoMetrics').innerText(),/1\s*nodes/);
+  assert.equal(await workbench.locator('#exoModel option').count(),1);
+  await workbench.locator('#exoPreview').click();
+  await workbench.waitForFunction(()=>document.querySelector('#exoPlacement')?.textContent?.includes('1-node'),null,{timeout:5000});
+  await workbench.locator('#exoPool').click();
+  await workbench.waitForFunction(()=>document.querySelector('#exoPlacement')?.textContent?.includes('Add a second worker'),null,{timeout:5000});
   await workbench.locator('.tab[data-tab="chat"]').click();
   await workbench.locator('#prompt').fill('Return the compact integration token.');
   await workbench.locator('#composer').evaluate(form=>form.requestSubmit());
@@ -170,7 +176,7 @@ try{
   const compactState=await workbench.evaluate(()=>JSON.parse(localStorage.getItem('conscios-lite-v1')||'{}'));
   assert.equal(compactState.lastProvenance?.timing?.streamed,true);
   assert.ok(compactState.lastProvenance?.context?.selectedMessages<=15);
-  report.exoSimulation={status:'pass',endpoint:'simulated',acceptanceText:await page.locator('#resultBanner').innerText(),workbenchStatus:await workbench.locator('#exoStatus').innerText(),compactChat:'EXO_OK',streamed:true};
+  report.exoSimulation={status:'pass',endpoint:'simulated',acceptanceText:await page.locator('#resultBanner').innerText(),workbenchStatus:await workbench.locator('#exoStatus').innerText(),compactChat:'EXO_OK',streamed:true,modelLibrary:true,poolingGuard:true};
   await context.close();
 
   fs.writeFileSync(path.join(artifactDir,'report.json'),JSON.stringify(report,null,2));
