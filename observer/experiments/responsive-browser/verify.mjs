@@ -144,11 +144,12 @@ try{
   workbench.on('console',message=>{if(['error','warning'].includes(message.type()))workbenchConsole.push(`${message.type()}: ${message.text()}`)});
   await workbench.goto(`${base}/local/workbench/?provider=exo&endpoint=${encodeURIComponent(exoEndpoint)}`,{waitUntil:'domcontentloaded'});
   try{
-    await workbench.locator('#exoStatus.ok').waitFor({timeout:10000});
+    await workbench.waitForFunction(()=>document.querySelector('#exoStatus')?.classList.contains('ok'),null,{timeout:10000});
   }catch(error){
     const exoStatus=await workbench.locator('#exoStatus').innerText().catch(()=>'<missing>');
     throw new Error(`Compact app exo auto-connect timed out. exoStatus=${exoStatus}; pageErrors=${JSON.stringify(workbenchErrors)}; console=${JSON.stringify(workbenchConsole)}; cause=${error.message}`);
   }
+  await workbench.locator('.tab[data-tab="runtime"]').click();
   assert.match(await workbench.locator('#exoStatus').innerText(),/1 node\(s\)/);
   assert.match(await workbench.locator('#exoMetrics').innerText(),/1\s*nodes/);
   await workbench.locator('.tab[data-tab="chat"]').click();
