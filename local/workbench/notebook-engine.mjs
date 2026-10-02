@@ -10,6 +10,7 @@ export const CELL_TYPES=Object.freeze({
   'conversation-test':{label:'Conversation Reality Test',language:'text'},
   javascript:{label:'JavaScript',language:'javascript'},
   python:{label:'Python',language:'python'},
+  container:{label:'Linux container',language:'json'},
   procedure:{label:'Tool procedure',language:'json'},
   'world-inspect':{label:'World / selection inspect',language:'json'},
   'property-inspector':{label:'Property inspector',language:'json'},
@@ -27,6 +28,7 @@ const DEFAULT_SOURCE={
   'conversation-test':'Paired randomized stateful-vs-stateless test. Press “Run paired test” with a neural provider selected.',
   javascript:'const value = Number(context.parameters.scale ?? 1);\nreturn {scaled: value * 2, project: context.parameters.project};',
   python:'project = context.get("project", "ConsciOS")\nscale = context.get("scale", 1)\n{"project": project, "scaled": scale * 2}',
+  container:'{\n  "image": "ubuntu:24.04",\n  "command": ["sh", "-lc", "printf \'CONSCIOS_SANDBOX_OK\\n\' && uname -s"],\n  "files": [],\n  "network": false,\n  "pull": false,\n  "limits": {"timeoutMs": 30000, "memoryMB": 512, "cpus": 1, "pids": 64, "outputBytes": 262144}\n}',
   procedure:'{\n  "procedure": "describe-scene",\n  "arguments": {}\n}',
   'world-inspect':'{\n  "scope": "selection",\n  "include": ["name", "transform", "bounds"]\n}',
   'property-inspector':'{\n  "target": "selection",\n  "properties": ["transform"]\n}',
@@ -45,7 +47,7 @@ export function createCell(type='markdown',options={}){
   const aiContextDefaults=type==='ai'?{contextStrategy:'relevant',maxContextBytes:12000,maxContextItems:8}:{};
   return {
     id:id(),type,title:options.title??CELL_TYPES[type].label,source:options.source??DEFAULT_SOURCE[type]??'',
-    config:{includePrevious:false,maxResponseUnits:conversational?512:256,endpoint:'',method:'POST',action:DEFAULT_ACTION[type]??'',...aiContextDefaults,...(options.config??{})},
+    config:{includePrevious:false,maxResponseUnits:conversational?512:256,endpoint:type==='container'?'http://127.0.0.1:43117/v1/run':'',method:'POST',action:DEFAULT_ACTION[type]??'',...aiContextDefaults,...(options.config??{})},
     output:null,provenance:null,status:'idle',updatedAt:new Date().toISOString()
   };
 }
