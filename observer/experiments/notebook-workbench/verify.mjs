@@ -133,13 +133,15 @@ assert.match(summary,/HISTORY-DEPENDENCE TEST/);
 assert.match(summary,/not a test of consciousness/i);
 
 const ui=readFileSync('local/workbench/app.mjs','utf8');
+const browserUi=readFileSync('local/workbench/browser-runtime.mjs','utf8');
+const exoUi=readFileSync('local/workbench/exo-runtime.mjs','utf8');
 const html=readFileSync('local/workbench/index.html','utf8');
 const css=readFileSync('local/workbench/app.css','utf8');
 const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
 
-assert.ok(ui.includes("exo-provider.mjs")&&ui.includes("createExoInferenceProvider"),'compact app is not wired to lazy exo loading');
-assert.ok(ui.includes("browser-provider.mjs")&&ui.includes("createBrowserLocalInferenceProvider"),'compact app is not wired to lazy browser-local inference');
-assert.ok(ui.includes("compact-models.mjs")&&!ui.includes("STARTER_MODELS"),'compact app must lazy-load only the reduced browser model catalog');
+assert.ok(ui.includes("./exo-runtime.mjs")&&exoUi.includes("exo-provider.mjs")&&exoUi.includes("createExoInferenceProvider"),'compact app is not wired to lazy exo loading');
+assert.ok(ui.includes("./browser-runtime.mjs")&&browserUi.includes("browser-provider.mjs")&&browserUi.includes("createBrowserLocalInferenceProvider"),'compact app is not wired to lazy browser-local inference');
+assert.ok(browserUi.includes("compact-models.mjs")&&!ui.includes("STARTER_MODELS"),'compact app must lazy-load only the reduced browser model catalog');
 assert.ok(ui.includes('conversationMessages'),'compact app must send explicit visible conversation history');
 assert.ok(ui.includes("requestingModule:'Expression'"),'chat inference must declare its requesting module');
 assert.ok(ui.includes("hiddenContextPolicy:'none'"),'compact app must preserve explicit-context-only inference');
