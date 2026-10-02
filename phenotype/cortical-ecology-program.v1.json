@@ -1,0 +1,118 @@
+{
+  "schemaVersion": "1.0.0",
+  "programId": "conscios-cortical-ecology-current-v1",
+  "programVersion": 1,
+  "mode": "shadow",
+  "description": "Behavior-preserving regulatory description of the currently accepted deterministic ConsciOS role topology. This program may be compiled and inspected but has no causal routing authority.",
+  "phases": ["online", "consolidation", "maintenance", "recovery"],
+  "domains": [
+    "boundary",
+    "cortex",
+    "association",
+    "support",
+    "integrity",
+    "action",
+    "expression",
+    "external"
+  ],
+  "roles": [
+    {
+      "role": "Sensorium",
+      "domain": "boundary",
+      "sourceAliases": ["Sensorium"],
+      "allowedEpistemicStatuses": ["observation"]
+    },
+    {
+      "role": "GlobalWorkspace",
+      "domain": "cortex",
+      "sourceAliases": ["GlobalWorkspace", "RelevanceProcessor", "PredictionErrorProcessor", "NoveltyProcessor"],
+      "allowedEpistemicStatuses": ["inference"]
+    },
+    {
+      "role": "WorldModel",
+      "domain": "association",
+      "sourceAliases": ["WorldModel"],
+      "allowedEpistemicStatuses": ["inference"]
+    },
+    {
+      "role": "SelfModel",
+      "domain": "association",
+      "sourceAliases": ["SelfModel"],
+      "allowedEpistemicStatuses": ["inference"]
+    },
+    {
+      "role": "Memory",
+      "domain": "association",
+      "sourceAliases": ["Memory"],
+      "allowedEpistemicStatuses": ["memory"]
+    },
+    {
+      "role": "Counterfactual",
+      "domain": "association",
+      "sourceAliases": ["Counterfactual"],
+      "allowedEpistemicStatuses": ["counterfactual"]
+    },
+    {
+      "role": "Metacognition",
+      "domain": "cortex",
+      "sourceAliases": ["Metacognition"],
+      "allowedEpistemicStatuses": ["inference"]
+    },
+    {
+      "role": "Homeostasis",
+      "domain": "support",
+      "sourceAliases": ["Homeostasis"],
+      "allowedEpistemicStatuses": ["inference"]
+    },
+    {
+      "role": "Guardian",
+      "domain": "integrity",
+      "sourceAliases": ["Guardian", "EthicsWelfareGuardian"],
+      "allowedEpistemicStatuses": ["governance"]
+    },
+    {
+      "role": "Executive",
+      "domain": "action",
+      "sourceAliases": ["Executive"],
+      "allowedEpistemicStatuses": ["action"]
+    },
+    {
+      "role": "Expression",
+      "domain": "expression",
+      "sourceAliases": ["Expression"],
+      "allowedEpistemicStatuses": ["expression"]
+    }
+  ],
+  "edges": [
+    {"sourceRole": "Sensorium", "targetDomain": "cortex", "kind": "observation-to-local-processing"},
+    {"sourceRole": "GlobalWorkspace", "targetDomain": "cortex", "kind": "workspace-candidate"},
+    {"sourceRole": "GlobalWorkspace", "targetDomain": "broadcast", "kind": "global-broadcast"},
+    {"sourceRole": "WorldModel", "targetDomain": "broadcast", "kind": "model-broadcast"},
+    {"sourceRole": "SelfModel", "targetDomain": "broadcast", "kind": "model-broadcast"},
+    {"sourceRole": "Memory", "targetDomain": "broadcast", "kind": "memory-broadcast"},
+    {"sourceRole": "Counterfactual", "targetDomain": "cortex", "kind": "counterfactual-to-metacognition"},
+    {"sourceRole": "Counterfactual", "targetDomain": "broadcast", "kind": "counterfactual-broadcast"},
+    {"sourceRole": "Metacognition", "targetDomain": "broadcast", "kind": "metacognitive-broadcast"},
+    {"sourceRole": "Homeostasis", "targetDomain": "integrity", "kind": "support-to-governance"},
+    {"sourceRole": "Homeostasis", "targetDomain": "broadcast", "kind": "support-broadcast"},
+    {"sourceRole": "Guardian", "targetDomain": "action", "kind": "governance-to-executive"},
+    {"sourceRole": "Guardian", "targetDomain": "broadcast", "kind": "governance-broadcast"},
+    {"sourceRole": "Executive", "targetDomain": "expression", "kind": "selection-to-expression"},
+    {"sourceRole": "Executive", "targetDomain": "broadcast", "kind": "selection-broadcast"},
+    {"sourceRole": "Expression", "targetDomain": "external", "kind": "human-facing-expression"},
+    {"sourceRole": "Expression", "targetDomain": "broadcast", "kind": "expression-broadcast"}
+  ],
+  "payloadSchemas": [
+    "https://conscios.dev/schemas/cognitive-event.schema.json#content"
+  ],
+  "capabilityContexts": [
+    "current-deterministic-v0"
+  ],
+  "providerPermissions": [],
+  "budgets": {
+    "workspaceCapacity": 2,
+    "maxEnvelopeTtlCycles": 4,
+    "maxEnvelopeBytes": 32768,
+    "maxRecurrentStateBytes": 2048
+  }
+}

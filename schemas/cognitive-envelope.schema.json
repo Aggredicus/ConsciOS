@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://conscios.dev/schemas/cognitive-envelope.schema.json",
+  "title": "ConsciOS CognitiveEnvelopeV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "messageId", "cycleId", "logicalTime", "phase", "sourceDomain", "sourceRole", "targetDomain", "type", "payloadSchema", "payload", "epistemicStatus", "confidence", "causalParents", "capabilityContextId", "phenotypeHash", "providerProvenance", "ttlCycles"],
+  "properties": {
+    "schemaVersion": {"const": "1.0.0"},
+    "messageId": {"type": "string", "minLength": 1},
+    "cycleId": {"type": "integer", "minimum": 0},
+    "logicalTime": {"type": "integer", "minimum": 0},
+    "phase": {"enum": ["online", "consolidation", "maintenance", "recovery"]},
+    "sourceDomain": {"type": "string", "minLength": 1},
+    "sourceRole": {"type": "string", "minLength": 1},
+    "targetDomain": {"type": "string", "minLength": 1},
+    "type": {"type": "string", "minLength": 1},
+    "payloadSchema": {"type": "string", "minLength": 1},
+    "payload": {},
+    "epistemicStatus": {"enum": ["observation", "inference", "prediction", "memory", "counterfactual", "action", "expression", "governance"]},
+    "confidence": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "causalParents": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+    "capabilityContextId": {"type": "string", "minLength": 1},
+    "phenotypeHash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "providerProvenance": {"type": ["object", "null"]},
+    "ttlCycles": {"type": "integer", "minimum": 1}
+  }
+}
