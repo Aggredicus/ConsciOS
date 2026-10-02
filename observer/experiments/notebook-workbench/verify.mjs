@@ -4,6 +4,7 @@ import {CELL_TYPES,PYODIDE_VERSION,createCell,createNotebook,interpolateText,par
 import {createConversationChallenge,scoreConversationArm,compareConversationArms,summarizeConversationRealityResult} from '../../../local/workbench/conversation-test.mjs';
 import {EXECUTION_PROTOCOL,EXECUTION_RESULT_FORMAT,createExecutionProvider,createExecutionRouter,createDefaultWorkbenchExecutionRouter} from '../../../local/workbench/execution-providers.mjs';
 import {CONTEXT_SELECTION_FORMAT,rankPreviousResults,selectPreviousResults,tokenizeContextText} from '../../../local/workbench/context-selector.mjs';
+import {BENCHMARK_FORMAT,runContextSelectionBenchmark} from './context-selection-benchmark.mjs';
 
 const notebook=createNotebook({title:'Verification notebook'});
 assert.equal(validateNotebook(notebook),notebook);
@@ -69,6 +70,18 @@ assert.deepEqual(recentContext.results.map(item=>item.cellId),['d']);
 const legacyAllContext=selectPreviousResults({query:'soil',results:previousResults,strategy:'all',budgetBytes:256,maxItems:1});
 assert.equal(legacyAllContext.budgetApplied,false);
 assert.equal(legacyAllContext.selectedCount,previousResults.length);
+
+const contextBenchmark=runContextSelectionBenchmark();
+assert.equal(contextBenchmark.format,BENCHMARK_FORMAT);
+assert.ok(contextBenchmark.dimensions.lexical.relevant.recall>=0.75,'lexical relevant-context recall fell below preregistered threshold');
+assert.ok(contextBenchmark.dimensions.lexical.relevant.recall>contextBenchmark.dimensions.lexical.recent.recall,'relevance ranking did not beat recent-only control on lexical tasks');
+assert.equal(contextBenchmark.dimensions.lexical.all.recall,1,'all-context control must retain the expected lexical result');
+assert.ok(contextBenchmark.dimensions.byteReduction>=0.40,'relevant context did not achieve preregistered byte reduction');
+for(const row of contextBenchmark.rows){
+  assert.ok(row.relevant.selectedBytes<=contextBenchmark.config.budgetBytes,`${row.id} exceeded relevant byte budget`);
+  assert.ok(row.relevant.selectedCount<=contextBenchmark.config.maxItems,`${row.id} exceeded relevant item limit`);
+}
+console.log('Notebook context benchmark:',JSON.stringify(contextBenchmark.dimensions));
 
 let entropyIndex=0;const entropy=['111111','222222','333333','444444'];
 const challenge=createConversationChallenge({entropyFactory:()=>entropy[entropyIndex++],numberFactory:()=>[23,19]});
