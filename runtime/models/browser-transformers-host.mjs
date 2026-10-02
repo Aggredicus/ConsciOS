@@ -62,7 +62,7 @@ export class BrowserTransformersHost {
 
   cancel(){this.cancelRequested=true}
 
-  async generate({userText,messages:providedMessages=null,contextManifest=[],maxNewTokens=this.manifest.defaultMaxNewTokens,onText=()=>{},doSample=false}={}){
+  async generate({userText,messages:providedMessages=null,contextManifest=[],maxNewTokens=this.manifest.defaultMaxNewTokens,onText=()=>{},doSample=false,measureBoundary=true}={}){
     if(providedMessages!==null&&!Array.isArray(providedMessages))throw new TypeError('messages must be an array');
     if(!this.generator)await this.load();
     if(providedMessages===null&&(typeof userText!=='string'||!userText.trim()))throw new TypeError('userText is required');
@@ -75,17 +75,18 @@ export class BrowserTransformersHost {
     }
     if(providedMessages===null)messages.push({role:'user',content:userText});
     this.cancelRequested=false;
-    const inputJson=stableJson(messages);
-    const inputHash=await sha256Text(inputJson);
-    let renderedPrompt=null,inputTokenCount=null,renderedPromptHash=null;
-    try{
-      if(this.generator?.tokenizer?.apply_chat_template){
-        renderedPrompt=this.generator.tokenizer.apply_chat_template(messages,{tokenize:false,add_generation_prompt:true});
-        renderedPromptHash=await sha256Text(renderedPrompt);
-        const encoded=await this.generator.tokenizer(renderedPrompt,{add_special_tokens:false});
-        inputTokenCount=encoded?.input_ids?.size??encoded?.input_ids?.data?.length??encoded?.input_ids?.length??null;
-      }
-    }catch{}
+    let inputHash=null,renderedPrompt=null,inputTokenCount=null,renderedPromptHash=null;
+    if(measureBoundary){
+      inputHash=await sha256Text(stableJson(messages));
+      try{
+        if(this.generator?.tokenizer?.apply_chat_template){
+          renderedPrompt=this.generator.tokenizer.apply_chat_template(messages,{tokenize:false,add_generation_prompt:true});
+          renderedPromptHash=await sha256Text(renderedPrompt);
+          const encoded=await this.generator.tokenizer(renderedPrompt,{add_special_tokens:false});
+          inputTokenCount=encoded?.input_ids?.size??encoded?.input_ids?.data?.length??encoded?.input_ids?.length??null;
+        }
+      }catch{}
+    }
     const started=now();let firstChunkAt=null;let streamedText='';
     const callback=text=>{
       if(this.cancelRequested)return;
@@ -100,7 +101,7 @@ export class BrowserTransformersHost {
       const ended=now();
       const generated=output?.[0]?.generated_text;
       const finalText=streamedText||((Array.isArray(generated)?generated.at(-1)?.content:generated)||'');
-      const outputHash=await sha256Text(finalText);
+      const outputHash=measureBoundary?await sha256Text(finalText):null;
       return {
         status:this.cancelRequested?'cancelled':'ok',text:finalText,
         contextArtifactIds:declared.map(x=>x.artifactId),
