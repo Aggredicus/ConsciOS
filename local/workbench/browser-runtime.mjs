@@ -8,11 +8,11 @@ function browserProvider(host,label){
   const base=()=>{const p=host.provenance();return {kind:'browser-transformers-local',name:label,modelId:p.modelId,revision:p.revision,runtime:p.runtime,device:p.device,dtype:p.dtype,inferenceLocation:'browser-local',remoteInference:false,hiddenState:'none'}};
   return {
     id:'browser-local',provenance:base,cancel:()=>host.cancel(),
-    async infer(input){
+    async infer(input,{onText=()=>{}}={}){
       const provider=base();
       try{
         const messages=[{role:'system',content:instruction},...(input.conversationMessages??[])];
-        const result=await host.generate({messages,contextManifest:input.contextManifest??[],maxNewTokens:input.maxResponseUnits??256,doSample:false});
+        const result=await host.generate({messages,contextManifest:input.contextManifest??[],maxNewTokens:input.maxResponseUnits??256,onText,doSample:false,measureBoundary:false});
         const cancelled=result.status==='cancelled';
         return {requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{text:result.text},causalSourceIds:[...(input.causalSourceIds??[])],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null};
       }catch(error){
