@@ -57,15 +57,15 @@ async function readJsonBody(req,maxBytes){
 }
 function prepareWorkspace(files){
   const workspace=fs.mkdtempSync(path.join(os.tmpdir(),'conscios-sandbox-'));
-  fs.chmodSync(workspace,0o777);
+  fs.chmodSync(workspace,0o700);
   try{
     for(const file of files){
       const target=path.join(workspace,...file.path.split('/'));
       const relative=path.relative(workspace,target);
       if(relative.startsWith('..')||path.isAbsolute(relative))throw new Error('normalized sandbox file escaped workspace');
-      fs.mkdirSync(path.dirname(target),{recursive:true,mode:0o777});
-      fs.writeFileSync(target,file.content,{encoding:'utf8',mode:0o666});
-      fs.chmodSync(target,0o666);
+      fs.mkdirSync(path.dirname(target),{recursive:true,mode:0o700});
+      fs.writeFileSync(target,file.content,{encoding:'utf8',mode:0o600});
+      fs.chmodSync(target,0o600);
     }
     return workspace;
   }catch(error){
@@ -96,7 +96,8 @@ export async function runSandboxContainer({request,policy=DEFAULT_SANDBOX_POLICY
   const normalized=normalizeSandboxRequest(request,{policy});
   const workspace=prepareWorkspace(normalized.files);
   const containerName=`conscios-sandbox-${randomUUID().replaceAll('-','').slice(0,20)}`;
-  const {args}=buildContainerRunArgs(normalized,{workspacePath:workspace,containerName,policy});
+  const hostUid=typeof process.getuid==='function'?process.getuid():0;const hostGid=typeof process.getgid==='function'?process.getgid():0;
+  const {args}=buildContainerRunArgs(normalized,{workspacePath:workspace,containerName,containerUser:`${hostUid}:${hostGid}`,policy});
   assertSandboxArgsStayBounded(args);
   const started=performance.now();
   const state={stdout:'',stderr:'',captured:0,observed:0,limit:normalized.limits.outputBytes,limitExceeded:false};
