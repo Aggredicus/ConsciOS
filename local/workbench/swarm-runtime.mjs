@@ -9,7 +9,7 @@ export function openSwarmBridge(provider,{url=location.protocol==='https:'?new U
   if(!bridgeWindow)throw new Error('Swarm window was blocked. Allow pop-ups for this site and try again.');
   provider.attachWindow(bridgeWindow,{origin:target.origin,token});return {bridgeWindow,url:target.toString(),origin:target.origin,token};
 }
-export async function connectBrowserSwarm({openIfMissing=true,timeoutMs=180000}={}){
+export async function connectBrowserSwarm({openIfMissing=true,timeoutMs=600000}={}){
   const provider=createBrowserSwarmProvider();
   if(openIfMissing){const bridge=openSwarmBridge(provider);return {provider,bridge,capabilities:await provider.waitForWorker({timeoutMs}),opened:true}}
   try{return {provider,capabilities:await provider.connect({timeoutMs:1200}),opened:false}}catch(error){provider.dispose();throw error}
