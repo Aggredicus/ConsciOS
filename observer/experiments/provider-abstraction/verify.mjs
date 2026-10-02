@@ -31,6 +31,11 @@ const fetchImpl=async (url,options={})=>{
     assert.equal(body.model,'mlx-community/Qwen3-test');
     assert.equal(body.temperature,0);
     const last=body.messages.at(-1)?.content||'';
+    if(body.stream)return new Response([
+      'data: '+JSON.stringify({choices:[{delta:{role:'assistant',content:'cedar-'}}]})+'\n\n',
+      'data: '+JSON.stringify({choices:[{delta:{content:'42'},finish_reason:'stop'}]})+'\n\n',
+      'data: [DONE]\n\n'
+    ].join(''),{status:200,headers:{'Content-Type':'text/event-stream'}});
     return new Response(JSON.stringify({choices:[{message:{content:last.includes('call sign')?'cedar-42':'Only the declared observation was available.'}}]}),{status:200,headers:{'Content-Type':'application/json'}});
   }
   return new Response('not found',{status:404});
@@ -75,6 +80,7 @@ assert.equal(requests.filter(request=>request.url.endsWith('/place_instance')).l
 const conversationBody=JSON.parse(requests.filter(request=>request.url.endsWith('/v1/chat/completions')).at(-1).options.body);
 assert.deepEqual(conversationBody.messages.slice(-3).map(message=>message.role),['user','assistant','user']);
 assert.equal(conversationBody.messages.at(-1).content,'What call sign did I give you?');
+const streamedChunks=[];const streamedOutput=await exo.infer({...conversationInput,requestId:'exo-stream-001'},{onText:chunk=>streamedChunks.push(chunk)});assert.equal(streamedOutput.status,'ok');assert.equal(streamedOutput.content.text,'cedar-42');assert.deepEqual(streamedChunks,['cedar-','42']);assert.equal(streamedOutput.timing.streamed,true);assert.ok(streamedOutput.timing.ttftMs!==null);const streamedBody=JSON.parse(requests.filter(request=>request.url.endsWith('/v1/chat/completions')).at(-1).options.body);assert.equal(streamedBody.stream,true);
 
 const router=createInferenceProviderRouter();
 router.register(exo);
