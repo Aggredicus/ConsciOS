@@ -20,7 +20,7 @@ function save(){
     lastProvenance:state.lastProvenance
   }))}catch{}
 }
-function safeId(){return globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+const safeId=()=>crypto.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`;
 function safeHttpOrigin(value){try{const url=new URL(String(value??'').trim());return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?url.origin:null}catch{return null}}
 function pushMessage(message){state.messages.push(message);if(state.messages.length>24)state.messages.splice(0,state.messages.length-24)}
 function formatBytes(value){
@@ -103,7 +103,7 @@ async function sendMessage(text){
   const prompt=String(text??'').trim();if(!prompt)return;
   if(!state.provider){
     tab('runtime');
-    tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo first.':'Load a browser model first.','warn');
+    tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo.':'Load a model first.','warn');
     return;
   }
   pushMessage({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
@@ -132,11 +132,7 @@ async function sendMessage(text){
 const browserRuntime=()=>import('./browser-runtime.mjs');
 const exoRuntime=()=>import('./exo-runtime.mjs');
 
-function progressValue(event){
-  const raw=Number(event?.progress);
-  if(!Number.isFinite(raw))return null;
-  return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
-}
+function progressValue(e){const n=Number(e?.progress);return Number.isFinite(n)?Math.max(0,Math.min(100,n<=1?n*100:n)):null}
 async function loadBrowser(){
   $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Starting worker…','warn');
   try{
@@ -184,13 +180,13 @@ function renderExo(capabilities){
 async function connectExo({quiet=false}={}){
   const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
   if(runtime.isMixedExoContent(endpoint))throw new Error('HTTPS cannot call local exo. Use the LAN launcher.');
-  if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
+  if(!quiet)tone($('exoStatus'),'Connecting…','warn');
   const {provider,capabilities}=await runtime.connectExoProvider({endpoint,modelId:saved.exoModel});
   state.exoProvider=provider;state.providerKind='exo';renderExo(capabilities);
   if(capabilities.models.length){
     state.provider=provider;
     tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded model(s).`,'ok');
-    tone($('runtimeStatus'),'exo inference ready.','ok');setHeader(providerLabel(),'ok');
+    tone($('runtimeStatus'),'exo ready.','ok');setHeader(providerLabel(),'ok');
   }else{
     state.provider=null;
     tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) connected · no downloaded model.`,'warn');
@@ -239,11 +235,11 @@ $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvid
 $('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');$('loadBrowser').disabled=false}));
 $('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
 $('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
-$('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
+$('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);
 $('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
-$('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='No inference yet.';save();renderMessages()});
+$('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='No inference.';save();renderMessages()});
 window.addEventListener('online',()=>setHeader(providerLabel(),state.provider?'ok':'warn'));
 window.addEventListener('offline',()=>setHeader('offline','warn'));
 
