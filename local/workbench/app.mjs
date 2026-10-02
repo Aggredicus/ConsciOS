@@ -1,0 +1,222 @@
+import {detectBrowserAICapabilities,chooseBrowserExecution} from '../../runtime/models/browser-capabilities.mjs';
+import {STARTER_MODELS,getStarterModel} from '../../runtime/models/model-manifest.mjs';
+import {createBrowserTransformersHost} from '../../runtime/models/browser-transformers-host.mjs';
+import {createBrowserTransformersCognitiveModel} from '../../runtime/models/browser-cognitive-model.mjs';
+import {createBrowserLocalInferenceProvider} from '../../runtime/models/browser-provider.mjs';
+import {createExoInferenceProvider} from '../../runtime/models/exo-provider.mjs';
+
+const $=id=>document.getElementById(id);
+const STORE='conscios-lite-v1';
+const MODEL_IDS=new Set(['smollm2-135m-instruct','qwen3-0.6b','gemma-3-1b-it']);
+const models=STARTER_MODELS.filter(model=>MODEL_IDS.has(model.id));
+const saved=loadSaved();
+const state={
+  messages:Array.isArray(saved.messages)?saved.messages.slice(-40):[],
+  provider:null,providerKind:null,busy:false,lastProvenance:saved.lastProvenance??null,
+  browserHost:null,browserProvider:null,exoProvider:null,
+  browserCapabilities:null
+};
+
+function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
+function save(){
+  localStorage.setItem(STORE,JSON.stringify({
+    messages:state.messages.slice(-40),
+    preferredProvider:state.providerKind??saved.preferredProvider??'auto',
+    browserModel:$('browserModel')?.value||saved.browserModel||models[0]?.id,
+    exoEndpoint:$('exoEndpoint')?.value||saved.exoEndpoint||null,
+    exoModel:$('exoModel')?.value||saved.exoModel||null,
+    lastProvenance:state.lastProvenance
+  }));
+}
+function safeId(){return globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+function formatBytes(value){
+  if(typeof value!=='number'||!Number.isFinite(value)||value<0)return '—';
+  const units=['B','KB','MB','GB','TB'];let n=value,i=0;
+  while(n>=1024&&i<units.length-1){n/=1024;i++}
+  return `${n>=100||i===0?n.toFixed(0):n.toFixed(1)} ${units[i]}`;
+}
+function tone(el,text,tone=''){el.textContent=text;el.className=`status ${tone}`.trim()}
+function setHeader(text,tone=''){
+  $('runtimeLabel').textContent=text;$('runtimeDot').className=`dot ${tone}`.trim();
+}
+function setBusy(value){
+  state.busy=value;$('send').disabled=value;$('stop').disabled=!value;
+  $('prompt').disabled=value;
+}
+function tab(name){
+  document.querySelectorAll('.tab').forEach(button=>button.setAttribute('aria-selected',String(button.dataset.tab===name)));
+  $('chatView').classList.toggle('active',name==='chat');$('runtimeView').classList.toggle('active',name==='runtime');
+  if(name==='chat')requestAnimationFrame(()=>$('prompt').focus());
+}
+function renderMessages(){
+  const root=$('messages');root.innerHTML='';
+  if(!state.messages.length){
+    const empty=document.createElement('div');empty.className='empty';empty.id='emptyState';
+    empty.innerHTML='<h1>One conversation. One runtime.</h1><p>Run a small model in this browser or connect to exo on your computer. Nothing else is required.</p>';
+    root.append(empty);return;
+  }
+  for(const message of state.messages){
+    const row=document.createElement('article');row.className=`msg ${message.role}`;
+    const bubble=document.createElement('div');bubble.className='bubble';bubble.textContent=message.content;
+    const meta=document.createElement('div');meta.className='meta';meta.textContent=message.role==='user'?'You':message.provider||'ConsciOS';
+    row.append(bubble,meta);root.append(row);
+  }
+  requestAnimationFrame(()=>root.scrollTop=root.scrollHeight);
+}
+function providerLabel(){
+  if(state.providerKind==='browser')return state.browserProvider?.provenance?.().modelId||'browser';
+  if(state.providerKind==='exo')return state.exoProvider?.provenance?.().modelId||'exo';
+  return 'not connected';
+}
+function chooseProvider(kind,provider=null){
+  state.providerKind=kind;state.provider=provider;
+  $('chooseBrowser').classList.toggle('active',kind==='browser');
+  $('chooseExo').classList.toggle('active',kind==='exo');
+  $('browserCard').hidden=kind!=='browser';$('exoCard').hidden=kind!=='exo';
+  if(provider)setHeader(providerLabel(),'ok');
+  else setHeader(kind==='browser'?'browser · load model':'exo · connect','warn');
+  save();
+}
+function conversationInput(){
+  return {
+    requestId:`chat-${safeId()}`,requestingModule:'Expression',inferenceType:'conversation',
+    contextManifest:[],causalSourceIds:[],conversationMessages:state.messages.map(({role,content})=>({role,content})),
+    maxResponseUnits:256,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'
+  };
+}
+
+async function sendMessage(text){
+  if(state.busy)return;
+  const prompt=String(text??'').trim();if(!prompt)return;
+  if(!state.provider){
+    tab('runtime');
+    tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo before chatting.':'Load a browser model before chatting.','warn');
+    return;
+  }
+  state.messages.push({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
+  try{
+    const result=await state.provider.infer(conversationInput());
+    if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
+    const content=String(result.content?.text??result.content?.result??'').trim();
+    if(!content)throw new Error('Model returned an empty response.');
+    const p=result.provider??state.provider.provenance?.()??{};
+    state.messages.push({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
+    state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds};
+    $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);
+    setHeader(providerLabel(),'ok');save();renderMessages();
+  }catch(error){
+    state.messages.push({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
+    setHeader('runtime error','bad');renderMessages();
+  }finally{setBusy(false);$('prompt').focus()}
+}
+
+function progressValue(event){
+  const raw=Number(event?.progress);
+  if(!Number.isFinite(raw))return null;
+  return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
+}
+async function loadBrowser(){
+  const manifest=getStarterModel($('browserModel').value);if(!manifest)throw new Error('Select a browser model.');
+  setBusy(true);$('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Detecting browser backend…','warn');
+  try{
+    state.browserCapabilities=state.browserCapabilities??await detectBrowserAICapabilities();
+    const execution=chooseBrowserExecution(state.browserCapabilities,{prefer:'webgpu'});
+    $('browserBackend').textContent=execution.reason;
+    const host=createBrowserTransformersHost({
+      manifest,device:execution.device,dtype:execution.dtype,
+      onProgress:event=>{
+        const pct=progressValue(event);if(pct!==null)$('browserProgress').value=pct;
+        const file=event?.file||event?.name||event?.status||'model assets';
+        tone($('browserStatus'),`Loading ${file}${pct!==null?` · ${Math.round(pct)}%`:''}`,'warn');
+      }
+    });
+    const model=createBrowserTransformersCognitiveModel({host});
+    await model.load();
+    const provider=createBrowserLocalInferenceProvider({model,label:manifest.label});
+    await provider.connect();
+    state.browserHost=host;state.browserProvider=provider;state.provider=provider;state.providerKind='browser';
+    tone($('browserStatus'),`${manifest.label} ready on ${execution.device}.`,'ok');
+    tone($('runtimeStatus'),'Browser inference ready.','ok');setHeader(providerLabel(),'ok');save();
+  }finally{$('loadBrowser').disabled=false;setBusy(false)}
+}
+
+function defaultExoEndpoint(){
+  const params=new URLSearchParams(location.search);const explicit=params.get('endpoint');
+  if(explicit)return explicit.replace(/\/$/,'');
+  if(saved.exoEndpoint)return String(saved.exoEndpoint).replace(/\/$/,'');
+  const host=location.hostname||'localhost';
+  return `http://${host}:52415`;
+}
+function mixedContent(endpoint){try{return location.protocol==='https:'&&new URL(endpoint).protocol==='http:'}catch{return false}}
+function renderExo(capabilities){
+  const models=capabilities?.models??[];const select=$('exoModel');const prior=saved.exoModel;
+  select.innerHTML='';
+  if(!models.length){select.innerHTML='<option value="">No downloaded models</option>';select.disabled=true}
+  else{
+    for(const id of models){const option=document.createElement('option');option.value=id;option.textContent=id;select.append(option)}
+    select.disabled=false;if(prior&&models.includes(prior))select.value=prior;
+    state.exoProvider.setModel(select.value);
+  }
+  const cluster=capabilities?.cluster??{};
+  const metrics=[
+    [cluster.nodeCount??0,'nodes'],
+    [formatBytes(cluster.memory?.availableBytes),'RAM available'],
+    [(capabilities?.activeModels??[]).length,'active models']
+  ];
+  $('exoMetrics').innerHTML=metrics.map(([value,label])=>`<div class="metric"><b>${value}</b><span>${label}</span></div>`).join('');
+}
+async function connectExo({quiet=false}={}){
+  const endpoint=$('exoEndpoint').value.trim().replace(/\/$/,'');if(!endpoint)throw new Error('exo runtime address is empty.');
+  $('openExo').href=endpoint;
+  if(mixedContent(endpoint))throw new Error('This HTTPS demo cannot call a local HTTP exo process. Run ConsciOS locally with scripts/run-exo-local.mjs --lan.');
+  if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
+  const provider=createExoInferenceProvider({endpoint});
+  const capabilities=await provider.connect();
+  state.exoProvider=provider;state.provider=provider;state.providerKind='exo';renderExo(capabilities);
+  tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded model(s).`,'ok');
+  tone($('runtimeStatus'),'exo inference ready.','ok');setHeader(providerLabel(),'ok');save();
+  return capabilities;
+}
+
+function resizePrompt(){
+  const el=$('prompt');el.style.height='auto';el.style.height=`${Math.min(180,Math.max(44,el.scrollHeight))}px`;
+}
+async function init(){
+  $('browserModel').innerHTML=models.map(model=>`<option value="${model.id}">${model.label}</option>`).join('');
+  const preferredModel=saved.browserModel;if(preferredModel&&models.some(model=>model.id===preferredModel))$('browserModel').value=preferredModel;
+  $('exoEndpoint').value=defaultExoEndpoint();$('openExo').href=$('exoEndpoint').value;
+  if(state.lastProvenance)$('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);
+  renderMessages();
+
+  state.browserCapabilities=await detectBrowserAICapabilities().catch(()=>null);
+  if(state.browserCapabilities){
+    const summary=state.browserCapabilities.webgpu.available?'WebGPU available':state.browserCapabilities.wasm?'WASM available':'No supported backend';
+    $('browserBackend').textContent=summary;
+  }
+
+  const params=new URLSearchParams(location.search);
+  const requested=params.get('provider')||saved.preferredProvider||'auto';
+  if(requested==='exo'||(requested==='auto'&&location.protocol==='http:')){
+    chooseProvider('exo');
+    try{await connectExo({quiet:true});return}catch(error){tone($('exoStatus'),String(error?.message||error),'warn')}
+  }
+  chooseProvider('browser');
+  tone($('runtimeStatus'),'Browser runtime selected. Load a model once to begin.','warn');
+}
+
+document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>tab(button.dataset.tab)));
+$('chooseBrowser').addEventListener('click',()=>chooseProvider('browser',state.browserProvider));
+$('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvider));
+$('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');setBusy(false);$('loadBrowser').disabled=false}));
+$('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
+$('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
+$('exoEndpoint').addEventListener('change',()=>{$('openExo').href=$('exoEndpoint').value.trim();save()});
+$('composer').addEventListener('submit',event=>{event.preventDefault();sendMessage($('prompt').value)});
+$('prompt').addEventListener('input',resizePrompt);
+$('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
+$('stop').addEventListener('click',()=>state.provider?.cancel?.());
+$('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='No inference yet.';save();renderMessages()});
+window.addEventListener('online',()=>setHeader(providerLabel(),state.provider?'ok':'warn'));
+window.addEventListener('offline',()=>setHeader('offline','warn'));
+
+init().catch(error=>{tone($('runtimeStatus'),String(error?.message||error),'bad');setHeader('startup error','bad')});
