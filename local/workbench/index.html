@@ -13,13 +13,13 @@
   <span id="runtimeDot" class="dot" aria-hidden="true"></span>
   <span class="brand">ConsciOS</span>
   <span id="runtimeLabel" class="meta">not connected</span>
-  <nav class="tabs" aria-label="Application">
-    <button class="tab" type="button" data-tab="chat" aria-selected="true">Chat</button>
-    <button class="tab" type="button" data-tab="runtime" aria-selected="false">Runtime</button>
+  <nav class="tabs" role="tablist" aria-label="Application">
+    <button class="tab" type="button" role="tab" data-tab="chat" aria-controls="chatView" aria-selected="true">Chat</button>
+    <button class="tab" type="button" role="tab" data-tab="runtime" aria-controls="runtimeView" aria-selected="false">Runtime</button>
   </nav>
 </header>
 
-<main id="chatView" class="view active">
+<main id="chatView" class="view active" role="tabpanel">
   <section class="chat" aria-label="Conversation">
     <div id="messages" class="messages" role="log" aria-live="polite">
       <div id="emptyState" class="empty">
@@ -37,7 +37,7 @@
   </section>
 </main>
 
-<main id="runtimeView" class="view runtime">
+<main id="runtimeView" class="view runtime" role="tabpanel">
   <div class="stack">
     <section class="card">
       <h2>Runtime</h2>
@@ -69,6 +69,7 @@
         <div class="metric"><b>—</b><span>active models</span></div>
       </div>
       <p id="exoStatus" class="status">Not connected.</p>
+      <p class="small muted">Local launcher: <code>node scripts/run-exo-local.mjs --lan</code></p>
       <div class="links">
         <a id="openExo" class="link" href="http://localhost:52415" target="_blank" rel="noopener noreferrer">Open native exo ↗</a>
       </div>
