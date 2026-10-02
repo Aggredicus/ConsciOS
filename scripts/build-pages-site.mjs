@@ -5,7 +5,7 @@ import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const DEFAULT_OUTPUT='_site';
-const DEFAULT_MAX_BYTES=120000;
+const DEFAULT_MAX_BYTES=70000;
 const ENTRY='local/workbench/index.html';
 
 function args(argv){
