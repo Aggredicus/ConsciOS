@@ -27,17 +27,26 @@ async function ensureCopy(rel,outRoot){
   const src=path.join(root,rel),dst=path.join(outRoot,rel);
   await mkdir(path.dirname(dst),{recursive:true});await copyFile(src,dst);
 }
+function staticSpecs(source){
+  return [...source.matchAll(/(?:import|export)\s+(?:[^'"\n]*?\s+from\s+)?['"]([^'"]+)['"]/g)].map(match=>match[1]);
+}
+function dynamicSpecs(source){
+  return [...source.matchAll(/import\(\s*['"]([^'"]+)['"]\s*\)/g)].map(match=>match[1]);
+}
 async function visitModule(rel,outRoot,seen){
   rel=normalized(rel);if(seen.has(rel))return;seen.add(rel);
   const source=await readFile(path.join(root,rel),'utf8');await ensureCopy(rel,outRoot);
   const base=path.posix.dirname(rel);
-  const specs=new Set();
-  for(const match of source.matchAll(/(?:import|export)\s+(?:[^'"\n]*?\s+from\s+)?['"]([^'"]+)['"]/g))specs.add(match[1]);
-  for(const match of source.matchAll(/import\(\s*['"]([^'"]+)['"]\s*\)/g))specs.add(match[1]);
-  for(const spec of specs){
+  for(const spec of new Set([...staticSpecs(source),...dynamicSpecs(source)])){
     if(!localSpec(spec))continue;
-    const target=normalized(path.posix.join(base,spec));
-    await visitModule(target,outRoot,seen);
+    await visitModule(normalized(path.posix.join(base,spec)),outRoot,seen);
+  }
+}
+async function visitEager(rel,eager){
+  rel=normalized(rel);if(eager.has(rel))return;eager.add(rel);
+  const source=await readFile(path.join(root,rel),'utf8'),base=path.posix.dirname(rel);
+  for(const spec of staticSpecs(source)){
+    if(localSpec(spec))await visitEager(normalized(path.posix.join(base,spec)),eager);
   }
 }
 async function dirSize(dir){
@@ -56,13 +65,14 @@ export async function buildPagesSite({output=DEFAULT_OUTPUT,maxBytes=DEFAULT_MAX
   await rm(outRoot,{recursive:true,force:true});await mkdir(outRoot,{recursive:true});
   const html=await readFile(path.join(root,ENTRY),'utf8');
   await ensureCopy(ENTRY,outRoot);
-  const seen=new Set(),initialFiles=new Set([ENTRY]);
+  const seen=new Set(),initialFiles=new Set([ENTRY]),entryModules=[];
   for(const match of html.matchAll(/\b(?:src|href)=["']([^"'#?]+)["']/g)){
     const spec=match[1];if(!localSpec(spec))continue;
     const rel=normalized(path.posix.join(path.posix.dirname(ENTRY),spec));initialFiles.add(rel);
-    if(/\.m?js$/.test(rel))await visitModule(rel,outRoot,seen);
+    if(/\.m?js$/.test(rel)){entryModules.push(rel);await visitModule(rel,outRoot,seen)}
     else await ensureCopy(rel,outRoot);
   }
+  for(const rel of entryModules)await visitEager(rel,initialFiles);
   await writeFile(path.join(outRoot,'index.html'),redirectHtml(),'utf8');
   await writeFile(path.join(outRoot,'.nojekyll'),'','utf8');
   const totalBytes=await dirSize(outRoot);
