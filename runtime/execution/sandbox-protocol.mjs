@@ -129,10 +129,11 @@ export function sandboxPolicySnapshot(policy=DEFAULT_SANDBOX_POLICY){
   };
 }
 
-export function buildContainerRunArgs(request,{workspacePath,containerName,policy=DEFAULT_SANDBOX_POLICY}={}){
+export function buildContainerRunArgs(request,{workspacePath,containerName,containerUser='65534:65534',policy=DEFAULT_SANDBOX_POLICY}={}){
   const normalized=normalizeSandboxRequest(request,{policy});
   if(typeof workspacePath!=='string'||!path.isAbsolute(workspacePath))throw new TypeError('workspacePath must be an absolute path');
   if(typeof containerName!=='string'||!/^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}$/.test(containerName))throw new TypeError('containerName is invalid');
+  if(typeof containerUser!=='string'||!/^\d+:\d+$/.test(containerUser))throw new TypeError('containerUser must be a numeric uid:gid pair');
   const args=[
     'run','--rm','--name',containerName,
     `--pull=${normalized.pull?'missing':'never'}`,
@@ -143,7 +144,7 @@ export function buildContainerRunArgs(request,{workspacePath,containerName,polic
     '--read-only',
     '--cap-drop','ALL',
     '--security-opt','no-new-privileges:true',
-    '--user','65534:65534',
+    '--user',containerUser,
     '--tmpfs','/tmp:rw,nosuid,nodev,noexec,size=64m',
     '-v',`${workspacePath}:/workspace:rw`,
     '-w','/workspace',
