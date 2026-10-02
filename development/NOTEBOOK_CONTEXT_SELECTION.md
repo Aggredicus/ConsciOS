@@ -28,6 +28,12 @@ The selector:
 
 No output is silently truncated. A result that cannot fit is omitted and counted in selection provenance.
 
+### semantic-lite · experimental
+
+Runs the same bounded relevance pipeline after expanding prompt terms through a small static synonym graph. The graph is stored directly in `context-selector.mjs`, requires no external service, and exposes both original and expanded terms in provenance.
+
+Semantic-lite exists because the first diagnostic found lexical recall of **1.00** but paraphrase recall of **0.50**. It is deliberately opt-in while broader held-out and model-level tests are still missing.
+
 ### recent · bounded
 
 Packs the most recent complete previous outputs first under the same byte/item limits. This is useful when lexical vocabulary is weak but local notebook continuity matters.
@@ -45,6 +51,8 @@ New AI cells declare:
 - `maxContextItems: 8`
 
 The previous-output path remains opt-in: `includePrevious` defaults to false.
+
+`semantic-lite` is not the default. Passing its synthetic diagnostic is insufficient for default promotion.
 
 ## Provenance
 
