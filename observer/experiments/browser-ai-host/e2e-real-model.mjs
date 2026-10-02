@@ -28,7 +28,7 @@ try{
     await page.locator('#prompt').fill(prompt);
     if(probeResponsiveness)await page.evaluate(()=>{window.__consciosHeartbeat=0;window.__consciosHeartbeatTimer=setInterval(()=>window.__consciosHeartbeat++,25)});
     await page.locator('#composer').evaluate(form=>form.requestSubmit());
-    await page.waitForFunction(()=>document.querySelector('#messages')?.getAttribute('aria-busy')==='true',{timeout:10_000});
+    await page.waitForFunction(()=>document.querySelector('#messages')?.getAttribute('aria-busy')==='true',null,{timeout:10_000});
     if(probeResponsiveness){
       await page.waitForTimeout(250);
       const heartbeat=await page.evaluate(()=>window.__consciosHeartbeat);
@@ -39,7 +39,7 @@ try{
       await page.locator('.tab[data-tab="chat"]').click({timeout:1500});
       assert.ok(Date.now()-interactionStarted<2500,'tab interaction stalled while browser model was generating');
     }
-    await page.waitForFunction(()=>document.querySelector('#messages')?.getAttribute('aria-busy')==='false',{timeout:360_000});
+    await page.waitForFunction(()=>document.querySelector('#messages')?.getAttribute('aria-busy')==='false',null,{timeout:360_000});
     if(probeResponsiveness)await page.evaluate(()=>clearInterval(window.__consciosHeartbeatTimer));
     const rows=page.locator('.msg.assistant'),text=(await rows.last().locator('.bubble').innerText()).trim();
     assert.ok(text.length>0,'browser-local inference returned empty assistant text');
