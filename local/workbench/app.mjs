@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const STORE='conscios-lite-v1';
-const encoder=new TextEncoder();
+const encoder=new TextEncoder;
 const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · ~117 MB'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · ~570 MB'}];
 const saved=loadSaved();
 const state={
@@ -73,7 +73,7 @@ function chooseProvider(kind,provider=null){
 }
 function responseBudget(p){
   const d=/\b(comprehensive|detailed|thorough|tutorial|step.?by.?step|analy[sz]e|implement|code|compare|research)\b/i.test(p),m=d||p.length>220||/[\n{}\[\]]/.test(p);
-  return {initialLease:d?2048:m?1024:512,smallGrant:512,largeGrant:1536,hardLimit:state.providerKind==='exo'||$('browserModel')?.value==='qwen3-0.6b'?8192:4096,policy:'adaptive-lease-v1'};
+  return {initialLease:d?2048:m?1024:512,smallGrant:512,largeGrant:1536,hardLimit:state.providerKind==='exo'||$('browserModel')?.value==='qwen3-0.6b'?8192:4096};
 }
 function conversationInput(){
   const [maxMessages,maxBytes]=state.providerKind==='browser'?[7,6000]:[11,16000],source=state.messages,last=source.at(-1);
@@ -117,7 +117,7 @@ async function sendMessage(text){
     }
     if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
     const content=String(result.content?.text??result.content?.result??'').trim();
-    if(!content)throw new Error('Empty model response.');
+    if(!content)throw new Error('Empty response.');
     const p=result.provider??state.provider.provenance?.()??{};
     pushMessage({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
     state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds,context:request.context};
@@ -142,7 +142,7 @@ async function loadBrowser(){
       modelId:$('browserModel').value,
       onProgress:event=>{
         const pct=progressValue(event);if(pct!==null)$('browserProgress').value=pct;
-        const file=event?.file||event?.name||event?.status||'model assets';
+        const file=event?.file||event?.name||event?.status||'model';
         tone($('browserStatus'),`Loading ${file}${pct!==null?` · ${Math.round(pct)}%`:''}`,'warn');
       }
     });
