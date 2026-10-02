@@ -1,5 +1,6 @@
 const $=id=>document.getElementById(id);
 const STORE='conscios-lite-v1';
+const encoder=new TextEncoder();
 const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · ~117 MB'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · ~570 MB'}];
 const saved=loadSaved();
 const state={
@@ -71,11 +72,20 @@ function chooseProvider(kind,provider=null){
   save();
 }
 function conversationInput(){
-  return {
-    requestId:`chat-${safeId()}`,requestingModule:'Expression',inferenceType:'conversation',
-    contextManifest:[],causalSourceIds:[],conversationMessages:state.messages.map(({role,content})=>({role,content})),
-    maxResponseUnits:256,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'
-  };
+  const [maxMessages,maxBytes]=state.providerKind==='browser'?[9,12000]:[15,24000],source=state.messages,last=source.at(-1);
+  let selected=last?.role==='user'?[last]:[],used=selected.length?encoder.encode(last.content).byteLength:0;
+  for(let i=source.length-2;i>0&&selected.length+2<=maxMessages;i-=2){
+    const user=source[i-1],assistant=source[i];if(user?.role!=='user'||assistant?.role!=='assistant')break;
+    const pairBytes=encoder.encode(user.content).byteLength+encoder.encode(assistant.content).byteLength;
+    if(used+pairBytes>maxBytes)break;selected=[user,assistant,...selected];used+=pairBytes;
+  }
+  return {input:{requestId:`chat-${safeId()}`,requestingModule:'Expression',inferenceType:'conversation',contextManifest:[],causalSourceIds:[],conversationMessages:selected.map(({role,content})=>({role,content})),maxResponseUnits:256,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'},context:{candidateMessages:source.length,selectedMessages:selected.length,selectedBytes:used,maxMessages,maxBytes}};
+}
+function streamBubble(){
+  const root=$('messages'),row=document.createElement('article'),bubble=document.createElement('div'),meta=document.createElement('div');
+  row.className='msg assistant';bubble.className='bubble';bubble.textContent='Thinking…';meta.className='meta';meta.textContent=providerLabel();row.append(bubble,meta);root.append(row);root.scrollTop=root.scrollHeight;
+  let text='',frame=0;const draw=()=>{bubble.textContent=text||'Thinking…';root.scrollTop=root.scrollHeight;frame=0};
+  return {push(chunk){text+=chunk;if(!frame)frame=requestAnimationFrame(draw)},remove(){if(frame)cancelAnimationFrame(frame);row.remove()}};
 }
 
 async function sendMessage(text){
@@ -87,11 +97,12 @@ async function sendMessage(text){
     return;
   }
   pushMessage({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
+  const request=conversationInput(),live=streamBubble();
   try{
-    const result=await state.provider.infer(conversationInput());
+    const result=await state.provider.infer(request.input,{onText:chunk=>live.push(String(chunk??''))});live.remove();
     if(result.status==='cancelled'){
       pushMessage({role:'assistant',content:'Generation stopped.',provider:'system'});
-      state.lastProvenance={provider:result.provider,timing:result.timing,requestId:result.requestId,status:'cancelled'};
+      state.lastProvenance={provider:result.provider,timing:result.timing,requestId:result.requestId,status:'cancelled',context:request.context};
       $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);save();renderMessages();setHeader(providerLabel(),'ok');return;
     }
     if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
@@ -99,11 +110,11 @@ async function sendMessage(text){
     if(!content)throw new Error('Model returned an empty response.');
     const p=result.provider??state.provider.provenance?.()??{};
     pushMessage({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
-    state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds};
+    state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds,context:request.context};
     $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);
     setHeader(providerLabel(),'ok');save();renderMessages();
   }catch(error){
-    pushMessage({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
+    live.remove();pushMessage({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
     setHeader('runtime error','bad');renderMessages();
   }finally{setBusy(false);$('prompt').focus()}
 }
