@@ -37,6 +37,22 @@ try{
   await host.waitForFunction(()=>document.querySelector('#peerName')?.textContent==='Guest phone',{timeout:5000});await guest.waitForFunction(()=>document.querySelector('#peerName')?.textContent==='Host phone',{timeout:5000});await host.waitForFunction(()=>document.querySelector('#verificationState')?.textContent?.includes('Verified end-to-end'),{timeout:5000});await guest.waitForFunction(()=>document.querySelector('#verificationState')?.textContent?.includes('Verified end-to-end'),{timeout:5000});
   assert.match(await host.textContent('#peerCapability'),/"wasm": true/);assert.equal(await guest.textContent('#connectedExo'),'http://192.168.50.10:52415');
   await host.click('#pingButton');await host.waitForFunction(()=>document.querySelector('#rtt')?.textContent?.startsWith('Encrypted round-trip:'),{timeout:5000});const rtt=await host.textContent('#rtt');assert.match(rtt,/Encrypted round-trip: [0-9.]+ ms/);
+
+  await guest.selectOption('#computeModel','smollm2-135m-instruct');await guest.click('#computeToggle');
+  await guest.waitForFunction(()=>document.querySelector('#computeStatus')?.classList.contains('ok')&&document.querySelector('#computeStatus')?.textContent?.includes('shared'),null,{timeout:360000});
+  const bridgeStatus=await host.evaluate(async()=>new Promise((resolve,reject)=>{
+    const channel=new BroadcastChannel('conscios-browser-compute-v1'),requestId=crypto.randomUUID(),timer=setTimeout(()=>{channel.close();reject(new Error('bridge discovery timed out'))},10000);
+    channel.onmessage=event=>{const m=event.data;if(m?.type==='bridge-status'&&m.requestId===requestId&&m.available){clearTimeout(timer);channel.close();resolve(m)}};
+    channel.postMessage({type:'bridge-discover',bridgeProtocol:'conscios-swarm-bridge/v1',requestId});
+  }));
+  assert.equal(bridgeStatus.capability.enabled,true);assert.match(bridgeStatus.capability.modelId,/SmolLM2/i);
+  const remoteResult=await host.evaluate(async({bridgeId})=>new Promise((resolve,reject)=>{
+    const channel=new BroadcastChannel('conscios-browser-compute-v1'),id=crypto.randomUUID(),chunks=[],timer=setTimeout(()=>{channel.close();reject(new Error('remote browser inference timed out'))},360000);
+    channel.onmessage=event=>{const m=event.data;if(m?.bridgeId!==bridgeId||m?.id!==id)return;if(m.type==='bridge-compute-chunk')chunks.push(m.chunk);if(m.type==='bridge-compute-error'){clearTimeout(timer);channel.close();reject(new Error(m.error))}if(m.type==='bridge-compute-result'){clearTimeout(timer);channel.close();resolve({chunks,result:m.result})}};
+    channel.postMessage({type:'bridge-compute-request',bridgeProtocol:'conscios-swarm-bridge/v1',bridgeId,id,input:{requestId:id,requestingModule:'ObserverScientist',inferenceType:'pool-verification',contextManifest:[],causalSourceIds:[],conversationMessages:[{role:'user',content:'Reply with one short word: READY'}],maxResponseUnits:32,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'}});
+  }),{bridgeId:bridgeStatus.bridgeId});
+  assert.equal(remoteResult.result.status,'ok');assert.ok(remoteResult.result.content.text.trim().length>0,'real remote browser worker returned empty text');assert.ok(remoteResult.chunks.join('').length>0,'real remote browser worker did not stream text');
+
   const provenance=await host.textContent('#provenance');assert.match(provenance,/AES-256-GCM/);assert.match(provenance,/internet-direct/);assert.match(provenance,/"safetyConfirmed": true/);
-  console.log(`Secure internet swarm E2E passed: QR/link signaling only, ${stun.bindings} real local STUN bindings, matching safety code ${hostCode}, encrypted capability exchange, ${rtt}.`);
+  console.log(`Secure swarm E2E passed: ${stun.bindings} STUN bindings, safety code ${hostCode}, ${rtt}, and real remote browser-model inference over the encrypted DataChannel.`);
 }finally{await context.close();await browser.close();await stun.close()}
