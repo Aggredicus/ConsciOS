@@ -46,7 +46,7 @@ function renderMessages(){
   const root=$('messages');root.innerHTML='';
   if(!state.messages.length){
     const empty=document.createElement('div');empty.className='empty';empty.id='emptyState';
-    empty.innerHTML='<h1>One conversation. One runtime.</h1><p>Run a small model in this browser or connect to exo on your computer. Nothing else is required.</p>';
+    empty.innerHTML='<h1>One conversation. One runtime.</h1><p>Run here or connect exo.</p>';
     root.append(empty);return;
   }
   for(const message of state.messages){
@@ -71,12 +71,9 @@ function chooseProvider(kind,provider=null){
   else setHeader(kind==='browser'?'browser · load model':'exo · connect','warn');
   save();
 }
-function responseBudget(prompt){
-  const detailed=/\b(comprehensive|detailed|deep|thorough|tutorial|step[- ]by[- ]step|analy[sz]e|design|implement|code|compare|explain why|research)\b/i.test(prompt);
-  const medium=detailed||prompt.length>220||/[\n{}\[\]]/.test(prompt);
-  const initialLease=detailed?2048:medium?1024:512;
-  const largeEnvelope=state.providerKind==='exo'||$('browserModel')?.value==='qwen3-0.6b';
-  return {initialLease,smallGrant:512,largeGrant:1536,hardLimit:largeEnvelope?8192:4096,policy:'adaptive-lease-v1'};
+function responseBudget(p){
+  const d=/\b(comprehensive|detailed|thorough|tutorial|step.?by.?step|analy[sz]e|implement|code|compare|research)\b/i.test(p),m=d||p.length>220||/[\n{}\[\]]/.test(p);
+  return {initialLease:d?2048:m?1024:512,smallGrant:512,largeGrant:1536,hardLimit:state.providerKind==='exo'||$('browserModel')?.value==='qwen3-0.6b'?8192:4096,policy:'adaptive-lease-v1'};
 }
 function conversationInput(){
   const [maxMessages,maxBytes]=state.providerKind==='browser'?[7,6000]:[11,16000],source=state.messages,last=source.at(-1);
@@ -114,13 +111,13 @@ async function sendMessage(text){
   try{
     const result=await state.provider.infer(request.input,{onText:chunk=>live.push(String(chunk??''))});live.remove();
     if(result.status==='cancelled'){
-      pushMessage({role:'assistant',content:'Generation stopped.',provider:'system'});
+      pushMessage({role:'assistant',content:'Stopped.',provider:'system'});
       state.lastProvenance={provider:result.provider,timing:result.timing,requestId:result.requestId,status:'cancelled',context:request.context};
       $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);save();renderMessages();setHeader(providerLabel(),'ok');return;
     }
     if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
     const content=String(result.content?.text??result.content?.result??'').trim();
-    if(!content)throw new Error('Model returned an empty response.');
+    if(!content)throw new Error('Empty model response.');
     const p=result.provider??state.provider.provenance?.()??{};
     pushMessage({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
     state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds,context:request.context};
@@ -186,7 +183,7 @@ function renderExo(capabilities){
 }
 async function connectExo({quiet=false}={}){
   const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
-  if(runtime.isMixedExoContent(endpoint))throw new Error('HTTPS cannot call local HTTP exo. Run scripts/run-exo-local.mjs --lan.');
+  if(runtime.isMixedExoContent(endpoint))throw new Error('HTTPS cannot call local exo. Use the LAN launcher.');
   if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
   const {provider,capabilities}=await runtime.connectExoProvider({endpoint,modelId:saved.exoModel});
   state.exoProvider=provider;state.providerKind='exo';renderExo(capabilities);
@@ -218,7 +215,7 @@ async function init(){
   const requested=params.get('provider')||saved.preferredProvider||'auto';
   if(requested==='exo'){
     chooseProvider('exo');
-    try{await connectExo({quiet:true})}catch(error){tone($('exoStatus'),String(error?.message||error),'warn');tone($('runtimeStatus'),'exo was requested but is not reachable. No fallback is active.','warn')}
+    try{await connectExo({quiet:true})}catch(error){tone($('exoStatus'),String(error?.message||error),'warn');tone($('runtimeStatus'),'exo unavailable · no fallback.','warn')}
     return;
   }
   if(requested==='auto'&&location.protocol==='http:'){
