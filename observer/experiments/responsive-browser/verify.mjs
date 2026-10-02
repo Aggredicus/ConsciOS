@@ -144,18 +144,23 @@ try{
   workbench.on('console',message=>{if(['error','warning'].includes(message.type()))workbenchConsole.push(`${message.type()}: ${message.text()}`)});
   await workbench.goto(`${base}/local/workbench/?provider=exo&endpoint=${encodeURIComponent(exoEndpoint)}`,{waitUntil:'domcontentloaded'});
   try{
-    await workbench.waitForFunction(()=>document.querySelector('#providerStatus')?.classList.contains('ok'),null,{timeout:10000});
+    await workbench.waitForFunction(()=>document.querySelector('#exoStatus')?.classList.contains('ok'),null,{timeout:10000});
   }catch(error){
-    const providerStatus=await workbench.locator('#providerStatus').innerText().catch(()=>'<missing>');
-    throw new Error(`Workbench exo auto-connect timed out. providerStatus=${providerStatus}; pageErrors=${JSON.stringify(workbenchErrors)}; console=${JSON.stringify(workbenchConsole)}; cause=${error.message}`);
+    const exoStatus=await workbench.locator('#exoStatus').innerText().catch(()=>'<missing>');
+    throw new Error(`Compact app exo auto-connect timed out. exoStatus=${exoStatus}; pageErrors=${JSON.stringify(workbenchErrors)}; console=${JSON.stringify(workbenchConsole)}; cause=${error.message}`);
   }
-  assert.match(await workbench.locator('#providerStatus').innerText(),/exo ready/);
-  assert.match(await workbench.locator('#exoRuntimeNodes').innerText(),/Browser simulated desktop/);
-  report.exoSimulation={status:'pass',endpoint:'simulated',acceptanceText:await page.locator('#resultBanner').innerText(),workbenchStatus:await workbench.locator('#providerStatus').innerText()};
+  await workbench.locator('.tab[data-tab="runtime"]').click();
+  assert.match(await workbench.locator('#exoStatus').innerText(),/1 node\(s\)/);
+  assert.match(await workbench.locator('#exoMetrics').innerText(),/1\s*nodes/);
+  await workbench.locator('.tab[data-tab="chat"]').click();
+  await workbench.locator('#prompt').fill('Return the compact integration token.');
+  await workbench.locator('#composer').evaluate(form=>form.requestSubmit());
+  await workbench.getByText('EXO_OK',{exact:true}).waitFor({timeout:10000});
+  report.exoSimulation={status:'pass',endpoint:'simulated',acceptanceText:await page.locator('#resultBanner').innerText(),workbenchStatus:await workbench.locator('#exoStatus').innerText(),compactChat:'EXO_OK'};
   await context.close();
 
   fs.writeFileSync(path.join(artifactDir,'report.json'),JSON.stringify(report,null,2));
-  console.log(`Responsive browser verification passed: ${surfaces.length} surfaces × ${viewports.length} viewport sizes, plus simulated exo acceptance and Workbench runtime-center connection.`);
+  console.log(`Responsive browser verification passed: ${surfaces.length} surfaces × ${viewports.length} viewport sizes, plus simulated exo acceptance and compact Chat/Runtime inference.`);
 }catch(error){
   report.failure=String(error?.stack||error);
   fs.writeFileSync(path.join(artifactDir,'report.json'),JSON.stringify(report,null,2));
