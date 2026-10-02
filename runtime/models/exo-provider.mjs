@@ -180,7 +180,7 @@ export class ExoInferenceProvider{
     const awaited=await this.fetchImpl(`${this.endpoint}/instance/await?model_id=${encodeURIComponent(modelId)}&timeout_seconds=300`,{headers:{Accept:'text/event-stream'}});
     const text=await responseText(awaited,'exo instance wait');
     if(!/"type"\s*:\s*"ready"/.test(text))throw new Error(/"type"\s*:\s*"timeout"/.test(text)?`exo timed out while launching ${modelId}`:`exo did not report a ready instance for ${modelId}`);
-    this.modelId=modelId;this._readyModels.add(modelId);return {status:'ready',modelId,nodeCount:previewNodeCount(preview),sharding:preview.sharding??null,runtime:preview.instance_meta??null};
+    this.modelId=modelId;this._readyModels.add(modelId);if(this.capabilities)this.capabilities={...this.capabilities,activeModels:[...this._readyModels],modelCatalog:(this.capabilities.modelCatalog??[]).map(model=>model.id===modelId?{...model,active:true}:model)};return {status:'ready',modelId,nodeCount:previewNodeCount(preview),sharding:preview.sharding??null,runtime:preview.instance_meta??null};
   }
   async benchmark({modelId=this.modelId,prompt='Reply with the single word READY.',maxTokens=32}={}){
     if(!modelId)throw new Error('exo model is not selected');
