@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+import fs from 'node:fs';
+import path from 'node:path';
+import readline from 'node:readline';
+import {execFileSync} from 'node:child_process';
+
+const ROOT=process.cwd();
+const SNAPSHOT=process.env.CONSCIOS_SELF_MODEL_DIR||'artifacts/self-model/current';
+const MAX_RESULTS=24, MAX_SECTION_BYTES=24000, MAX_LINE_BYTES=1024*1024;
+const safeJson=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
+const jsonl=p=>fs.readFileSync(path.join(ROOT,p),'utf8').split(/\r?\n/).filter(Boolean).map(JSON.parse);
+const clamp=(n,d=8)=>Math.max(1,Math.min(MAX_RESULTS,Number(n)||d));
+const clean=s=>String(s??'').slice(0,256);
+const validRef=s=>typeof s==='string'&&s.length<=120&&!s.startsWith('-')&&/^[A-Za-z0-9._/@+-]+$/.test(s)&&!s.includes('..');
+function sections(){const p=path.join(SNAPSHOT,'index/sections.jsonl');return fs.existsSync(path.join(ROOT,p))?jsonl(p):[];}
+function graph(){
+  const v2=path.join(SNAPSHOT,'ontology/current.v2.json'),raw=path.join(SNAPSHOT,'ontology/current.json');
+  const g=safeJson(fs.existsSync(path.join(ROOT,v2))?v2:raw);
+  if(g.version===2)return g;
+  const nodes=(g.nodes||[]).map(n=>n.type==='Section'&&!String(n.id).startsWith('section:')?{...n,id:`section:${n.id}`}:{...n});
+  return {...g,nodes};
+}
+function audit(){const p=path.join(ROOT,SNAPSHOT,'governance/audit.json');return fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')):{summary:{findings:0,decisions:0},findings:[],decisions:[]};}
+function result(data){return {content:[{type:'text',text:typeof data==='string'?data:JSON.stringify(data)}],structuredContent:typeof data==='string'?undefined:data};}
+function searchSections(args){const q=clean(args.query).toLowerCase(),limit=clamp(args.limit);if(!q)return result([]);const terms=q.split(/\s+/).filter(Boolean);const rows=sections().map(s=>{const hay=[s.heading,s.file,s.metadata?.concepts?.join(' '),s.metadata?.role,s.metadata?.domain].filter(Boolean).join(' ').toLowerCase();let score=0;for(const t of terms)if(hay.includes(t))score+=hay.split(/[^a-z0-9]+/).includes(t)?3:1;return {sectionId:String(s.id).replace(/^section:/,''),file:s.file,heading:s.heading,startLine:s.startLine,ownEndLine:s.ownEndLine,subtreeEndLine:s.subtreeEndLine,ownBytes:s.ownBytes,score};}).filter(x=>x.score).sort((a,b)=>b.score-a.score||a.sectionId.localeCompare(b.sectionId)).slice(0,limit);return result(rows);}
+function readSection(args){const id=clean(args.sectionId);if(!id)throw new Error('sectionId required');const mode=args.mode==='subtree'?'subtree':'own';const ref=args.ref?clean(args.ref):'HEAD';if(ref!=='HEAD'&&!validRef(ref))throw new Error('invalid ref');const out=execFileSync(process.execPath,['scripts/self-model-memory.mjs','read',id,'--mode',mode,'--ref',ref],{cwd:ROOT,encoding:'utf8',maxBuffer:MAX_SECTION_BYTES*3});if(Buffer.byteLength(out)>MAX_SECTION_BYTES)throw new Error(`section exceeds MCP response cap (${MAX_SECTION_BYTES} bytes); request own mode or a smaller child section`);return result(out.trimEnd());}
+function neighborhood(args){const id=clean(args.nodeId),depth=Math.max(0,Math.min(3,Number(args.depth)||1)),limit=clamp(args.limit,16),g=graph(),nodes=new Map(g.nodes.map(n=>[n.id,n])),adj=new Map();for(const e of g.edges||[]){if(!adj.has(e.from))adj.set(e.from,[]);if(!adj.has(e.to))adj.set(e.to,[]);adj.get(e.from).push({edge:e,next:e.to});adj.get(e.to).push({edge:e,next:e.from});}if(!nodes.has(id))throw new Error('unknown nodeId');const seen=new Set([id]),front=[id],edges=[];for(let d=0;d<depth;d++){const next=[];for(const cur of front){for(const x of adj.get(cur)||[]){if(edges.length<limit*4)edges.push(x.edge);if(!seen.has(x.next)&&seen.size<limit){seen.add(x.next);next.push(x.next);}}}front.splice(0,front.length,...next);}return result({nodes:[...seen].map(x=>nodes.get(x)),edges:[...new Map(edges.map(e=>[`${e.from}|${e.type}|${e.to}|${e.mode||''}`,e])).values()].filter(e=>seen.has(e.from)&&seen.has(e.to))});}
+function governanceFindings(args){const a=audit(),sev=args.severity?clean(args.severity):null,cat=args.category?clean(args.category):null,q=args.query?clean(args.query).toLowerCase():null,limit=clamp(args.limit);return result((a.findings||[]).filter(f=>(!sev||f.severity===sev)&&(!cat||f.category===cat)&&(!q||JSON.stringify(f).toLowerCase().includes(q))).slice(0,limit));}
+function governanceDecisions(args){const a=audit(),q=clean(args.query).toLowerCase(),limit=clamp(args.limit);return result((a.decisions||[]).filter(d=>!q||`${d.text} ${d.source?.path} ${d.source?.heading}`.toLowerCase().includes(q)).slice(0,limit));}
+function compareRefs(args){const base=clean(args.base),head=clean(args.head);if(!validRef(base)||!validRef(head))throw new Error('invalid ref');const raw=execFileSync(process.execPath,['scripts/self-model-memory.mjs','diff','--base',base,'--head',head],{cwd:ROOT,encoding:'utf8',maxBuffer:8*1024*1024});const d=JSON.parse(raw),limit=clamp(args.limit,12);const trim=x=>Array.isArray(x)?x.slice(0,limit):x;return result({version:d.version,baseFingerprint:d.baseFingerprint,headFingerprint:d.headFingerprint,files:Object.fromEntries(Object.entries(d.files||{}).map(([k,v])=>[k,trim(v)])),sections:Object.fromEntries(Object.entries(d.sections||{}).map(([k,v])=>[k,trim(v)]))});}
+const tools=[
+{name:'self_model_search',description:'Find the smallest relevant indexed repository sections without loading whole files.',inputSchema:{type:'object',properties:{query:{type:'string'},limit:{type:'integer',minimum:1,maximum:24}},required:['query']}},
+{name:'self_model_read_section',description:'Read one exact hash-addressed section or subtree at a Git ref. Response is capped to bound token cost.',inputSchema:{type:'object',properties:{sectionId:{type:'string'},mode:{enum:['own','subtree']},ref:{type:'string'}},required:['sectionId']}},
+{name:'self_model_neighborhood',description:'Return a bounded local ontology neighborhood around one node.',inputSchema:{type:'object',properties:{nodeId:{type:'string'},depth:{type:'integer',minimum:0,maximum:3},limit:{type:'integer',minimum:1,maximum:24}},required:['nodeId']}},
+{name:'self_model_compare_refs',description:'Compare two Git refs and return a bounded structural delta summary.',inputSchema:{type:'object',properties:{base:{type:'string'},head:{type:'string'},limit:{type:'integer',minimum:1,maximum:24}},required:['base','head']}},
+{name:'governance_findings',description:'Query attributable security, UX, token-cost, and governance consistency findings.',inputSchema:{type:'object',properties:{severity:{enum:['high','medium','low','info']},category:{type:'string'},query:{type:'string'},limit:{type:'integer',minimum:1,maximum:24}}}},
+{name:'governance_decisions',description:'Search extracted normative repository decisions and design constraints.',inputSchema:{type:'object',properties:{query:{type:'string'},limit:{type:'integer',minimum:1,maximum:24}}}}
+];
+const handlers={self_model_search:searchSections,self_model_read_section:readSection,self_model_neighborhood:neighborhood,self_model_compare_refs:compareRefs,governance_findings:governanceFindings,governance_decisions:governanceDecisions};
+function reply(id,payload,error=null){const msg=error?{jsonrpc:'2.0',id,error:{code:-32000,message:error.message||String(error)}}:{jsonrpc:'2.0',id,result:payload};process.stdout.write(JSON.stringify(msg)+'\n');}
+function handle(m){if(m.method==='initialize')return reply(m.id,{protocolVersion:m.params?.protocolVersion||'2025-06-18',capabilities:{tools:{listChanged:false}},serverInfo:{name:'conscios-self-model',version:'0.2.0'}});if(m.method==='ping')return reply(m.id,{});if(m.method==='tools/list')return reply(m.id,{tools});if(m.method==='tools/call'){const name=m.params?.name,h=handlers[name];if(!h)return reply(m.id,null,new Error(`unknown tool: ${name}`));try{return reply(m.id,h(m.params?.arguments||{}));}catch(e){return reply(m.id,null,e);}}if(m.id!==undefined)return reply(m.id,null,new Error(`unsupported method: ${m.method}`));}
+if(process.argv.includes('--self-test')){console.log(JSON.stringify({ok:true,tools:tools.length,networkListeners:0,maxResults:MAX_RESULTS,maxSectionBytes:MAX_SECTION_BYTES}));process.exit(0);}
+const rl=readline.createInterface({input:process.stdin,crlfDelay:Infinity});rl.on('line',line=>{if(Buffer.byteLength(line)>MAX_LINE_BYTES){console.error('MCP input line too large');return;}try{handle(JSON.parse(line));}catch(e){console.error(e.message);}});
