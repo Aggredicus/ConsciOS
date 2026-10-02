@@ -1,31 +1,46 @@
-import {detectBrowserAICapabilities,chooseBrowserExecution} from '../../runtime/models/browser-capabilities.mjs';
-import {getCompactModel} from '../../runtime/models/compact-models.mjs';
-import {createBrowserTransformersHost} from '../../runtime/models/browser-transformers-host.mjs';
+const WORKER_URL=new URL('./browser-inference-worker.mjs',import.meta.url);
 
-const instruction='Answer the current user message directly using only the visible conversation and declared context. Do not claim hidden access, credentials, repository access, or external authority.';
-
-function browserProvider(host,label){
-  const base=()=>{const p=host.provenance();return {kind:'browser-transformers-local',name:label,modelId:p.modelId,revision:p.revision,runtime:p.runtime,device:p.device,dtype:p.dtype,inferenceLocation:'browser-local',remoteInference:false,hiddenState:'none'}};
+function workerClient(onProgress){
+  if(typeof Worker==='undefined')throw new Error('Dedicated Web Workers are unavailable in this browser. Use exo for lag-free inference.');
+  const worker=new Worker(WORKER_URL,{type:'module',name:'conscios-browser-inference'});
+  let sequence=0,closed=false;const pending=new Map();
+  const rejectAll=error=>{for(const entry of pending.values())entry.reject(error);pending.clear()};
+  worker.addEventListener('message',event=>{
+    const message=event.data??{},entry=pending.get(message.requestId);
+    if(message.type==='progress'){entry?.onProgress?.(message.event);return}
+    if(message.type==='text'){entry?.onText?.(message.chunk);return}
+    if(!entry)return;
+    if(message.type==='error'){pending.delete(message.requestId);entry.reject(new Error(message.message||'Browser worker error'));return}
+    if(['ready','result','disposed'].includes(message.type)){pending.delete(message.requestId);entry.resolve(message);return}
+  });
+  worker.addEventListener('error',event=>{const error=new Error(event.message||'Browser inference worker crashed');rejectAll(error)});
+  worker.addEventListener('messageerror',()=>rejectAll(new Error('Browser inference worker message could not be decoded.')));
+  const call=(type,payload={},handlers={})=>new Promise((resolve,reject)=>{
+    if(closed)return reject(new Error('Browser inference worker is closed.'));
+    const requestId=`w${++sequence}`;pending.set(requestId,{resolve,reject,...handlers});worker.postMessage({type,requestId,...payload});
+  });
   return {
-    id:'browser-local',provenance:base,cancel:()=>host.cancel(),
-    async infer(input,{onText=()=>{}}={}){
-      const provider=base();
-      try{
-        const messages=[{role:'system',content:instruction},...(input.conversationMessages??[])];
-        const result=await host.generate({messages,contextManifest:input.contextManifest??[],maxNewTokens:input.maxResponseUnits??256,onText,doSample:false,measureBoundary:false});
-        const cancelled=result.status==='cancelled';
-        return {requestId:input.requestId,provider,status:cancelled?'cancelled':'ok',content:cancelled?null:{text:result.text},causalSourceIds:[...(input.causalSourceIds??[])],timing:{elapsedMs:result.telemetry?.elapsedMs??0,ttftMs:result.telemetry?.ttftMs??null,streamed:Boolean(result.telemetry?.streamed)},failure:cancelled?'cancelled by caller':null};
-      }catch(error){
-        return {requestId:input.requestId,provider,status:'error',content:null,causalSourceIds:[...(input.causalSourceIds??[])],timing:{elapsedMs:0,ttftMs:null,streamed:false},failure:String(error?.message||error)};
-      }
+    call,
+    cancel(){if(!closed)worker.postMessage({type:'cancel'})},
+    dispose(){
+      if(closed)return;closed=true;worker.postMessage({type:'dispose',requestId:`w${++sequence}`});
+      rejectAll(new Error('Browser inference worker disposed.'));worker.terminate();
     }
   };
 }
 
 export async function loadBrowserProvider({modelId,onProgress=()=>{}}={}){
-  const manifest=getCompactModel(modelId);if(!manifest)throw new Error('Select a browser model.');
-  const capabilities=await detectBrowserAICapabilities(),execution=chooseBrowserExecution(capabilities,{prefer:'webgpu'});
-  const host=createBrowserTransformersHost({manifest,device:execution.device,dtype:execution.dtype,onProgress});
-  await host.load();
-  return {provider:browserProvider(host,manifest.label),manifest,execution,capabilities};
+  const client=workerClient(onProgress);
+  try{
+    const ready=await client.call('load',{modelId},{onProgress});
+    const provenance=()=>ready.provenance;
+    const provider={
+      id:'browser-local',provenance,cancel:()=>client.cancel(),dispose:()=>client.dispose(),
+      async infer(input,{onText=()=>{}}={}){
+        const response=await client.call('infer',{input},{onText});
+        return response.result;
+      }
+    };
+    return {provider,manifest:ready.manifest,execution:ready.execution,capabilities:ready.capabilities};
+  }catch(error){client.dispose();throw error}
 }

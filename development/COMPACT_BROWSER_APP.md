@@ -53,15 +53,19 @@ This budget measures deployable source bytes, not Git history size and not downl
 
 ## Chat latency rules
 
-The compact chat path optimizes **time to visible response**, not only total completion time.
+The compact chat path optimizes **time to visible response and main-thread responsiveness**, not only total completion time.
+
+Browser-local inference runs in a dedicated ES-module Web Worker. Model download/load, tokenization, chat-template construction, WebGPU/WASM orchestration, and generation stay off the page's main JavaScript thread. The page owns only the worker proxy, progress/status rendering, and animation-frame-batched text painting. Worker provenance is explicit as `executionThread: "dedicated-worker"` and `inferenceLocation: "browser-dedicated-worker"`.
+
 
 - Browser-local generation forwards Transformers.js token chunks directly into the visible assistant bubble.
 - exo requests OpenAI-compatible SSE streaming and forwards each `delta.content` chunk immediately.
 - The UI batches token-painting to animation frames so fast token streams do not trigger a DOM layout for every token.
-- The visible/persisted conversation may contain up to 24 messages, but inference context is independently bounded. Browser-local requests use at most 9 messages / 12,000 UTF-8 content bytes; exo uses at most 15 messages / 24,000 bytes.
+- The visible/persisted conversation may contain up to 24 messages, but inference context is independently bounded. Browser-local requests use at most 7 messages / 6,000 UTF-8 content bytes; exo uses at most 11 messages / 16,000 bytes.
 - Context selection walks backward in complete user/assistant pairs so the model always receives a valid alternating conversation ending on the current user turn.
 - Selection counts and bytes are written to inference provenance so latency/continuity trade-offs are inspectable.
 - The compact browser path opts out of the host's optional duplicate pre-generation chat-template/token-count telemetry. Scientific/runtime callers keep that telemetry by default.
+- The Pages closure follows module-worker URLs so worker code ships with the compact app without becoming part of the eager HTML/CSS/controller shell.
 
 These limits reduce prefill cost as the visible chat grows without deleting the user's recent conversation from the interface.
 

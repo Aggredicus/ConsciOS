@@ -99,7 +99,7 @@ async function sendMessage(text){
   const prompt=String(text??'').trim();if(!prompt)return;
   if(!state.provider){
     tab('runtime');
-    tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo before chatting.':'Load a browser model before chatting.','warn');
+    tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo first.':'Load a browser model first.','warn');
     return;
   }
   pushMessage({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
@@ -134,8 +134,9 @@ function progressValue(event){
   return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
 }
 async function loadBrowser(){
-  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Preparing browser runtime…','warn');
+  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Starting worker…','warn');
   try{
+    state.browserProvider?.dispose?.();if(state.providerKind==='browser')state.provider=null;state.browserProvider=null;
     const runtime=await browserRuntime();
     const loaded=await runtime.loadBrowserProvider({
       modelId:$('browserModel').value,
@@ -147,8 +148,8 @@ async function loadBrowser(){
     });
     $('browserBackend').textContent=loaded.execution.reason;
     state.browserProvider=loaded.provider;state.provider=loaded.provider;state.providerKind='browser';
-    tone($('browserStatus'),`${loaded.manifest.label} ready on ${loaded.execution.device}.`,'ok');
-    tone($('runtimeStatus'),'Browser inference ready.','ok');setHeader(providerLabel(),'ok');save();
+    tone($('browserStatus'),`${loaded.manifest.label} ready on ${loaded.execution.device} · dedicated worker.`,'ok');
+    tone($('runtimeStatus'),'Worker ready.','ok');setHeader(providerLabel(),'ok');save();
   }finally{$('loadBrowser').disabled=false}
 }
 
@@ -178,7 +179,7 @@ function renderExo(capabilities){
 }
 async function connectExo({quiet=false}={}){
   const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
-  if(runtime.isMixedExoContent(endpoint))throw new Error('This HTTPS demo cannot call a local HTTP exo process. Run ConsciOS locally with scripts/run-exo-local.mjs --lan.');
+  if(runtime.isMixedExoContent(endpoint))throw new Error('HTTPS cannot call local HTTP exo. Run scripts/run-exo-local.mjs --lan.');
   if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
   const {provider,capabilities}=await runtime.connectExoProvider({endpoint,modelId:saved.exoModel});
   state.exoProvider=provider;state.providerKind='exo';renderExo(capabilities);
@@ -189,7 +190,7 @@ async function connectExo({quiet=false}={}){
   }else{
     state.provider=null;
     tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) connected · no downloaded model.`,'warn');
-    tone($('runtimeStatus'),'exo is connected. Download a model in native exo before chatting.','warn');setHeader('exo · no model','warn');
+    tone($('runtimeStatus'),'exo connected · no model.','warn');setHeader('exo · no model','warn');
   }
   save();return capabilities;
 }
@@ -218,7 +219,7 @@ async function init(){
     try{await connectExo({quiet:true});return}catch(error){tone($('exoStatus'),String(error?.message||error),'warn')}
   }
   chooseProvider('browser');
-  tone($('runtimeStatus'),'Browser runtime selected. Load a model once to begin.','warn');
+  tone($('runtimeStatus'),'Load a browser model.','warn');
 }
 
 document.querySelectorAll('.tab').forEach(button=>{
@@ -234,7 +235,7 @@ $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvid
 $('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');$('loadBrowser').disabled=false}));
 $('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
 $('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
-$('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated. Connect to verify.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
+$('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);
 $('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
