@@ -28,7 +28,7 @@ Manual exo endpoint editing is kept under **Advanced**. The normal local workflo
 node scripts/run-exo-local.mjs --lan
 ```
 
-The launcher supplies the correct runtime URL to the app.
+The launcher supplies the correct runtime URL to the app. It now stages the same compact transitive site used by GitHub Pages under `.runtime/site` and serves only that directory. LAN mode therefore does not expose the repository tree, research files, or unrelated browser surfaces.
 
 ## Footprint rules
 
