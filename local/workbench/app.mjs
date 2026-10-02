@@ -191,10 +191,17 @@ async function connectExo({quiet=false}={}){
   const createExoInferenceProvider=await exoFactory();
   const provider=createExoInferenceProvider({endpoint});
   const capabilities=await provider.connect();
-  state.exoProvider=provider;state.provider=provider;state.providerKind='exo';renderExo(capabilities);
-  tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded model(s).`,'ok');
-  tone($('runtimeStatus'),'exo inference ready.','ok');setHeader(providerLabel(),'ok');save();
-  return capabilities;
+  state.exoProvider=provider;state.providerKind='exo';renderExo(capabilities);
+  if(capabilities.models.length){
+    state.provider=provider;
+    tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded model(s).`,'ok');
+    tone($('runtimeStatus'),'exo inference ready.','ok');setHeader(providerLabel(),'ok');
+  }else{
+    state.provider=null;
+    tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) connected · no downloaded model.`,'warn');
+    tone($('runtimeStatus'),'exo is connected. Download a model in native exo before chatting.','warn');setHeader('exo · no model','warn');
+  }
+  save();return capabilities;
 }
 
 function resizePrompt(){
@@ -224,7 +231,14 @@ async function init(){
   tone($('runtimeStatus'),'Browser runtime selected. Load a model once to begin.','warn');
 }
 
-document.querySelectorAll('.tab').forEach(button=>button.addEventListener('click',()=>tab(button.dataset.tab)));
+document.querySelectorAll('.tab').forEach(button=>{
+  button.addEventListener('click',()=>tab(button.dataset.tab));
+  button.addEventListener('keydown',event=>{
+    if(!['ArrowLeft','ArrowRight'].includes(event.key))return;
+    const tabs=[...document.querySelectorAll('.tab')],index=tabs.indexOf(button),delta=event.key==='ArrowRight'?1:-1,next=tabs[(index+delta+tabs.length)%tabs.length];
+    event.preventDefault();next.focus();tab(next.dataset.tab);
+  });
+});
 $('chooseBrowser').addEventListener('click',()=>chooseProvider('browser',state.browserProvider));
 $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvider));
 $('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');setBusy(false);$('loadBrowser').disabled=false}));
