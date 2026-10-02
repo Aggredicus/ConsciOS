@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
 import {CELL_TYPES,PYODIDE_VERSION,createCell,createNotebook,interpolateText,parseParameters,validateNotebook} from '../../../local/workbench/notebook-engine.mjs';
 import {createConversationChallenge,scoreConversationArm,compareConversationArms,summarizeConversationRealityResult} from '../../../local/workbench/conversation-test.mjs';
 import {EXECUTION_PROTOCOL,EXECUTION_RESULT_FORMAT,createExecutionProvider,createExecutionRouter,createDefaultWorkbenchExecutionRouter} from '../../../local/workbench/execution-providers.mjs';
@@ -132,9 +133,12 @@ const summary=summarizeConversationRealityResult({provider,challenge,stateful:{s
 assert.match(summary,/HISTORY-DEPENDENCE TEST/);
 assert.match(summary,/not a test of consciousness/i);
 
+for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mjs','local/workbench/exo-runtime.mjs'])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
 const ui=readFileSync('local/workbench/app.mjs','utf8');
 const browserUi=readFileSync('local/workbench/browser-runtime.mjs','utf8');
 const exoUi=readFileSync('local/workbench/exo-runtime.mjs','utf8');
+assert.ok(browserUi.length<1800,`browser runtime adapter budget exceeded: ${browserUi.length} bytes`);
+assert.ok(exoUi.length<1400,`exo runtime adapter budget exceeded: ${exoUi.length} bytes`);
 const html=readFileSync('local/workbench/index.html','utf8');
 const css=readFileSync('local/workbench/app.css','utf8');
 const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
