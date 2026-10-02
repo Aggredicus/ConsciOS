@@ -16,6 +16,14 @@ const fetchImpl=async (url,options={})=>{
   requests.push({url,options});
   if(url.endsWith('/state'))return new Response(JSON.stringify({instances:placed?{'instance-a':{MlxRingInstance:{shardAssignments:{modelId:'mlx-community/Qwen3-test'}}}}:{},tasks:{},nodeIdentities:{'node-a':{},'node-b':{}},lastEventAppliedIdx:17}),{status:200,headers:{'Content-Type':'application/json'}});
   if(url.includes('/v1/models?status=downloaded')&&(!options.method||options.method==='GET'))return new Response(JSON.stringify({data:[{id:'mlx-community/Qwen3-test'}]}),{status:200,headers:{'Content-Type':'application/json'}});
+  if(url.endsWith('/v1/models')&&(!options.method||options.method==='GET'))return new Response(JSON.stringify({data:[
+    {id:'mlx-community/Qwen3-test',family:'qwen3',quantization:'4bit',storage_size:{inBytes:18_000_000_000},context_length:32768,supports_tensor:true,tasks:['TextGeneration'],backends:['Mlx']},
+    {id:'mlx-community/Llama-test',family:'llama',quantization:'4bit',storage_size:{inBytes:36_000_000_000},context_length:131072,supports_tensor:true,tasks:['TextGeneration'],backends:['Mlx']}
+  ]}),{status:200,headers:{'Content-Type':'application/json'}});
+  if(url.includes('/instance/previews?model_id='))return new Response(JSON.stringify({previews:[
+    {model_id:'mlx-community/Qwen3-test',sharding:'Pipeline',instance_meta:'MlxRing',instance:{preview:'single'},memory_delta_by_node:{'node-a':18_000_000_000},error:null},
+    {model_id:'mlx-community/Qwen3-test',sharding:'Tensor',instance_meta:'MlxRing',instance:{preview:'pooled'},memory_delta_by_node:{'node-a':9_000_000_000,'node-b':9_000_000_000},error:null}
+  ]}),{status:200,headers:{'Content-Type':'application/json'}});
   if(url.endsWith('/place_instance')&&options.method==='POST'){
     const body=JSON.parse(options.body);
     assert.equal(body.model_id,'mlx-community/Qwen3-test');
@@ -46,7 +54,16 @@ const capabilities=await exo.connect();
 assert.equal(capabilities.cluster.nodeCount,2);
 assert.deepEqual(capabilities.models,['mlx-community/Qwen3-test']);
 assert.deepEqual(capabilities.downloadedModels,['mlx-community/Qwen3-test']);
+assert.deepEqual(capabilities.availableModels,['mlx-community/Qwen3-test','mlx-community/Llama-test']);
+assert.equal(capabilities.modelCatalog.length,2);
+assert.equal(capabilities.modelCatalog.find(model=>model.id==='mlx-community/Qwen3-test').downloaded,true);
+assert.equal(capabilities.modelCatalog.find(model=>model.id==='mlx-community/Llama-test').downloaded,false);
+assert.equal(capabilities.modelCatalog.find(model=>model.id==='mlx-community/Qwen3-test').storageSizeBytes,18_000_000_000);
 assert.deepEqual(capabilities.activeModels,[]);
+const placementPreview=await exo.previewPlacements('mlx-community/Qwen3-test');
+assert.equal(placementPreview.length,2);
+assert.equal(placementPreview[1].nodeCount,2);
+assert.equal(placementPreview[1].valid,true);
 assert.equal(exo.modelId,'mlx-community/Qwen3-test','single downloaded model should be selected explicitly by deterministic rule');
 
 const output=await exo.infer(input);
@@ -96,4 +113,4 @@ assert.equal(failed.confidence,0);
 assert.match(failed.failure,/HTTP 503/);
 assert.equal(failed.provider.kind,'exo-cluster');
 
-console.log('Provider abstraction verification passed: explicit exo boundary, downloaded-model discovery, automatic instance placement, true alternating conversation history, declared context only, no silent fallback.');
+console.log('Provider abstraction verification passed: explicit exo boundary, full model catalog, placement previews, automatic instance placement, true alternating conversation history, declared context only, no silent fallback.');
