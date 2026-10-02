@@ -19,6 +19,7 @@ The compact app supports two explicit inference paths:
 
 - **Browser** — Transformers.js inference on the current device using WebGPU when available and WASM otherwise.
 - **exo** — the existing OpenAI-compatible exo provider on the user's computer or trusted cluster.
+- **Swarm** — a separately consented browser inference worker reached through the encrypted QR/WebRTC swarm. This provider pools independent inference tasks with exo but does not claim native exo tensor/pipeline sharding.
 
 There is no silent inference-provider fallback. An explicit `?provider=exo` request remains exo if the runtime cannot be reached. In automatic local mode, exo may be probed first and Browser becomes the fallback only because `auto` explicitly authorizes discovery.
 
@@ -40,7 +41,8 @@ Opening ConsciOS from an Android phone against a desktop exo endpoint makes the 
 
 ## Footprint rules
 
-The primary source surface has hard source budgets enforced by the Workbench verifier:
+The primary source surface has hard source budgets enforced by the Workbench verifier. The secure Swarm page is a lazy secondary HTML entry: it is deployable but is not part of initial Chat startup.
+
 
 - HTML: < 5,000 bytes
 - CSS: < 5,500 bytes
