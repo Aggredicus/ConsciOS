@@ -1,4 +1,5 @@
-import {executeJavaScript,executePython,executeToolRequest} from './notebook-engine.mjs';
+import {executeJavaScript,executePython,executeToolRequest,interpolateText} from './notebook-engine.mjs';
+import {DEFAULT_SANDBOX_ENDPOINT,SANDBOX_RESULT_FORMAT,createSandboxRequest,normalizeSandboxEndpoint} from '../../runtime/execution/sandbox-contract.mjs';
 
 export const EXECUTION_PROTOCOL='conscios-execution/v1';
 export const EXECUTION_RESULT_FORMAT='conscios-execution-result/v1';
@@ -136,10 +137,65 @@ export function createHttpToolExecutionProvider(){
   });
 }
 
+export function createSandboxContainerExecutionProvider({fetchImpl=globalThis.fetch}={}){
+  if(typeof fetchImpl!=='function')throw new TypeError('sandbox execution provider requires fetch');
+  const requestFetch=(...args)=>fetchImpl(...args);
+  return createExecutionProvider({
+    id:'sandbox-container',
+    label:'Governed local Linux container',
+    location:'loopback-sandbox-daemon',
+    cellTypes:['container'],
+    capabilities:{container:true,loopbackOnly:true,hostFilesystem:false,network:'policy-gated',privileged:false},
+    execute:async(cell,context)=>{
+      const endpoint=normalizeSandboxEndpoint(cell?.config?.endpoint||DEFAULT_SANDBOX_ENDPOINT);
+      const request=createSandboxRequest({
+        source:cell.source,
+        parameters:context?.parameters??{},
+        requestId:`workbench-${cell.id}-${Date.now()}`,
+        interpolate:interpolateText
+      });
+      const timeoutMs=Math.max(5000,Math.min(125000,Number(request.limits?.timeoutMs)||30000)+5000);
+      const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),timeoutMs);
+      try{
+        const response=await requestFetch(endpoint,{
+          method:'POST',
+          cache:'no-store',
+          credentials:'omit',
+          headers:{'Content-Type':'application/json','Accept':'application/json'},
+          body:JSON.stringify(request),
+          signal:controller.signal
+        });
+        const type=response.headers.get('content-type')||'';
+        const payload=type.includes('application/json')?await response.json():{message:(await response.text()).slice(0,1000)};
+        if(!response.ok)throw new Error(`Sandbox daemon HTTP ${response.status}: ${payload?.message??payload?.error??'request failed'}`);
+        if(payload?.format!==SANDBOX_RESULT_FORMAT)throw new Error('Sandbox daemon returned an unexpected result format');
+        return {
+          output:payload,
+          provenance:{
+            kind:'local-container-sandbox',
+            endpoint,
+            requestId:payload.requestId??request.requestId,
+            image:payload.execution?.image??request.image,
+            network:payload.execution?.network??request.network,
+            limits:payload.execution?.limits??request.limits,
+            sandboxStatus:payload.status,
+            exitCode:payload.exitCode,
+            policy:payload.policy??null
+          }
+        };
+      }catch(error){
+        if(error?.name==='AbortError')throw new Error(`Sandbox daemon request timed out after ${timeoutMs} ms`);
+        throw error;
+      }finally{clearTimeout(timer)}
+    }
+  });
+}
+
 export function createDefaultWorkbenchExecutionRouter(){
   const router=createExecutionRouter();
   router.register(createBrowserJavaScriptExecutionProvider());
   router.register(createBrowserPythonExecutionProvider());
   router.register(createHttpToolExecutionProvider());
+  router.register(createSandboxContainerExecutionProvider());
   return router;
 }
