@@ -134,8 +134,9 @@ function progressValue(event){
   return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
 }
 async function loadBrowser(){
-  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Preparing browser runtime…','warn');
+  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Preparing dedicated inference worker…','warn');
   try{
+    state.browserProvider?.dispose?.();if(state.providerKind==='browser')state.provider=null;state.browserProvider=null;
     const runtime=await browserRuntime();
     const loaded=await runtime.loadBrowserProvider({
       modelId:$('browserModel').value,
@@ -147,8 +148,8 @@ async function loadBrowser(){
     });
     $('browserBackend').textContent=loaded.execution.reason;
     state.browserProvider=loaded.provider;state.provider=loaded.provider;state.providerKind='browser';
-    tone($('browserStatus'),`${loaded.manifest.label} ready on ${loaded.execution.device}.`,'ok');
-    tone($('runtimeStatus'),'Browser inference ready.','ok');setHeader(providerLabel(),'ok');save();
+    tone($('browserStatus'),`${loaded.manifest.label} ready on ${loaded.execution.device} · dedicated worker.`,'ok');
+    tone($('runtimeStatus'),'Browser inference ready · UI isolated from generation.','ok');setHeader(providerLabel(),'ok');save();
   }finally{$('loadBrowser').disabled=false}
 }
 
