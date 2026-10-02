@@ -5,7 +5,7 @@ import {renderQr,QR_MODULE_URL} from './qr.mjs';
 import {COMPUTE_MODELS,createBrowserSwarmComputeWorker} from './swarm-compute.mjs';
 import {createBrowserSwarmBridge} from './swarm-bridge.mjs';
 
-const $=id=>document.getElementById(id);const pairChannel=new BroadcastChannel('conscios-swarm-pairing-v2');let activePeer=null;let pendingOffer=null;let activeCompute=null;let activeBridge=null;
+const $=id=>document.getElementById(id);const pairChannel=new BroadcastChannel('conscios-swarm-pairing-v2');const bridgeHash=location.hash.startsWith('#bridge=')?location.hash:'';let activePeer=null;let pendingOffer=null;let activeCompute=null;let activeBridge=null;
 function show(id,visible=true){$(id).classList.toggle('hidden',!visible)}
 function setStatus(message,tone=''){$('globalStatus').textContent=message;$('globalStatus').className=`status ${tone}`}
 function pretty(value){try{return JSON.stringify(value,null,2)}catch{return String(value)}}
@@ -60,7 +60,7 @@ async function applyAnswer(encoded,{source='manual'}={}){
   await activePeer.acceptAnswer(encoded);$('hostStatus').textContent='Answer accepted. Establishing encrypted peer link…';setStatus('Answer accepted. Connecting…','ok');updateProvenance({pairing:'answer-applied',source});
 }
 function cleanupPeer(){if(activeCompute){activeCompute.stop().catch(()=>{});activeCompute.dispose();activeCompute=null}activeBridge?.dispose();activeBridge=null;if(activePeer){activePeer.close();activePeer=null}show('connectedCard',false);show('safetyCard',false);computeStatus({state:'off',message:'Compute sharing is off.'})}
-function reset(){cleanupPeer();pendingOffer=null;history.replaceState(null,'',location.pathname+location.search);show('modeCard');show('inviteCard',false);show('joinCard',false);show('answerCard',false);setStatus('Ready.');updateProvenance()}
+function reset(){cleanupPeer();pendingOffer=null;history.replaceState(null,'',location.pathname+location.search+bridgeHash);show('modeCard');show('inviteCard',false);show('joinCard',false);show('answerCard',false);setStatus('Ready.');updateProvenance()}
 async function applyLink(text){const value=String(text||'').trim();if(!value)throw new Error('Paste a pairing link first.');const url=new URL(value,location.href);const payload=pairingPayloadFromHash(url.hash);if(!payload)throw new Error('This is not a ConsciOS swarm pairing link.');if(payload.kind==='offer')await loadOffer(payload.encoded);else await applyAnswer(payload.encoded,{source:'pasted-link'})}
 
 pairChannel.addEventListener('message',event=>{const msg=event.data;if(msg?.type!=='answer'||!activePeer||activePeer.role!=='host'||msg.sessionId!==activePeer.sessionId)return;applyAnswer(msg.encoded,{source:'broadcast-channel'}).catch(error=>setStatus(error.message,'bad'))});
