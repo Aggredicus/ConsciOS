@@ -5,8 +5,7 @@ const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
   provider:null,providerKind:null,busy:false,lastProvenance:saved.lastProvenance??null,
-  browserHost:null,browserProvider:null,exoProvider:null,
-  browserRuntime:null,exoRuntime:null
+  browserProvider:null,exoProvider:null
 };
 
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
@@ -109,14 +108,8 @@ async function sendMessage(text){
   }finally{setBusy(false);$('prompt').focus()}
 }
 
-async function browserRuntime(){
-  if(!state.browserRuntime)state.browserRuntime=await import('./browser-runtime.mjs');
-  return state.browserRuntime;
-}
-async function exoRuntime(){
-  if(!state.exoRuntime)state.exoRuntime=await import('./exo-runtime.mjs');
-  return state.exoRuntime;
-}
+const browserRuntime=()=>import('./browser-runtime.mjs');
+const exoRuntime=()=>import('./exo-runtime.mjs');
 
 function progressValue(event){
   const raw=Number(event?.progress);
@@ -136,21 +129,18 @@ async function loadBrowser(){
       }
     });
     $('browserBackend').textContent=loaded.execution.reason;
-    state.browserHost=loaded.host;state.browserProvider=loaded.provider;state.provider=loaded.provider;state.providerKind='browser';
+    state.browserProvider=loaded.provider;state.provider=loaded.provider;state.providerKind='browser';
     tone($('browserStatus'),`${loaded.manifest.label} ready on ${loaded.execution.device}.`,'ok');
     tone($('runtimeStatus'),'Browser inference ready.','ok');setHeader(providerLabel(),'ok');save();
   }finally{$('loadBrowser').disabled=false}
 }
 
 function defaultExoEndpoint(){
-  const params=new URLSearchParams(location.search);const explicit=params.get('endpoint');
-  const runtime=state.exoRuntime;
-  if(explicit&&runtime){try{return runtime.normalizeExoEndpoint(explicit)}catch{}}
-  if(saved.exoEndpoint&&runtime){try{return runtime.normalizeExoEndpoint(saved.exoEndpoint)}catch{}}
+  const params=new URLSearchParams(location.search),explicit=params.get('endpoint');
   if(explicit)return explicit.replace(/\/$/,'');
   if(saved.exoEndpoint)return String(saved.exoEndpoint).replace(/\/$/,'');
   if(location.protocol==='https:')return 'http://localhost:52415';
-  const host=location.hostname||'localhost';return `http://${host}:52415`;
+  return `http://${location.hostname||'localhost'}:52415`;
 }
 function renderExo(capabilities){
   const models=capabilities?.models??[];const select=$('exoModel');const prior=saved.exoModel;
