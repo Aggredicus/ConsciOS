@@ -139,10 +139,11 @@ const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
 
 assert.ok(ui.includes("createExoInferenceProvider"),'compact app is not wired to exo');
 assert.ok(ui.includes("createBrowserLocalInferenceProvider"),'compact app is not wired to browser-local inference');
+assert.ok(ui.includes("COMPACT_MODELS")&&!ui.includes("STARTER_MODELS"),'compact app must load only the reduced browser model catalog');
 assert.ok(ui.includes('conversationMessages'),'compact app must send explicit visible conversation history');
 assert.ok(ui.includes("requestingModule:'Expression'"),'chat inference must declare its requesting module');
 assert.ok(ui.includes("hiddenContextPolicy:'none'"),'compact app must preserve explicit-context-only inference');
-assert.ok(ui.includes("state.messages.slice(-40)"),'compact app must bound persisted conversation history');
+assert.ok(ui.includes("state.messages.slice(-24)")&&ui.includes('state.messages.length>24'),'compact app must bound persisted and active conversation history');
 assert.ok(!ui.includes('createDeterministicMockModel'),'primary compact UI must not expose the old deterministic-control surface');
 assert.ok(!ui.includes('notebook-engine'),'primary compact UI must not load the old notebook engine');
 assert.ok(!html.includes('workbench.mjs'),'compact HTML must not load the legacy Workbench controller');
