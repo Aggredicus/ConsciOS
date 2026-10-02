@@ -69,6 +69,14 @@ Browser-local inference runs in a dedicated ES-module Web Worker. Model download
 
 These limits reduce prefill cost as the visible chat grows without deleting the user's recent conversation from the interface.
 
+### Adaptive output budget
+
+Compact chat no longer uses the old 192-token response ceiling. Each request receives a soft lease chosen from the task shape (512, 1,024, or 2,048 estimated tokens) inside a much larger provider hard envelope (4,096 for SmolLM2 and 8,192 for Qwen3/exo). As visible output approaches 80% of the current lease, the worker records a small (+512) or large (+1,536) lease grant; only the hard safety envelope is a denial. Natural EOS always ends generation immediately, so unused capacity costs no generation time.
+
+The browser host records output token count and whether the underlying stop was natural or caused by the hard length ceiling. exo preserves its OpenAI-compatible `finish_reason` for the same diagnostic purpose. These decisions are provenance, not hidden model authority.
+
+Qwen3 compact chat uses Qwen's documented `/no_think` switch and removes any residual `<think>...</think>` block from the visible stream. Qwen documents non-thinking mode as the efficient choice when reasoning traces are unnecessary; the compact product surface therefore spends its output budget on the answer rather than a visible reasoning trace. Scientific experiments can still use the lower-level host independently.
+
 ## State/storage rules
 
 The browser app persists only a bounded recent conversation and runtime preferences. It does not persist notebook graphs, hidden prompts, execution-cell state, or duplicate model metadata. Conversation persistence is capped by message count and should remain small enough that localStorage is not used as a general-purpose database.
