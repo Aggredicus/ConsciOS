@@ -28,3 +28,12 @@ export async function runHybridPoolTest({exoProvider,swarmProvider}={}){
   if(swarm.status!=='ok')throw new Error(swarm.failure||'browser swarm task failed');
   return {status:'pooled-task-parallel',elapsedMs,exoModel:exoProvider.modelId,browserModel:swarmProvider.capability.modelId,exo,swarm,nonce,semantics:'independent inference tasks executed concurrently; not native exo tensor/pipeline sharding'};
 }
+
+function tone(el,text,tone=''){el.textContent=text;el.className=`status ${tone}`.trim()}
+export function mountSwarmControls({provider,capabilities,getExoProvider=()=>null}={}){
+  const metrics=document.getElementById('swarmMetrics'),pool=document.getElementById('hybridPool'),status=document.getElementById('hybridStatus');
+  const p=provider?.provenance?.()??{},cap=capabilities?.capability??provider?.capability??{};
+  metrics.innerHTML=[[capabilities?.peerName??p.peerName??'—','peer'],[cap.label??cap.modelId??'—','model'],[Number.isFinite(capabilities?.rttMs)?`${capabilities.rttMs.toFixed(0)} ms`:'—','RTT']].map(([v,l])=>`<div class="metric"><b>${v}</b><span>${l}</span></div>`).join('');
+  const run=async()=>{pool.disabled=true;tone(status,'Running exo + browser tasks concurrently…','warn');try{const result=await runHybridPoolTest({exoProvider:getExoProvider(),swarmProvider:provider}),stats=result.exo?.generation_stats??result.exo?.stats??result.exo??{},tps=Number(stats.generation_tps??stats.generationTps);tone(status,`Task pool passed · exo + ${result.browserModel} · ${(result.elapsedMs/1000).toFixed(1)}s${Number.isFinite(tps)?` · exo ${tps.toFixed(1)} tok/s`:''}`,'ok')}catch(error){tone(status,String(error?.message||error),'bad')}finally{pool.disabled=false}};
+  pool.onclick=run;return {dispose(){if(pool.onclick===run)pool.onclick=null}};
+}
