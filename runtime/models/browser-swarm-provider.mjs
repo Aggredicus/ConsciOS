@@ -7,7 +7,7 @@ export const SWARM_BRIDGE_CHANNEL='conscios-browser-compute-v1';
 export class BrowserSwarmProvider extends EventTarget{
   constructor({channelFactory=name=>new BroadcastChannel(name),windowLike=globalThis.window,label='paired browser worker'}={}){
     super();this.id='browser-swarm';this.label=label;this.window=windowLike;this.channel=channelFactory(SWARM_BRIDGE_CHANNEL);this.bridgeId=null;this.capability=null;this.peerName=null;this.sessionId=null;this.rttMs=null;this.bridgeWindow=null;this.bridgeOrigin=null;this.bridgeToken=null;this.activeId=null;this.pending=new Map();this.waiters=new Map();
-    this._onChannel=event=>this._handle(event.data,{transport:'broadcast'});
+    this._onChannel=event=>{if(!this.bridgeWindow)this._handle(event.data,{transport:'broadcast'})};
     this._onWindow=event=>{if(!this.bridgeWindow||event.source!==this.bridgeWindow||event.origin!==this.bridgeOrigin)return;if(event.data?.bridgeToken!==this.bridgeToken)return;this._handle(event.data,{transport:'window'})};
     this.channel.addEventListener('message',this._onChannel);this.window?.addEventListener?.('message',this._onWindow);assertInferenceProvider(this);
   }
