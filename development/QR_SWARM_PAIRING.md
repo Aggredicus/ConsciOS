@@ -71,9 +71,23 @@ Pairing data is stored in a URL **fragment** (`#offer=` or `#answer=`), which no
 
 TURN providers can observe relay metadata such as source/destination timing and bandwidth. In private mode peers avoid a direct WebRTC path, but the TURN service necessarily becomes a transport intermediary. Application payloads remain encrypted end-to-end by ConsciOS in addition to WebRTC transport encryption.
 
-## Relation to exo
+## Relation to exo and browser compute
 
-Browser swarm pairing does **not** make a phone browser a native exo worker. It establishes consent, authenticated encrypted transport, capability exchange, and shared exo-provider configuration. Native exo continues to provide its own distributed model execution. Later LCS gates may add a separately governed `BrowserSwarmProvider` for actual browser compute contribution.
+Browser swarm pairing still does **not** impersonate a phone as a native exo MLX worker. Native exo owns its topology-aware Pipeline/Tensor placements and model shards.
+
+LCS-2 adds a separately governed `BrowserSwarmProvider` for real heterogeneous compute contribution at the **task level**:
+
+1. a trusted peer explicitly enables **Share browser compute**;
+2. that peer loads a declared Transformers.js model in its existing dedicated inference Web Worker;
+3. the peer advertises a bounded compute capability only after safety verification;
+4. Workbench sends explicit inference tasks over the existing AES-GCM-protected WebRTC DataChannel;
+5. token chunks stream back over the same encrypted channel;
+6. cancellation is forwarded to the remote model worker;
+7. a hybrid pool test executes an exo task and browser task concurrently and records both results.
+
+This is genuine pooled work, but it is **not** native exo tensor/pipeline sharding. ONNX/WebGPU and MLX have different model representations, caches, kernels, and collective-communication assumptions. ConsciOS therefore does not claim that browser RAM/VRAM has joined exo's coherent model-memory pool.
+
+The secure Workbench bridge can use an HTTPS Swarm page opened from a local Workbench. The bridge is tied to the exact opener window, opener origin, and a random token. This lets a phone remain in a secure context for WebGPU while the local Workbench can still talk to a LAN exo endpoint. If Swarm is served over an insecure LAN HTTP origin, the browser may fall back to WASM because WebGPU requires a secure context.
 
 exo upstream: https://github.com/exo-explore/exo
 
