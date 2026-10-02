@@ -36,7 +36,7 @@ The primary source surface has hard source budgets enforced by the Workbench ver
 
 - HTML: < 5,000 bytes
 - CSS: < 5,500 bytes
-- controller: < 16,000 bytes
+- controller: < 15,000 bytes
 
 GitHub Pages uses `scripts/build-pages-site.mjs`, which computes the exact static-import closure starting from `local/workbench/index.html`. It publishes only:
 
@@ -47,7 +47,7 @@ GitHub Pages uses `scripts/build-pages-site.mjs`, which computes the exact stati
 
 The deployed site has a hard **70,000-byte uncompressed source budget**. Model weights and Transformers.js are runtime downloads from their declared external sources and are not bundled into the Pages artifact.
 
-The immediately requested app shell (HTML + CSS + controller, before lazy provider modules) has a separate **27,000-byte uncompressed budget**.
+The immediately requested app shell (HTML + CSS + controller, before lazy provider modules) has a separate **25,000-byte uncompressed budget**.
 
 This budget measures deployable source bytes, not Git history size and not downloaded model-cache size.
 
