@@ -137,9 +137,9 @@ const html=readFileSync('local/workbench/index.html','utf8');
 const css=readFileSync('local/workbench/app.css','utf8');
 const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
 
-assert.ok(ui.includes("createExoInferenceProvider"),'compact app is not wired to exo');
-assert.ok(ui.includes("createBrowserLocalInferenceProvider"),'compact app is not wired to browser-local inference');
-assert.ok(ui.includes("COMPACT_MODELS")&&!ui.includes("STARTER_MODELS"),'compact app must load only the reduced browser model catalog');
+assert.ok(ui.includes("exo-provider.mjs")&&ui.includes("createExoInferenceProvider"),'compact app is not wired to lazy exo loading');
+assert.ok(ui.includes("browser-provider.mjs")&&ui.includes("createBrowserLocalInferenceProvider"),'compact app is not wired to lazy browser-local inference');
+assert.ok(ui.includes("compact-models.mjs")&&!ui.includes("STARTER_MODELS"),'compact app must lazy-load only the reduced browser model catalog');
 assert.ok(ui.includes('conversationMessages'),'compact app must send explicit visible conversation history');
 assert.ok(ui.includes("requestingModule:'Expression'"),'chat inference must declare its requesting module');
 assert.ok(ui.includes("hiddenContextPolicy:'none'"),'compact app must preserve explicit-context-only inference');
