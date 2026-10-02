@@ -7,14 +7,56 @@ function countCollection(value){
   return 0;
 }
 
-function summarizeState(state){
+function byteValue(value){
+  if(typeof value==='number'&&Number.isFinite(value))return value;
+  if(value&&typeof value==='object'){
+    const nested=value.inBytes??value.in_bytes??value.bytes;
+    if(typeof nested==='number'&&Number.isFinite(nested))return nested;
+  }
+  return null;
+}
+
+function runtimeNodes(state){
   const topology=state?.topology;
-  const nodes=topology?.nodes??topology?.nodeIds??topology?.node_ids??null;
+  const topologyIds=Array.isArray(topology?.nodes)?topology.nodes:Array.isArray(topology?.nodeIds)?topology.nodeIds:Array.isArray(topology?.node_ids)?topology.node_ids:[];
+  const identities=state?.nodeIdentities??state?.node_identities??{};
+  const ids=[...new Set([...topologyIds,...Object.keys(identities)])];
+  return ids.map(id=>{
+    const identity=identities?.[id]??{};
+    const memory=(state?.nodeMemory??state?.node_memory??{})?.[id]??{};
+    const system=(state?.nodeSystem??state?.node_system??{})?.[id]??{};
+    const disk=(state?.nodeDisk??state?.node_disk??{})?.[id]??{};
+    return {
+      id:String(id),
+      name:identity.friendlyName??identity.friendly_name??String(id),
+      model:identity.modelId??identity.model_id??null,
+      chip:identity.chipId??identity.chip_id??null,
+      osVersion:identity.osVersion??identity.os_version??null,
+      ramTotalBytes:byteValue(memory.ramTotal??memory.ram_total),
+      ramAvailableBytes:byteValue(memory.ramAvailable??memory.ram_available),
+      swapTotalBytes:byteValue(memory.swapTotal??memory.swap_total),
+      swapAvailableBytes:byteValue(memory.swapAvailable??memory.swap_available),
+      gpuUsage:typeof system.gpuUsage==='number'?system.gpuUsage:typeof system.gpu_usage==='number'?system.gpu_usage:null,
+      cpuUsage:typeof system.pcpuUsage==='number'||typeof system.ecpuUsage==='number'?(Number(system.pcpuUsage??0)+Number(system.ecpuUsage??0)):typeof system.cpuUsage==='number'?system.cpuUsage:null,
+      temperatureC:typeof system.temp==='number'?system.temp:typeof system.temperature==='number'?system.temperature:null,
+      systemPowerW:typeof system.sysPower==='number'?system.sysPower:typeof system.sys_power==='number'?system.sys_power:null,
+      diskTotalBytes:byteValue(disk.total),
+      diskAvailableBytes:byteValue(disk.available)
+    };
+  });
+}
+
+function summarizeState(state){
+  const nodes=runtimeNodes(state);
+  const sum=key=>nodes.reduce((total,node)=>total+(typeof node[key]==='number'?node[key]:0),0);
   return {
-    nodeCount:countCollection(nodes)||countCollection(state?.nodeIdentities)||countCollection(state?.node_identities),
+    nodeCount:nodes.length||countCollection(state?.topology?.nodes)||countCollection(state?.nodeIdentities)||countCollection(state?.node_identities),
     instanceCount:countCollection(state?.instances),
     taskCount:countCollection(state?.tasks),
-    lastEventAppliedIndex:state?.lastEventAppliedIdx??state?.last_event_applied_idx??null
+    lastEventAppliedIndex:state?.lastEventAppliedIdx??state?.last_event_applied_idx??null,
+    memory:{totalBytes:sum('ramTotalBytes'),availableBytes:sum('ramAvailableBytes')},
+    disk:{totalBytes:sum('diskTotalBytes'),availableBytes:sum('diskAvailableBytes')},
+    nodes
   };
 }
 
@@ -54,13 +96,14 @@ async function responseText(response,label){
 export class ExoInferenceProvider{
   constructor({endpoint,modelId=null,fetchImpl=globalThis.fetch,label='exo cluster'}={}){
     if(typeof fetchImpl!=='function')throw new TypeError('fetch implementation is required');
-    this.id='exo';this.label=label;this.endpoint=normalizeHttpEndpoint(endpoint);this.modelId=modelId;this.fetchImpl=fetchImpl;
+    this.id='exo';this.label=label;this.endpoint=normalizeHttpEndpoint(endpoint);this.modelId=modelId;this.fetchImpl=(...args)=>fetchImpl(...args);
     this.capabilities=null;this._abortController=null;this._readyModels=new Set();
     assertInferenceProvider(this);
   }
   record(){return createProviderRecord({id:this.id,label:this.label,kind:'exo-cluster',location:'lan-cluster',remote:true})}
   setModel(modelId){if(typeof modelId!=='string'||modelId.length===0)throw new TypeError('exo modelId must be a non-empty string');this.modelId=modelId;return this.modelId}
-  async connect(){
+  async connect(){return this.refreshRuntime()}
+  async refreshRuntime(){
     const [stateResponse,modelsResponse]=await Promise.all([
       this.fetchImpl(`${this.endpoint}/state`,{headers:{Accept:'application/json'}}),
       this.fetchImpl(`${this.endpoint}/v1/models?status=downloaded`,{headers:{Accept:'application/json'}})
@@ -69,7 +112,7 @@ export class ExoInferenceProvider{
     const models=await responseJson(modelsResponse,'exo downloaded-model request');
     const ids=modelIds(models);
     this._readyModels=instanceModelIds(state);
-    this.capabilities={status:'ready',provider:this.record(),endpoint:this.endpoint,models:ids,downloadedModels:ids,activeModels:[...this._readyModels],cluster:summarizeState(state)};
+    this.capabilities={status:'ready',provider:this.record(),endpoint:this.endpoint,models:ids,downloadedModels:ids,activeModels:[...this._readyModels],cluster:summarizeState(state),observedAt:new Date().toISOString()};
     if(this.modelId===null&&ids.length===1)this.modelId=ids[0];
     return this.capabilities;
   }

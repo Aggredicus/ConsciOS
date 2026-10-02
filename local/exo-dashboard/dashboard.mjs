@@ -1,4 +1,5 @@
 const $=id=>document.getElementById(id);
+const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const ENDPOINT_KEY='conscios-exo-endpoint';
 const TAB_KEY='conscios-exo-active-tab';
 const QUICK_TIMEOUT_MS=8000;
@@ -36,7 +37,7 @@ function setRuntimeBanner(text=''){$('runtimeBanner').textContent=text;$('runtim
 function setExternal(endpoint,route='/'){const href=route==='test'||route==='setup'?`${endpoint}/`:dashboardRouteUrl(endpoint,route);$('openFull').href=href}
 function selectedTab(){return document.querySelector('.appTab[aria-selected="true"]')}
 function selectTab(tab){document.querySelectorAll('.appTab').forEach(item=>item.setAttribute('aria-selected',item===tab?'true':'false'));localStorage.setItem(TAB_KEY,tab.dataset.route||'/')}
-function hideAllPanels(){$('framePanel').classList.add('hidden');$('testPanel').classList.add('hidden');$('setupPanel').classList.add('hidden')}
+function hideAllPanels(){$('framePanel').classList.add('hidden');$('testPanel').classList.add('hidden');$('setupPanel').classList.add('hidden');$('runtimePanel').classList.add('hidden')}
 function showSetup(){hideAllPanels();$('setupPanel').classList.remove('hidden');setStatus('Local runtime instructions are shown below.','info')}
 function showBlocked(endpoint){$('frame').removeAttribute('src');$('blocked').classList.remove('hidden');$('blockedReason').textContent=`This ConsciOS page uses HTTPS while ${endpoint} is an HTTP LAN address. Browsers block that active mixed content. Use the local launcher and open the LAN ConsciOS URL it prints.`;setStatus('The hosted page cannot embed this HTTP LAN runtime.','warn')}
 function showDashboard(endpoint,route='/'){
@@ -45,7 +46,8 @@ function showDashboard(endpoint,route='/'){
   $('blocked').classList.add('hidden');const src=dashboardRouteUrl(endpoint,route);if($('frame').src!==src)$('frame').src=src;setStatus(`Loading native exo ${route==='/'?'home':route}…`,'info')
 }
 function showTest(endpoint){hideAllPanels();$('testPanel').classList.remove('hidden');setExternal(endpoint,'/');if(isBlockedMixed(endpoint))setStatus('Acceptance testing is blocked by HTTPS → HTTP LAN mixed content. Use the local launcher.','warn');else setStatus('Acceptance test ready. A pass requires a real model response.','info')}
-function activate(tab){selectTab(tab);let endpoint;try{endpoint=currentEndpoint();saveEndpoint(endpoint)}catch(error){setStatus(error.message,'bad');showSetup();return}if(tab.dataset.view==='setup')showSetup();else if(tab.dataset.view==='test')showTest(endpoint);else showDashboard(endpoint,tab.dataset.route||'/')}
+function showRuntime(endpoint){hideAllPanels();$('runtimePanel').classList.remove('hidden');setExternal(endpoint,'/');if(isBlockedMixed(endpoint)){setStatus('Runtime inspection is blocked by HTTPS → HTTP LAN mixed content. Use the local launcher.','warn');return}refreshRuntimeCenter(endpoint).catch(error=>setStatus(`Runtime refresh failed: ${error.message}`,'bad'))}
+function activate(tab){selectTab(tab);let endpoint;try{endpoint=currentEndpoint();saveEndpoint(endpoint)}catch(error){setStatus(error.message,'bad');showSetup();return}if(tab.dataset.view==='setup')showSetup();else if(tab.dataset.view==='test')showTest(endpoint);else if(tab.dataset.view==='runtime')showRuntime(endpoint);else showDashboard(endpoint,tab.dataset.route||'/')}
 
 async function request(endpoint,path,options={},timeoutMs=QUICK_TIMEOUT_MS){
   if(isBlockedMixed(endpoint))throw new Error('Browser blocked HTTPS → HTTP LAN mixed content. Open the local ConsciOS URL instead.');
@@ -66,6 +68,28 @@ async function ensureModelInstance(endpoint,modelId){
   const awaited=await request(endpoint,`/instance/await?model_id=${encoded}&timeout_seconds=180`,{},INSTANCE_TIMEOUT_MS);
   if(!instanceReadyText(awaited))throw new Error(`exo did not report a ready instance for ${modelId}`);
   return 'model instance placed and ready';
+}
+
+function byteValue(value){if(typeof value==='number'&&Number.isFinite(value))return value;if(value&&typeof value==='object'){const nested=value.inBytes??value.in_bytes??value.bytes;if(typeof nested==='number'&&Number.isFinite(nested))return nested}return null}
+function formatBytes(value){if(typeof value!=='number'||!Number.isFinite(value)||value<0)return '—';const units=['B','KB','MB','GB','TB'];let scaled=value,index=0;while(scaled>=1024&&index<units.length-1){scaled/=1024;index++}return `${scaled>=100||index===0?scaled.toFixed(0):scaled.toFixed(1)} ${units[index]}`}
+function runtimeNodesFromState(state){
+  const ids=[...new Set([...(Array.isArray(state?.topology?.nodes)?state.topology.nodes:[]),...Object.keys(state?.nodeIdentities??state?.node_identities??{})])];
+  const identities=state?.nodeIdentities??state?.node_identities??{};const memories=state?.nodeMemory??state?.node_memory??{};const systems=state?.nodeSystem??state?.node_system??{};
+  return ids.map(id=>{const identity=identities[id]??{};const memory=memories[id]??{};const system=systems[id]??{};return{id:String(id),name:identity.friendlyName??identity.friendly_name??String(id),model:identity.modelId??identity.model_id??null,chip:identity.chipId??identity.chip_id??null,ramTotal:byteValue(memory.ramTotal??memory.ram_total),ramAvailable:byteValue(memory.ramAvailable??memory.ram_available),gpuUsage:typeof system.gpuUsage==='number'?system.gpuUsage:typeof system.gpu_usage==='number'?system.gpu_usage:null,temp:typeof system.temp==='number'?system.temp:null,power:typeof system.sysPower==='number'?system.sysPower:typeof system.sys_power==='number'?system.sys_power:null}})
+}
+function activeModelIdsFromState(state){const ids=new Set();const visit=value=>{if(!value||typeof value!=='object')return;if(typeof value.modelId==='string')ids.add(value.modelId);if(typeof value.model_id==='string')ids.add(value.model_id);for(const nested of Object.values(value))visit(nested)};visit(state?.instances);return [...ids]}
+function formatUsage(value){if(typeof value!=='number'||!Number.isFinite(value))return null;const pct=value>=0&&value<=1?value*100:value;return `${Math.max(0,pct).toFixed(pct<10?1:0)}%`}
+async function refreshRuntimeCenter(endpoint=currentEndpoint()){
+  setStatus('Refreshing exo runtime resources…','info');
+  const [state,modelsPayload]=await Promise.all([request(endpoint,'/state'),request(endpoint,'/v1/models?status=downloaded')]);
+  const nodes=runtimeNodesFromState(state);const models=modelIds(modelsPayload);const active=activeModelIdsFromState(state);
+  const totalRam=nodes.reduce((sum,node)=>sum+(node.ramTotal??0),0);const availableRam=nodes.reduce((sum,node)=>sum+(node.ramAvailable??0),0);
+  const metrics=[[String(nodes.length),'nodes'],[formatBytes(availableRam),'RAM available'],[String(models.length),'downloaded models'],[String(active.length),'active instances']];
+  $('runtimeGrid').innerHTML=metrics.map(([value,label])=>`<div class="runtimeMetric"><b>${escapeHtml(value)}</b><span>${escapeHtml(label)}</span></div>`).join('');
+  $('runtimeNodes').innerHTML=nodes.length?nodes.map(node=>{const hardware=[node.model,node.chip].filter(Boolean).join(' · ')||'hardware not reported';const ram=node.ramTotal?`${formatBytes(Math.max(0,node.ramTotal-(node.ramAvailable??0)))} used / ${formatBytes(node.ramTotal)}`:'RAM not reported';const gpu=formatUsage(node.gpuUsage);const telemetry=[gpu&&`GPU ${gpu}`,typeof node.temp==='number'&&`${node.temp.toFixed(0)} °C`,typeof node.power==='number'&&`${node.power.toFixed(0)} W`].filter(Boolean).join(' · ');return `<div class="runtimeNode"><div class="runtimeNodeHead"><span class="runtimeNodeName">${escapeHtml(node.name)}</span><span class="tiny muted">connected</span></div><div class="runtimeNodeMeta">${escapeHtml(hardware)}<br>${escapeHtml(ram)}${telemetry?`<br>${escapeHtml(telemetry)}`:''}</div></div>`}).join(''):'<div class="runtimeNode"><div class="runtimeNodeMeta">No cluster nodes were reported.</div></div>';
+  $('runtimeModels').innerHTML=`<b>Models</b><div class="tiny muted">Downloaded: ${escapeHtml(models.length?models.join(' · '):'none')}<br>Active: ${escapeHtml(active.length?active.join(' · '):'none')}<br>Total observed RAM: ${escapeHtml(formatBytes(totalRam))}</div>`;
+  setStatus(`Runtime refreshed · ${nodes.length} node(s) · ${models.length} downloaded model(s) · ${active.length} active`,'ok');
+  return {state,models,active,nodes};
 }
 
 function step(name){return document.querySelector(`[data-step="${name}"]`)}
@@ -89,8 +113,8 @@ async function runAcceptance(){
 }
 
 document.querySelectorAll('.appTab').forEach(tab=>tab.addEventListener('click',()=>activate(tab)));
-$('connect').addEventListener('click',async()=>{try{const endpoint=currentEndpoint();saveEndpoint(endpoint);setRuntimeBanner('');const tab=selectedTab();if(tab?.dataset.view==='test')showTest(endpoint);else if(tab?.dataset.view==='setup')showSetup();else showDashboard(endpoint,tab?.dataset.route||'/');await probe(endpoint)}catch(error){setStatus(error.message,'bad')}});
-$('quickTest').addEventListener('click',runAcceptance);$('runTest').addEventListener('click',runAcceptance);
+$('connect').addEventListener('click',async()=>{try{const endpoint=currentEndpoint();saveEndpoint(endpoint);setRuntimeBanner('');const tab=selectedTab();if(tab?.dataset.view==='test')showTest(endpoint);else if(tab?.dataset.view==='setup')showSetup();else if(tab?.dataset.view==='runtime')showRuntime(endpoint);else showDashboard(endpoint,tab?.dataset.route||'/');await probe(endpoint)}catch(error){setStatus(error.message,'bad')}});
+$('quickTest').addEventListener('click',runAcceptance);$('runTest').addEventListener('click',runAcceptance);$('refreshRuntime').addEventListener('click',()=>{let endpoint;try{endpoint=currentEndpoint();saveEndpoint(endpoint)}catch(error){setStatus(error.message,'bad');return}refreshRuntimeCenter(endpoint).catch(error=>setStatus(`Runtime refresh failed: ${error.message}`,'bad'))});
 $('refreshModels').addEventListener('click',async()=>{try{const endpoint=currentEndpoint();saveEndpoint(endpoint);await loadModels(endpoint)}catch(error){setStatus(`Could not discover models: ${error.message}`,'bad')}});
 $('openDownloads').addEventListener('click',()=>activate(document.querySelector('.appTab[data-route="/downloads"]')));
 $('showSetup').addEventListener('click',()=>activate(document.querySelector('.appTab[data-view="setup"]')));
@@ -99,6 +123,6 @@ $('frame').addEventListener('load',()=>{const tab=selectedTab();if(tab?.dataset.
 
 const endpoint=defaultEndpoint();$('endpoint').value=endpoint;saveEndpoint(endpoint);setExternal(endpoint,'/');
 const hosted=/\.github\.io$/i.test(location.hostname);if(hosted)setRuntimeBanner('Hosted demo: GitHub Pages can show the UI but cannot start exo. Desktop browsers can connect to an already-running localhost exo where browser policy permits; phones should use the LAN URL printed by “node scripts/run-exo-local.mjs --lan”.');
-const requested=new URLSearchParams(location.search).get('tab')||localStorage.getItem(TAB_KEY)||'/';const initial=Array.from(document.querySelectorAll('.appTab')).find(tab=>tab.dataset.route===requested)||document.querySelector('.appTab[data-route="/"]');selectTab(initial);if(initial.dataset.view==='setup')showSetup();else if(initial.dataset.view==='test')showTest(endpoint);else showDashboard(endpoint,initial.dataset.route||'/');probe(endpoint,{quiet:false});
+const requested=new URLSearchParams(location.search).get('tab')||localStorage.getItem(TAB_KEY)||'/';const initial=Array.from(document.querySelectorAll('.appTab')).find(tab=>tab.dataset.route===requested)||document.querySelector('.appTab[data-route="/"]');selectTab(initial);if(initial.dataset.view==='setup')showSetup();else if(initial.dataset.view==='test')showTest(endpoint);else if(initial.dataset.view==='runtime')showRuntime(endpoint);else showDashboard(endpoint,initial.dataset.route||'/');probe(endpoint,{quiet:false});
 
-export {normalizeEndpoint,isBlockedMixed,routeUrl,dashboardRouteUrl,defaultEndpoint,modelIds,ensureModelInstance};
+export {normalizeEndpoint,isBlockedMixed,routeUrl,dashboardRouteUrl,defaultEndpoint,modelIds,ensureModelInstance,runtimeNodesFromState,activeModelIdsFromState};
