@@ -21,9 +21,9 @@ function boundedInput(input){
 function computeMessage(type,fields={}){return {protocol:SWARM_PROTOCOL,computeProtocol:BROWSER_COMPUTE_PROTOCOL,type,...fields}}
 
 export class BrowserSwarmComputeWorker{
-  constructor({peer,onStatus=()=>{}}={}){
+  constructor({peer,onStatus=()=>{},loadProvider=null}={}){
     if(!peer)throw new TypeError('swarm peer is required');
-    this.peer=peer;this.onStatus=onStatus;this.provider=null;this.manifest=null;this.execution=null;this.busyId=null;this.enabled=false;this._send=Promise.resolve();
+    this.peer=peer;this.onStatus=onStatus;this.loadProvider=loadProvider;this.provider=null;this.manifest=null;this.execution=null;this.busyId=null;this.enabled=false;this._send=Promise.resolve();
     this._onMessage=event=>this._handle(event.detail?.message).catch(error=>this.onStatus({state:'error',message:String(error?.message||error)}));
     peer.addEventListener('message',this._onMessage);
     peer.addEventListener('verification',event=>{if(this.enabled&&event.detail?.local&&event.detail?.remote)this.announce().catch(()=>{})});
@@ -38,8 +38,8 @@ export class BrowserSwarmComputeWorker{
   async start(modelId,{onProgress=()=>{}}={}){
     this.onStatus({state:'loading',message:'Loading browser compute model…'});
     this.provider?.dispose?.();this.provider=null;this.manifest=null;this.execution=null;
-    const {loadBrowserProvider}=await import('../workbench/browser-runtime.mjs');
-    const loaded=await loadBrowserProvider({modelId,onProgress});
+    const loader=this.loadProvider??(await import('../workbench/browser-runtime.mjs')).loadBrowserProvider;
+    const loaded=await loader({modelId,onProgress});
     this.provider=loaded.provider;this.manifest=loaded.manifest;this.execution=loaded.execution;this.enabled=true;
     await this.announce();
     const capability=this.capability();this.onStatus({state:'ready',message:`${capability.label} ready on ${capability.device}`,capability});return capability;
