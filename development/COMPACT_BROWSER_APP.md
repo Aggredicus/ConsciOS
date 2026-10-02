@@ -34,9 +34,9 @@ The launcher supplies the correct runtime URL to the app. It now stages the same
 
 The primary source surface has hard source budgets enforced by the Workbench verifier:
 
-- HTML: < 8 KiB
-- CSS: < 8 KiB
-- controller: < 18 KiB
+- HTML: < 5,000 bytes
+- CSS: < 5,500 bytes
+- controller: < 16,000 bytes
 
 GitHub Pages uses `scripts/build-pages-site.mjs`, which computes the exact static-import closure starting from `local/workbench/index.html`. It publishes only:
 
