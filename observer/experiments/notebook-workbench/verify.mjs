@@ -133,16 +133,20 @@ const summary=summarizeConversationRealityResult({provider,challenge,stateful:{s
 assert.match(summary,/HISTORY-DEPENDENCE TEST/);
 assert.match(summary,/not a test of consciousness/i);
 
-for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mjs','local/workbench/browser-inference-worker.mjs','local/workbench/exo-runtime.mjs','local/workbench/exo-ui.mjs'])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
+for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mjs','local/workbench/browser-inference-worker.mjs','local/workbench/exo-runtime.mjs','local/workbench/exo-ui.mjs','local/workbench/swarm-runtime.mjs','runtime/models/browser-swarm-provider.mjs'])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
 const ui=readFileSync('local/workbench/app.mjs','utf8');
 const browserUi=readFileSync('local/workbench/browser-runtime.mjs','utf8');
 const browserWorker=readFileSync('local/workbench/browser-inference-worker.mjs','utf8');
 const exoUi=readFileSync('local/workbench/exo-runtime.mjs','utf8');
 const exoLibraryUi=readFileSync('local/workbench/exo-ui.mjs','utf8');
+const swarmUi=readFileSync('local/workbench/swarm-runtime.mjs','utf8');
+const swarmProvider=readFileSync('runtime/models/browser-swarm-provider.mjs','utf8');
 assert.ok(browserUi.length<3600,`browser worker proxy budget exceeded: ${browserUi.length} bytes`);
 assert.ok(browserWorker.length<6000,`browser inference worker budget exceeded: ${browserWorker.length} bytes`);
 assert.ok(exoUi.length<1600,`exo runtime adapter budget exceeded: ${exoUi.length} bytes`);
 assert.ok(exoLibraryUi.length<6500,`exo model-library UI budget exceeded: ${exoLibraryUi.length} bytes`);
+assert.ok(swarmUi.length<4500,`swarm runtime UI budget exceeded: ${swarmUi.length} bytes`);
+assert.ok(swarmProvider.length<8000,`browser swarm provider budget exceeded: ${swarmProvider.length} bytes`);
 const html=readFileSync('local/workbench/index.html','utf8');
 const css=readFileSync('local/workbench/app.css','utf8');
 const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
@@ -150,7 +154,10 @@ const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
 assert.ok(ui.includes("./exo-runtime.mjs")&&exoUi.includes("exo-provider.mjs")&&exoUi.includes("createExoInferenceProvider"),'compact app is not wired to lazy exo loading');
 assert.ok(exoUi.includes("./exo-ui.mjs")&&exoLibraryUi.includes('Preview fit')&&exoLibraryUi.includes('Pool test'),'lazy exo runtime must expose the model library and pooling controls');
 assert.ok(exoLibraryUi.includes('previewPlacements')&&exoLibraryUi.includes('testPooling'),'exo UI must use live placement APIs rather than static compatibility guesses');
-assert.ok(html.includes('id="exoTools"')&&html.includes('Model library'),'Runtime must expose the lazy exo model-library mount point');
+assert.ok(html.includes('id="exoTools"')&&html.includes('>Models<'),'Runtime must expose the lazy exo model-library mount point');
+assert.ok(ui.includes("./swarm-runtime.mjs")&&html.includes('id="chooseSwarm"')&&html.includes('id="swarmCard"'),'Runtime must expose Browser Swarm as a lazy third provider');
+assert.ok(swarmUi.includes('runHybridPoolTest')&&swarmUi.includes('DEFAULT_SECURE_SWARM_URL'),'swarm runtime must expose secure pairing and explicit task-parallel pool verification');
+assert.ok(swarmProvider.includes("kind:'browser-swarm-peer'")&&swarmProvider.includes("inferenceLocation:'encrypted-webrtc-peer'"),'browser swarm provider must preserve its remote encrypted inference boundary');
 assert.ok(ui.includes("./browser-runtime.mjs")&&browserUi.includes("new Worker")&&browserUi.includes("browser-inference-worker.mjs"),'compact app must proxy browser inference through a dedicated worker');
 assert.ok(browserWorker.includes("browser-transformers-host.mjs")&&browserWorker.includes("host.generate")&&browserWorker.includes("executionThread:'dedicated-worker'"),'dedicated worker must own Transformers.js generation and provenance');
 assert.ok(browserWorker.includes("compact-models.mjs")&&!ui.includes("STARTER_MODELS"),'worker must load only the reduced browser model catalog');
@@ -168,8 +175,8 @@ assert.ok(!ui.includes('notebook-engine'),'primary compact UI must not load the 
 assert.ok(!html.includes('workbench.mjs'),'compact HTML must not load the legacy Workbench controller');
 assert.ok(html.includes('data-tab="chat"')&&html.includes('data-tab="runtime"'),'compact UI must expose only Chat and Runtime primary surfaces');
 assert.ok(html.includes('One conversation. One runtime.'),'compact UI must retain the simplified product intent');
-assert.ok(html.includes('Open native exo'),'compact UI must expose the native exo application');
-assert.ok(html.includes('<details>')&&html.includes('Runtime address'),'manual exo endpoint must remain advanced rather than primary');
+assert.ok(html.includes('Open exo'),'compact UI must expose the native exo application');
+assert.ok(html.includes('<details>')&&html.includes('>Address<'),'manual exo endpoint must remain advanced rather than primary');
 assert.ok(html.includes('viewport-fit=cover'),'compact UI must support device safe areas');
 
 assert.ok(css.includes('overflow-x:hidden'),'compact UI must prevent page-level horizontal overflow');
@@ -188,4 +195,4 @@ assert.ok(exoLauncher.includes("process.platform==='darwin'?'mlx':'mlx-cpu'"),'l
 
 for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden),`compact UI unexpectedly references credential material: ${forbidden}`);
 
-console.log('Compact ConsciOS verification passed: two-surface Chat/Runtime UX, dedicated-worker browser inference, explicit exo inference, bounded local persistence, responsive mobile shell, and strict source-size budgets.');
+console.log('Compact ConsciOS verification passed: tiny Chat/Runtime shell, local/exo/browser-swarm providers, lazy encrypted worker bridge, responsive mobile UX, and strict eager-size budgets.');

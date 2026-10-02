@@ -36,7 +36,7 @@ if(!hasCommand('cargo')||!hasCommand('rustup'))fail('Rust + rustup are required 
 if(!hasRustNightly())fail('exo requires the Rust nightly toolchain. Run: rustup toolchain install nightly');
 if(process.platform==='darwin'&&!hasCommand('xcrun'))fail('macOS exo requires Xcode/Command Line Tools. Install Xcode, then rerun this command.');
 
-const siteReport=await buildPagesSite({output:path.relative(root,siteRoot),maxBytes:120000});
+const siteReport=await buildPagesSite({output:path.relative(root,siteRoot),maxBytes:180000});
 console.log(`Prepared compact ConsciOS site: ${siteReport.totalBytes} bytes across ${siteReport.fileCount} files.`);
 
 if(!fs.existsSync(exoDir)){

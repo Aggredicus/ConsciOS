@@ -6,7 +6,7 @@ const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
   provider:null,providerKind:null,busy:false,lastProvenance:saved.lastProvenance??null,
-  browserProvider:null,exoProvider:null,exoUI:null
+  browserProvider:null,exoProvider:null,exoUI:null,swarmProvider:null
 };
 
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
@@ -54,15 +54,15 @@ function renderMessages(){
 function providerLabel(){
   if(state.providerKind==='browser')return state.browserProvider?.provenance?.().modelId||'browser';
   if(state.providerKind==='exo')return state.exoProvider?.provenance?.().modelId||'exo';
+  if(state.providerKind==='swarm')return state.swarmProvider?.provenance?.().modelId||'swarm';
   return 'off';
 }
 function chooseProvider(kind,provider=null){
   state.providerKind=kind;state.provider=provider;
-  $('chooseBrowser').classList.toggle('active',kind==='browser');
-  $('chooseExo').classList.toggle('active',kind==='exo');
-  $('browserCard').hidden=kind!=='browser';$('exoCard').hidden=kind!=='exo';
+  $('chooseBrowser').classList.toggle('active',kind==='browser');$('chooseExo').classList.toggle('active',kind==='exo');$('chooseSwarm').classList.toggle('active',kind==='swarm');
+  $('browserCard').hidden=kind!=='browser';$('exoCard').hidden=kind!=='exo';$('swarmCard').hidden=kind!=='swarm';
   if(provider)setHeader(providerLabel(),'ok');
-  else setHeader(kind==='browser'?'browser':'exo · connect','warn');
+  else setHeader(kind==='browser'?'browser':kind==='swarm'?'swarm · pair':'exo · connect','warn');
   save();
 }
 function responseBudget(p){
@@ -70,7 +70,7 @@ function responseBudget(p){
   return {initialLease:d?2048:m?1024:512,smallGrant:512,largeGrant:1536,hardLimit:state.providerKind==='exo'||$('browserModel')?.value==='qwen3-0.6b'?8192:4096};
 }
 function conversationInput(){
-  const [maxMessages,maxBytes]=state.providerKind==='browser'?[7,6000]:[11,16000],source=state.messages,last=source.at(-1);
+  const [maxMessages,maxBytes]=['browser','swarm'].includes(state.providerKind)?[7,6000]:[11,16000],source=state.messages,last=source.at(-1);
   let selected=last?.role==='user'?[last]:[],used=selected.length?encoder.encode(last.content).byteLength:0;
   for(let i=source.length-2;i>0&&selected.length+2<=maxMessages;i-=2){
     const user=source[i-1],assistant=source[i];if(user?.role!=='user'||assistant?.role!=='assistant')break;
@@ -125,6 +125,7 @@ async function sendMessage(text){
 
 const browserRuntime=()=>import('./browser-runtime.mjs');
 const exoRuntime=()=>import('./exo-runtime.mjs');
+const swarmRuntime=()=>import('./swarm-runtime.mjs');
 
 function progressValue(e){const n=Number(e?.progress);return Number.isFinite(n)?Math.max(0,Math.min(100,n<=1?n*100:n)):null}
 async function loadBrowser(){
@@ -166,6 +167,14 @@ async function connectExo({quiet=false}={}){
   save();return capabilities;
 }
 
+async function connectSwarm(){
+  tone($('swarmStatus'),'Pair in Swarm, then enable compute sharing…','warn');$('connectSwarm').disabled=true;
+  try{
+    const runtime=await swarmRuntime(),{provider,capabilities}=await runtime.connectBrowserSwarm({openIfMissing:true});
+    state.swarmProvider?.dispose?.();state.swarmProvider=provider;state.provider=provider;state.providerKind='swarm';runtime.mountSwarmControls({provider,capabilities,getExoProvider:()=>state.exoProvider});
+    tone($('swarmStatus'),`${capabilities.peerName??'Peer'} · ${capabilities.capability?.label??'browser worker'} ready.`,'ok');tone($('runtimeStatus'),'Swarm worker ready.','ok');setHeader(providerLabel(),'ok');save();
+  }finally{$('connectSwarm').disabled=false}
+}
 function resizePrompt(){
   const el=$('prompt');el.style.height='auto';el.style.height=`${Math.min(180,Math.max(44,el.scrollHeight))}px`;
 }
@@ -180,6 +189,7 @@ async function init(){
 
   const params=new URLSearchParams(location.search);
   const requested=params.get('provider')||saved.preferredProvider||'auto';
+  if(requested==='swarm'){chooseProvider('swarm');tone($('runtimeStatus'),'Pair / connect a browser worker.','warn');return}
   if(requested==='exo'){
     chooseProvider('exo');
     try{await connectExo({quiet:true})}catch(error){tone($('exoStatus'),String(error?.message||error),'warn');tone($('runtimeStatus'),'exo unavailable · no fallback.','warn')}
@@ -203,8 +213,10 @@ document.querySelectorAll('.tab').forEach(button=>{
 });
 $('chooseBrowser').addEventListener('click',()=>chooseProvider('browser',state.browserProvider));
 $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvider));
+$('chooseSwarm').addEventListener('click',()=>chooseProvider('swarm',state.swarmProvider));
 $('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('error','bad');$('loadBrowser').disabled=false}));
 $('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo offline','bad')}));
+$('connectSwarm').addEventListener('click',()=>connectSwarm().catch(error=>{tone($('swarmStatus'),String(error?.message||error),'bad');setHeader('swarm offline','bad');$('connectSwarm').disabled=false}));
 $('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);

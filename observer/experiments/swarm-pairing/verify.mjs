@@ -4,6 +4,8 @@ import {SWARM_PROTOCOL,decodeEnvelope,displayCode,encodeEnvelope,makeAnswerEnvel
 import {buildRtcConfiguration,DEFAULT_STUN_URL,normalizeCredentialEndpoint,sanitizeDescriptionForMode} from '../../../local/swarm/swarm-network.mjs';
 import {createEphemeralIdentity,decryptApplicationMessage,deriveSessionCrypto,encryptApplicationMessage} from '../../../local/swarm/swarm-crypto.mjs';
 import {mintCoturnCredential} from '../../../infrastructure/turn-credentials/worker.mjs';
+import {BROWSER_COMPUTE_PROTOCOL,createBrowserSwarmComputeWorker} from '../../../local/swarm/swarm-compute.mjs';
+import {SWARM_BRIDGE_PROTOCOL,createBrowserSwarmBridge} from '../../../local/swarm/swarm-bridge.mjs';
 
 const now=Date.now();const hostKey='A'.repeat(87);const guestKey='B'.repeat(87);
 const offer=makeOfferEnvelope({sessionId:'ABCDEFGH1234',nickname:'Host phone',exoEndpoint:'http://192.168.1.10:52415/',cryptoPublicKey:hostKey,connectionMode:'internet-reliable',stunUrls:[DEFAULT_STUN_URL],turnCredentialEndpoint:'https://turn-creds.example.test/',createdAt:now,expiresAt:now+60000,description:{type:'offer',sdp:'v=0\r\na=fake-offer\r\n'}});
@@ -24,7 +26,40 @@ const wire=await encryptApplicationMessage(aliceCrypto.key,{type:'reactive-test'
 
 const credential=await mintCoturnCredential({secret:'test-secret-not-production',userId:'peer-a',ttlSeconds:600,nowSeconds:1000});assert.match(credential.username,/^1600:peer-a-/);assert.equal(credential.expiresAt,1600000);assert.ok(credential.credential.length>20);
 
-const html=readFileSync('local/swarm/index.html','utf8');const ui=readFileSync('local/swarm/swarm-ui.mjs','utf8');const peer=readFileSync('local/swarm/swarm-peer.mjs','utf8');const network=readFileSync('local/swarm/swarm-network.mjs','utf8');const worker=readFileSync('infrastructure/turn-credentials/worker.mjs','utf8');
-assert.ok(html.includes('No signaling server'));assert.ok(html.includes('Internet · private relay'));assert.ok(html.includes('Verify the connection'));assert.ok(ui.includes('BroadcastChannel'));assert.ok(ui.includes('confirmSafetyCode'));assert.ok(peer.includes('encryptApplicationMessage'));assert.ok(peer.includes('sanitizeDescriptionForMode'));assert.ok(network.includes("iceTransportPolicy:'relay'"));assert.ok(worker.includes('TURN_SHARED_SECRET'));assert.ok(!worker.includes('REPLACE_WITH_LONG_RANDOM_SECRET'));
+
+function peerMessage(peer,message){const event=new Event('message');Object.defineProperty(event,'detail',{value:{message}});peer.dispatchEvent(event)}
+class FakePeer extends EventTarget{
+  constructor(){super();this.safetyConfirmed=true;this.remoteVerified=true;this.remoteNickname='Remote browser';this.sessionId='COMPUTESESSION';this.lastRttMs=12;this.sent=[]}
+  async send(message){this.sent.push(message)}
+}
+const computePeer=new FakePeer();
+let cancelled=false,disposed=false;
+const fakeLoaded={manifest:{id:'qwen3-0.6b',label:'Qwen3 test',model:'onnx-community/Qwen3-test'},execution:{device:'webgpu',dtype:'q4f16'},provider:{provenance:()=>({modelId:'onnx-community/Qwen3-test',device:'webgpu',dtype:'q4f16',executionThread:'dedicated-worker'}),cancel:()=>{cancelled=true},dispose:()=>{disposed=true},infer:async(input,{onText}={})=>{assert.ok(input.maxResponseUnits<=4096);assert.equal(input.hiddenContextPolicy,'none');onText?.('REMOTE_');return {status:'ok',content:{text:'REMOTE_OK'},timing:{elapsedMs:20,ttftMs:5,streamed:true,outputTokenCount:2},provider:{kind:'browser-transformers-local'},failure:null}}}};
+const compute=createBrowserSwarmComputeWorker({peer:computePeer,loadProvider:async()=>fakeLoaded});
+const computeCapability=await compute.start('qwen3-0.6b');assert.equal(computeCapability.enabled,true);assert.equal(computeCapability.device,'webgpu');assert.ok(computePeer.sent.some(message=>message.type==='compute-capability'&&message.computeProtocol===BROWSER_COMPUTE_PROTOCOL));
+peerMessage(computePeer,{protocol:SWARM_PROTOCOL,computeProtocol:BROWSER_COMPUTE_PROTOCOL,type:'compute-request',id:'job-1',input:{requestId:'job-1',requestingModule:'Expression',inferenceType:'conversation',contextManifest:[],causalSourceIds:[],conversationMessages:[{role:'user',content:'Reply briefly.'}],maxResponseUnits:8192,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'}});
+for(let i=0;i<50&&!computePeer.sent.some(message=>message.type==='compute-result');i++)await new Promise(resolve=>setTimeout(resolve,2));
+assert.ok(computePeer.sent.some(message=>message.type==='compute-chunk'&&message.chunk==='REMOTE_'),'browser compute must stream encrypted-task chunks');
+assert.equal(computePeer.sent.find(message=>message.type==='compute-result')?.result?.content?.text,'REMOTE_OK');
+await compute.stop();assert.equal(disposed,true);compute.dispose();
+
+class FakeBridgeChannel extends EventTarget{
+  constructor(){super();this.posts=[]}
+  postMessage(message){this.posts.push(message)}
+  emit(data){this.dispatchEvent(new MessageEvent('message',{data}))}
+  close(){}
+}
+const bridgePeer=new FakePeer(),bridgeChannel=new FakeBridgeChannel(),bridge=createBrowserSwarmBridge({peer:bridgePeer,channelFactory:()=>bridgeChannel,windowLike:null});
+peerMessage(bridgePeer,{protocol:SWARM_PROTOCOL,computeProtocol:BROWSER_COMPUTE_PROTOCOL,type:'compute-capability',capability:{enabled:true,modelId:'phone-model',webgpu:true,secureContext:true}});
+assert.equal(bridge.available(),true);
+bridgeChannel.emit({type:'bridge-discover',bridgeProtocol:SWARM_BRIDGE_PROTOCOL,requestId:'discover-1'});
+assert.ok(bridgeChannel.posts.some(message=>message.type==='bridge-status'&&message.requestId==='discover-1'&&message.available===true));
+bridgeChannel.emit({type:'bridge-compute-request',bridgeProtocol:SWARM_BRIDGE_PROTOCOL,bridgeId:bridge.bridgeId,id:'bridge-job',input:{requestId:'bridge-job'}});
+await new Promise(resolve=>setTimeout(resolve,0));
+assert.ok(bridgePeer.sent.some(message=>message.type==='compute-request'&&message.id==='bridge-job'),'bridge must forward only addressed compute requests to the verified peer');
+bridge.dispose();
+
+const html=readFileSync('local/swarm/index.html','utf8');const ui=readFileSync('local/swarm/swarm-ui.mjs','utf8');const peer=readFileSync('local/swarm/swarm-peer.mjs','utf8');const network=readFileSync('local/swarm/swarm-network.mjs','utf8');const computeSource=readFileSync('local/swarm/swarm-compute.mjs','utf8');const bridgeSource=readFileSync('local/swarm/swarm-bridge.mjs','utf8');const worker=readFileSync('infrastructure/turn-credentials/worker.mjs','utf8');
+assert.ok(html.includes('No signaling server'));assert.ok(html.includes('Internet · private relay'));assert.ok(html.includes('Verify the connection'));assert.ok(html.includes('Share browser compute'));assert.ok(ui.includes('BroadcastChannel'));assert.ok(ui.includes('confirmSafetyCode'));assert.ok(computeSource.includes('compute-request')&&computeSource.includes('compute-result'));assert.ok(bridgeSource.includes('bridge-compute-request')&&bridgeSource.includes('openerOrigin'));assert.ok(peer.includes('encryptApplicationMessage'));assert.ok(peer.includes('sanitizeDescriptionForMode'));assert.ok(network.includes("iceTransportPolicy:'relay'"));assert.ok(worker.includes('TURN_SHARED_SECRET'));assert.ok(!worker.includes('REPLACE_WITH_LONG_RANDOM_SECRET'));
 for(const forbidden of ['wss://','ws://','socket.io','firebase','supabase'])assert.ok(!peer.includes(forbidden)&&!ui.includes(forbidden),`unexpected signaling dependency: ${forbidden}`);for(const forbiddenSecret of ['TURN_SHARED_SECRET =','static-auth-secret=actual','Bearer ey'])assert.ok(!peer.includes(forbiddenSecret)&&!ui.includes(forbiddenSecret)&&!html.includes(forbiddenSecret),`browser surface contains suspicious persistent secret material: ${forbiddenSecret}`);
-console.log('Secure swarm verification passed: local/direct/reliable/private ICE policy, relay-only SDP filtering, ECDH/HKDF/AES-GCM cross-peer crypto, tamper rejection, safety code agreement, temporary TURN credential minting, and no signaling dependency.');
+console.log('Secure swarm verification passed: encrypted pairing, explicit browser-compute consent, bounded remote inference, bridge routing, and no signaling dependency.');

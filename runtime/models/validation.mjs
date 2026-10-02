@@ -2,7 +2,7 @@ const MODULES=new Set(['Sensorium','GlobalWorkspace','WorldModel','SelfModel','M
 const OUTPUT_STATUSES=new Set(['ok','timeout','error','cancelled']);
 const EXPECTED_EPISTEMIC=new Set(['inference','prediction','counterfactual','memory']);
 const OUTPUT_EPISTEMIC=new Set([...EXPECTED_EPISTEMIC,'error']);
-const PROVIDER_KINDS=new Set(['deterministic-mock','browser-transformers-local','exo-cluster']);
+const PROVIDER_KINDS=new Set(['deterministic-mock','browser-transformers-local','exo-cluster','browser-swarm-peer']);
 const DEVICES=new Set(['webgpu','wasm']);
 
 function isObject(value){return value!==null&&typeof value==='object'&&!Array.isArray(value)}
@@ -62,6 +62,16 @@ function validateProvider(provider,errors){
     if(provider.inferenceLocation!=='lan-cluster'||provider.remoteInference!==true)errors.push('exo provider must declare LAN-cluster inference');
     if(!(provider.clusterNodeCount===null||(Number.isInteger(provider.clusterNodeCount)&&provider.clusterNodeCount>=0)))errors.push('exo provider clusterNodeCount is invalid');
   }
+  if(provider.kind==='browser-swarm-peer'){
+    if(!nonEmpty(provider.modelId))errors.push('browser swarm provider modelId is required');
+    if(provider.runtime!=='Transformers.js over ConsciOS swarm')errors.push('browser swarm provider runtime is invalid');
+    if(provider.inferenceLocation!=='encrypted-webrtc-peer'||provider.remoteInference!==true)errors.push('browser swarm provider must declare encrypted remote inference');
+    if(!(provider.peerName===null||nonEmpty(provider.peerName)))errors.push('browser swarm peerName is invalid');
+    if(!(provider.sessionId===null||nonEmpty(provider.sessionId)))errors.push('browser swarm sessionId is invalid');
+    if(!(provider.remoteDevice===null||DEVICES.has(provider.remoteDevice)))errors.push('browser swarm remoteDevice is invalid');
+    if(!(provider.remoteWebGPU===null||typeof provider.remoteWebGPU==='boolean'))errors.push('browser swarm remoteWebGPU is invalid');
+    if(!(provider.remoteSecureContext===null||typeof provider.remoteSecureContext==='boolean'))errors.push('browser swarm remoteSecureContext is invalid');
+  }
 }
 
 function validateTiming(output,errors){
@@ -69,7 +79,7 @@ function validateTiming(output,errors){
   if(!isObject(timing)){errors.push('timing is invalid');return}
   if(output.provider?.kind==='deterministic-mock'){
     if(!Number.isInteger(timing.deterministicSteps)||timing.deterministicSteps<0)errors.push('timing.deterministicSteps must be a non-negative integer');
-  }else if(output.provider?.kind==='browser-transformers-local'||output.provider?.kind==='exo-cluster'){
+  }else if(['browser-transformers-local','exo-cluster','browser-swarm-peer'].includes(output.provider?.kind)){
     if(!nonNegativeNumber(timing.elapsedMs))errors.push('timing.elapsedMs must be a non-negative number');
     if(!(timing.ttftMs===null||nonNegativeNumber(timing.ttftMs)))errors.push('timing.ttftMs must be null or a non-negative number');
     if(typeof timing.streamed!=='boolean')errors.push('timing.streamed must be boolean');
