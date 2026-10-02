@@ -18,8 +18,8 @@
     <button class="tab" type="button" role="tab" data-tab="runtime" aria-controls="runtimeView" aria-selected="false">Runtime</button>
   </nav>
 </header>
-
-<main id="chatView" class="view active" role="tabpanel">
+<main class="body">
+<section id="chatView" class="view active" role="tabpanel">
   <section class="chat" aria-label="Conversation">
     <div id="messages" class="messages" role="log" aria-live="polite">
       <div id="emptyState" class="empty">
@@ -35,9 +35,9 @@
       </div>
     </form>
   </section>
-</main>
+</section>
 
-<main id="runtimeView" class="view runtime" role="tabpanel">
+<section id="runtimeView" class="view runtime" role="tabpanel">
   <div class="stack">
     <section class="card">
       <h2>Runtime</h2>
@@ -46,7 +46,7 @@
         <button id="chooseBrowser" class="providerChoice" type="button"><b>Browser</b><br><span class="small muted">Runs on this device</span></button>
         <button id="chooseExo" class="providerChoice" type="button"><b>exo</b><br><span class="small muted">Runs on your computer / cluster</span></button>
       </div>
-      <p id="runtimeStatus" class="status">Checking this browser…</p>
+      <p id="runtimeStatus" class="status" role="status" aria-live="polite">Checking this browser…</p>
     </section>
 
     <section id="browserCard" class="card" hidden>
@@ -56,8 +56,8 @@
         <button id="loadBrowser" class="primary grow" type="button">Load model</button>
         <span id="browserBackend" class="meta">detecting…</span>
       </div>
-      <progress id="browserProgress" class="full" max="100" value="0" hidden></progress>
-      <p id="browserStatus" class="status">Not loaded.</p>
+      <progress id="browserProgress" class="full" max="100" value="0" aria-label="Model loading progress" hidden></progress>
+      <p id="browserStatus" class="status" role="status" aria-live="polite">Not loaded.</p>
     </section>
 
     <section id="exoCard" class="card" hidden>
@@ -68,7 +68,7 @@
         <div class="metric"><b>—</b><span>RAM available</span></div>
         <div class="metric"><b>—</b><span>active models</span></div>
       </div>
-      <p id="exoStatus" class="status">Not connected.</p>
+      <p id="exoStatus" class="status" role="status" aria-live="polite">Not connected.</p>
       <p class="small muted">Local launcher: <code>node scripts/run-exo-local.mjs --lan</code></p>
       <div class="links">
         <a id="openExo" class="link" href="http://localhost:52415" target="_blank" rel="noopener noreferrer">Open native exo ↗</a>
@@ -91,6 +91,7 @@
       </details>
     </section>
   </div>
+</section>
 </main>
 </div>
 <script type="module" src="./app.mjs"></script>
