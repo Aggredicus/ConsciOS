@@ -8,7 +8,7 @@ export class BrowserSwarmBridge{
   constructor({peer,channelFactory=name=>new BroadcastChannel(name),windowLike=globalThis.window}={}){
     if(!peer)throw new TypeError('swarm peer is required');
     this.peer=peer;this.bridgeId=crypto.randomUUID();this.remoteCapability=null;this.channel=channelFactory(SWARM_BRIDGE_CHANNEL);this.window=windowLike;
-    const query=new URLSearchParams(windowLike?.location?.search??'');this.bridgeToken=query.get('bridge')||null;this.openerOrigin=query.get('openerOrigin')||null;
+    const fragment=new URLSearchParams(String(windowLike?.location?.hash??'').replace(/^#/,'')),query=new URLSearchParams(windowLike?.location?.search??'');this.bridgeToken=fragment.get('bridge')||query.get('bridge')||null;this.openerOrigin=fragment.get('openerOrigin')||query.get('openerOrigin')||null;
     this._onLocal=event=>this._handleLocal(event.data).catch(()=>{});
     this._onWindow=event=>{if(!this.bridgeToken||event.source!==this.window?.opener||event.origin!==this.openerOrigin)return;const data=event.data;if(data?.bridgeToken!==this.bridgeToken)return;this._handleLocal(data).catch(()=>{})};
     this._onPeerMessage=event=>this._handlePeer(event.detail?.message);
