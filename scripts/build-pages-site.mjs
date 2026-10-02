@@ -1,0 +1,83 @@
+#!/usr/bin/env node
+import {mkdir,readFile,readdir,rm,stat,writeFile,copyFile} from 'node:fs/promises';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const DEFAULT_OUTPUT='_site';
+const DEFAULT_MAX_BYTES=120000;
+const ENTRY='local/workbench/index.html';
+
+function args(argv){
+  const out={output:DEFAULT_OUTPUT,maxBytes:DEFAULT_MAX_BYTES};
+  for(let i=0;i<argv.length;i++){
+    if(argv[i]==='--output')out.output=argv[++i];
+    else if(argv[i]==='--max-bytes')out.maxBytes=Number(argv[++i]);
+    else if(argv[i]==='--no-limit')out.maxBytes=Infinity;
+    else throw new Error(`Unknown argument: ${argv[i]}`);
+  }
+  if(!out.output)throw new Error('--output requires a path');
+  if(!(out.maxBytes>0))throw new Error('--max-bytes must be positive');
+  return out;
+}
+function localSpec(spec){return spec.startsWith('./')||spec.startsWith('../')}
+function normalized(rel){return path.posix.normalize(rel.replaceAll('\\','/'))}
+async function ensureCopy(rel,outRoot){
+  const src=path.join(root,rel),dst=path.join(outRoot,rel);
+  await mkdir(path.dirname(dst),{recursive:true});await copyFile(src,dst);
+}
+async function visitModule(rel,outRoot,seen){
+  rel=normalized(rel);if(seen.has(rel))return;seen.add(rel);
+  const source=await readFile(path.join(root,rel),'utf8');await ensureCopy(rel,outRoot);
+  const base=path.posix.dirname(rel);
+  const specs=new Set();
+  for(const match of source.matchAll(/(?:import|export)\s+(?:[^'"\n]*?\s+from\s+)?['"]([^'"]+)['"]/g))specs.add(match[1]);
+  for(const match of source.matchAll(/import\(\s*['"]([^'"]+)['"]\s*\)/g))specs.add(match[1]);
+  for(const spec of specs){
+    if(!localSpec(spec))continue;
+    const target=normalized(path.posix.join(base,spec));
+    await visitModule(target,outRoot,seen);
+  }
+}
+async function dirSize(dir){
+  let total=0;
+  for(const entry of await readdir(dir,{withFileTypes:true})){
+    const p=path.join(dir,entry.name);total+=entry.isDirectory()?await dirSize(p):(await stat(p)).size;
+  }
+  return total;
+}
+function redirectHtml(){
+  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="0;url=./local/workbench/"><title>ConsciOS</title></head><body><a href="./local/workbench/">Open ConsciOS</a></body></html>';
+}
+export async function buildPagesSite({output=DEFAULT_OUTPUT,maxBytes=DEFAULT_MAX_BYTES}={}){
+  const outRoot=path.resolve(root,output);
+  if(outRoot===root||!outRoot.startsWith(root+path.sep))throw new Error('output must stay inside repository');
+  await rm(outRoot,{recursive:true,force:true});await mkdir(outRoot,{recursive:true});
+  const html=await readFile(path.join(root,ENTRY),'utf8');
+  await ensureCopy(ENTRY,outRoot);
+  const seen=new Set();
+  for(const match of html.matchAll(/\b(?:src|href)=["']([^"'#?]+)["']/g)){
+    const spec=match[1];if(!localSpec(spec))continue;
+    const rel=normalized(path.posix.join(path.posix.dirname(ENTRY),spec));
+    if(/\.m?js$/.test(rel))await visitModule(rel,outRoot,seen);
+    else await ensureCopy(rel,outRoot);
+  }
+  await writeFile(path.join(outRoot,'index.html'),redirectHtml(),'utf8');
+  await writeFile(path.join(outRoot,'.nojekyll'),'','utf8');
+  const totalBytes=await dirSize(outRoot);
+  const files=[];
+  async function walk(dir){
+    for(const entry of await readdir(dir,{withFileTypes:true})){
+      const p=path.join(dir,entry.name);
+      if(entry.isDirectory())await walk(p);
+      else files.push({path:path.relative(outRoot,p).replaceAll('\\','/'),bytes:(await stat(p)).size});
+    }
+  }
+  await walk(outRoot);files.sort((a,b)=>b.bytes-a.bytes);
+  const report={format:'conscios-pages-footprint/v1',totalBytes,maxBytes:Number.isFinite(maxBytes)?maxBytes:null,fileCount:files.length,files};
+  if(totalBytes>maxBytes)throw new Error(`Pages footprint ${totalBytes} bytes exceeds budget ${maxBytes}`);
+  return report;
+}
+if(path.resolve(process.argv[1]||'')===fileURLToPath(import.meta.url)){
+  console.log(JSON.stringify(await buildPagesSite(args(process.argv.slice(2))),null,2));
+}
