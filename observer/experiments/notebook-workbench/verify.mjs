@@ -132,58 +132,33 @@ const summary=summarizeConversationRealityResult({provider,challenge,stateful:{s
 assert.match(summary,/HISTORY-DEPENDENCE TEST/);
 assert.match(summary,/not a test of consciousness/i);
 
-const ui=readFileSync('local/workbench/workbench.mjs','utf8');
+const ui=readFileSync('local/workbench/app.mjs','utf8');
 const html=readFileSync('local/workbench/index.html','utf8');
-const dashboardHtml=readFileSync('local/exo-dashboard/index.html','utf8');
-const dashboardUi=readFileSync('local/exo-dashboard/dashboard.mjs','utf8');
-const visualSystem=readFileSync('local/conscios-ui.css','utf8');
+const css=readFileSync('local/workbench/app.css','utf8');
 const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
-const localLabHtml=readFileSync('local/index.html','utf8');
-const swarmHtml=readFileSync('local/swarm/index.html','utf8');
-const encounterHtml=readFileSync('local/encounter/index.html','utf8');
-const liveHtml=readFileSync('live/index.html','utf8');
-assert.ok(ui.includes("createExoInferenceProvider"),'workbench is not wired to exo provider');
-assert.ok(ui.includes("createBrowserLocalInferenceProvider"),'workbench is not wired to browser-local provider');
-assert.ok(ui.includes("createDeterministicMockModel"),'deterministic control is missing');
-assert.ok(ui.includes('createDefaultWorkbenchExecutionRouter'),'workbench must use the conscios-execution provider boundary');
-assert.ok(ui.includes('executionRouter.execute'),'workbench executable cells must route through the execution provider contract');
-assert.ok(ui.includes('selectPreviousResults')&&ui.includes(':context-selection'),'AI cells must expose deterministic previous-context selection provenance');
-assert.ok(ui.includes('contextStrategy')&&ui.includes('maxContextBytes')&&ui.includes('maxContextItems'),'AI cell UI must expose context strategy and hard budgets');
-assert.ok(ui.includes('Semantic-lite · experimental')&&ui.includes('expandedQueryTerms'),'Workbench must label semantic-lite experimental and expose term-expansion provenance');
-assert.ok(!ui.includes('executeJavaScript(cell.source')&&!ui.includes('executeToolRequest(cell,context)'),'workbench UI must not directly dispatch browser/tool execution transports');
-assert.ok(ui.includes('conversationMessages'),'workbench does not send explicit conversation history');
-assert.ok(ui.includes('runConversationRealityTest'),'paired conversation test is missing');
-assert.ok(ui.includes('No fallback'),'provider failure must remain explicit in the UI');
-assert.ok(ui.includes("requestingModule:'ObserverScientist'"),'AI notebook output should remain an ObserverScientist inference artifact');
-assert.ok(html.includes('Cognitive Workbench'));
-assert.ok(html.includes('CONTROL — deterministic scripted mock'));
-assert.ok(html.includes('Conversation Reality Test'));
-assert.ok(html.includes('exo cluster'));
-assert.ok(html.includes('Browser local'));
-assert.ok(html.includes('Tool bridge'));
-assert.ok(html.includes('Not a consciousness indicator'));
-assert.ok(html.includes('../exo-dashboard/'),'Workbench must expose the exo application view');
-assert.ok(html.includes('Open full exo app'),'exo provider controls must expose the native exo application');
-assert.ok(html.includes('Runtime Center')&&html.includes('exoRuntimeMetrics'),'Workbench must expose live exo runtime resources');
-assert.ok(ui.includes('refreshExoRuntime')&&ui.includes('renderExoRuntime'),'Workbench must refresh and render exo telemetry without a page reload');
-assert.ok(html.includes('node scripts/run-exo-local.mjs'),'Workbench must expose a concrete local exo launch path');
-assert.ok(html.includes('viewport-fit=cover'),'Workbench must support mobile safe-area viewport layout');
 
-for(const route of ['data-route="/"','data-route="/downloads"','data-route="/integrations"','data-route="/traces"','data-route="/advanced"'])assert.ok(dashboardHtml.includes(route),`exo app shell is missing native route ${route}`);
-assert.ok(dashboardHtml.includes('data-view="runtime"')&&dashboardHtml.includes('id="runtimePanel"'),'exo app shell must expose a ConsciOS runtime center');
-assert.ok(dashboardUi.includes('refreshRuntimeCenter')&&dashboardUi.includes('runtimeNodesFromState'),'exo runtime center must be backed by live state parsing');
-assert.ok(dashboardHtml.includes('Acceptance Test'),'exo app shell must expose the runtime acceptance gate');
-assert.ok(dashboardHtml.includes('Run exo'),'exo app shell must expose runtime setup');
-assert.ok(dashboardHtml.includes('title="Native exo software"'),'dashboard shell must identify the embedded native exo view');
-assert.ok(dashboardHtml.includes('sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups'),'embedded dashboard must remain sandbox-bounded');
-assert.ok(!dashboardHtml.includes('allow-top-navigation'),'embedded dashboard must not gain parent-navigation authority');
-assert.ok(dashboardHtml.includes('referrerpolicy="no-referrer"'),'dashboard iframe must not send ConsciOS referrer context');
-assert.ok(dashboardUi.includes("ENDPOINT_KEY='conscios-exo-endpoint'"),'dashboard should reuse the shared exo runtime key');
-assert.ok(dashboardUi.includes("location.protocol==='https:'")&&dashboardUi.includes("url.protocol==='http:'"),'dashboard must detect HTTPS-to-HTTP mixed content');
-assert.ok(dashboardUi.includes('isLoopback'),'dashboard must distinguish loopback from LAN mixed-content endpoints');
-assert.ok(dashboardUi.includes("['http:','https:'].includes(url.protocol)"),'dashboard must restrict runtime URL schemes');
-assert.ok(dashboardUi.includes('url.username||url.password'),'dashboard must reject credentials embedded in URLs');
-assert.ok(dashboardUi.includes("'/node_id'")&&dashboardUi.includes("'/state'")&&dashboardUi.includes("'/v1/feature-flags'")&&dashboardUi.includes("'/v1/models?status=downloaded'")&&dashboardUi.includes("'/v1/chat/completions'"),'acceptance gate must validate node, state, models, and real inference');
+assert.ok(ui.includes("createExoInferenceProvider"),'compact app is not wired to exo');
+assert.ok(ui.includes("createBrowserLocalInferenceProvider"),'compact app is not wired to browser-local inference');
+assert.ok(ui.includes('conversationMessages'),'compact app must send explicit visible conversation history');
+assert.ok(ui.includes("requestingModule:'Expression'"),'chat inference must declare its requesting module');
+assert.ok(ui.includes("hiddenContextPolicy:'none'"),'compact app must preserve explicit-context-only inference');
+assert.ok(ui.includes("state.messages.slice(-40)"),'compact app must bound persisted conversation history');
+assert.ok(!ui.includes('createDeterministicMockModel'),'primary compact UI must not expose the old deterministic-control surface');
+assert.ok(!ui.includes('notebook-engine'),'primary compact UI must not load the old notebook engine');
+assert.ok(!html.includes('workbench.mjs'),'compact HTML must not load the legacy Workbench controller');
+assert.ok(html.includes('data-tab="chat"')&&html.includes('data-tab="runtime"'),'compact UI must expose only Chat and Runtime primary surfaces');
+assert.ok(html.includes('One conversation. One runtime.'),'compact UI must retain the simplified product intent');
+assert.ok(html.includes('Open native exo'),'compact UI must expose the native exo application');
+assert.ok(html.includes('<details>')&&html.includes('Runtime address'),'manual exo endpoint must remain advanced rather than primary');
+assert.ok(html.includes('viewport-fit=cover'),'compact UI must support device safe areas');
+
+assert.ok(css.includes('overflow-x:hidden'),'compact UI must prevent page-level horizontal overflow');
+assert.ok(css.includes('100dvh'),'compact UI must use dynamic viewport height');
+assert.ok(css.includes('env(safe-area-inset-bottom)'),'compact UI must respect mobile safe areas');
+assert.ok(css.includes('@media(max-width:600px)'),'compact UI must provide phone-specific responsive behavior');
+assert.ok(css.length<8000,`compact CSS budget exceeded: ${css.length} bytes`);
+assert.ok(html.length<8000,`compact HTML budget exceeded: ${html.length} bytes`);
+assert.ok(ui.length<18000,`compact controller budget exceeded: ${ui.length} bytes`);
 
 assert.ok(exoLauncher.includes("spawn('uv',['run','exo']"),'local launcher must start the real exo runtime');
 assert.ok(exoLauncher.includes("'--lan'"),'local launcher must support phone/LAN mode');
@@ -191,30 +166,6 @@ assert.ok(exoLauncher.includes("http://${lanIp}:52415"),'LAN launcher must provi
 assert.ok(exoLauncher.includes("Aggredicus/exo.git"),'launcher must use the maintained ConsciOS exo fork');
 assert.ok(exoLauncher.includes("process.platform==='darwin'?'mlx':'mlx-cpu'"),'launcher must select the documented macOS/Linux backend setup');
 
-assert.ok(visualSystem.includes('--cs-accent'),'shared visual system must expose stable design tokens');
-assert.ok(visualSystem.includes('.cs-appbar'),'shared visual system must define product chrome');
-assert.ok(visualSystem.includes('prefers-reduced-motion'),'shared visual system must preserve reduced-motion support');
-assert.ok(visualSystem.includes('overflow-x:hidden'),'shared visual system must prevent page-level horizontal overflow');
-assert.ok(visualSystem.includes('min-width:0'),'shared visual system must allow grid/flex children to shrink within the viewport');
-assert.ok(visualSystem.includes('env(safe-area-inset-left)'),'shared visual system must support device safe areas');
-const surfaces=[
-  ['Local AI Lab',localLabHtml,'./conscios-ui.css'],
-  ['Cognitive Workbench',html,'../conscios-ui.css'],
-  ['Swarm',swarmHtml,'../conscios-ui.css'],
-  ['exo',dashboardHtml,'../conscios-ui.css'],
-  ['First Encounter',encounterHtml,'../conscios-ui.css'],
-  ['Live Cognitive Theater',liveHtml,'../local/conscios-ui.css']
-];
-for(const [name,markup,stylesheet] of surfaces){
-  assert.ok(markup.includes(stylesheet),`${name} must load the shared ConsciOS visual system`);
-  assert.ok(markup.includes('cs-appbar'),`${name} must expose consistent product navigation`);
-  assert.ok(markup.includes('cs-brandmark'),`${name} must expose the shared ConsciOS brand mark`);
-}
-assert.ok(localLabHtml.includes('This is not a consciousness indicator')||localLabHtml.includes('consciousness indicator'),'Local AI Lab must retain consciousness disclosure');
-assert.ok(encounterHtml.includes('not evidence of subjective experience'),'First Encounter must retain interpretation boundary');
-assert.ok(liveHtml.includes('does not establish subjective experience'),'Live Theater must retain interpretation boundary');
-assert.ok(swarmHtml.includes('does not grant photo, file, password, repository, or cognitive-role access'),'Swarm must retain bounded-capability disclosure');
+for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden),`compact UI unexpectedly references credential material: ${forbidden}`);
 
-for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden)&&!dashboardHtml.includes(forbidden)&&!dashboardUi.includes(forbidden)&&!exoLauncher.includes(forbidden),`workbench unexpectedly references credential material: ${forbidden}`);
-
-console.log('Cognitive Workbench verification passed: explicit inference/execution boundaries, deterministic budgeted AI context selection, live multi-turn conversation, native exo app/runtime path, real inference acceptance gate, responsive UI-system coverage, bounded iframe authority, and no consciousness claim.');
+console.log('Compact ConsciOS verification passed: two-surface Chat/Runtime UX, explicit browser/exo inference, bounded local persistence, responsive mobile shell, and strict source-size budgets.');
