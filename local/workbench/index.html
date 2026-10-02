@@ -30,7 +30,7 @@
     <form id="composer" class="composer">
       <div class="composeRow">
         <label class="sr" for="prompt">Message</label>
-        <textarea id="prompt" rows="1" placeholder="Message ConsciOS…" autocomplete="off"></textarea>
+        <textarea id="prompt" rows="1" maxlength="12000" placeholder="Message ConsciOS…" autocomplete="off"></textarea>
         <button id="send" class="primary" type="submit">Send</button>
       </div>
     </form>
@@ -80,6 +80,7 @@
 
     <section class="card">
       <h2>Session</h2>
+      <p class="muted small">Keeps the most recent 12 conversation turns on this device. Model output is not a consciousness indicator.</p>
       <div class="row">
         <button id="clearChat" class="danger" type="button">Clear conversation</button>
         <button id="stop" type="button" disabled>Stop generation</button>
