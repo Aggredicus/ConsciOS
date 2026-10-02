@@ -33,11 +33,14 @@ function staticSpecs(source){
 function dynamicSpecs(source){
   return [...source.matchAll(/import\(\s*['"]([^'"]+)['"]\s*\)/g)].map(match=>match[1]);
 }
+function assetSpecs(source){
+  return [...source.matchAll(/new\s+URL\(\s*['"]([^'"]+)['"]\s*,\s*import\.meta\.url\s*\)/g)].map(match=>match[1]);
+}
 async function visitModule(rel,outRoot,seen){
   rel=normalized(rel);if(seen.has(rel))return;seen.add(rel);
   const source=await readFile(path.join(root,rel),'utf8');await ensureCopy(rel,outRoot);
   const base=path.posix.dirname(rel);
-  for(const spec of new Set([...staticSpecs(source),...dynamicSpecs(source)])){
+  for(const spec of new Set([...staticSpecs(source),...dynamicSpecs(source),...assetSpecs(source)])){
     if(!localSpec(spec))continue;
     await visitModule(normalized(path.posix.join(base,spec)),outRoot,seen);
   }
