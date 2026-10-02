@@ -1,4 +1,4 @@
-import { assertValidModelManifest } from './model-manifest.mjs';
+import {assertValidModelManifest} from './model-manifest-validation.mjs';
 
 export const TRANSFORMERS_JS_VERSION='4.3.0';
 export const TRANSFORMERS_JS_BROWSER_URL=`https://cdn.jsdelivr.net/npm/@huggingface/transformers@${TRANSFORMERS_JS_VERSION}`;
