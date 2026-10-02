@@ -1,4 +1,5 @@
 import {createExoInferenceProvider} from '../../runtime/models/exo-provider.mjs';
+export {mountExoLibrary} from './exo-ui.mjs';
 
 export function normalizeExoEndpoint(value){
   const url=new URL(String(value??'').trim());
