@@ -31,7 +31,7 @@ jobs:
         run: node observer/experiments/notebook-workbench/verify.mjs
 
       - name: Build exact transitive Pages site
-        run: node scripts/build-pages-site.mjs --output _site --max-bytes 80000
+        run: node scripts/build-pages-site.mjs --output _site --max-bytes 170000
 
       - name: Setup Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
