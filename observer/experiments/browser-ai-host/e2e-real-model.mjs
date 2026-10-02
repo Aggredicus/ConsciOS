@@ -35,6 +35,9 @@ try{
     const provenance=await page.evaluate(()=>JSON.parse(localStorage.getItem('conscios-lite-v1')||'{}').lastProvenance||null);
     assert.equal(provenance?.provider?.kind,'browser-transformers-local','compact chat was not produced by the browser-local neural provider');
     assert.match(provenance?.provider?.modelId||'',/SmolLM2-135M-Instruct-ONNX/,'unexpected model provenance');
+    assert.equal(provenance?.timing?.streamed,true,'compact browser chat must surface streamed generation');
+    assert.ok((provenance?.context?.selectedMessages??99)<=9,'compact browser chat exceeded fast-context message budget');
+    assert.ok((provenance?.context?.selectedBytes??999999)<=12000,'compact browser chat exceeded fast-context byte budget');
     return text;
   }
 

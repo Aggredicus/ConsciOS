@@ -56,7 +56,17 @@ function startFakeExo(){
     if(url.pathname==='/v1/models')return json(res,200,{object:'list',data:[{id:modelId,object:'model'}]});
     if(url.pathname==='/place_instance'&&req.method==='POST'){placed=true;return json(res,200,{message:'Command received.',command_id:'browser-sim-command',model_card:{model_id:modelId}})}
     if(url.pathname==='/instance/await'){res.writeHead(200,{'Content-Type':'text/event-stream','Access-Control-Allow-Origin':'*'});res.end(placed?`data: {"type":"ready","instance":{"MlxRingInstance":{"shardAssignments":{"modelId":"${modelId}"}}}}\n\n`:`data: {"type":"timeout","message":"No instance"}\n\n`);return}
-    if(url.pathname==='/v1/chat/completions'&&req.method==='POST'){return json(res,200,{id:'browser-sim-chat',choices:[{index:0,message:{role:'assistant',content:'EXO_OK'},finish_reason:'stop'}]})}
+    if(url.pathname==='/v1/chat/completions'&&req.method==='POST'){
+      let raw='';for await(const chunk of req)raw+=chunk;const body=JSON.parse(raw||'{}');
+      if(body.stream){
+        res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-cache','Access-Control-Allow-Origin':'*'});
+        res.write('data: '+JSON.stringify({id:'browser-sim-chat',choices:[{index:0,delta:{role:'assistant',content:'EXO_'}}]})+'\n\n');
+        await new Promise(resolve=>setTimeout(resolve,120));
+        res.write('data: '+JSON.stringify({id:'browser-sim-chat',choices:[{index:0,delta:{content:'OK'},finish_reason:'stop'}]})+'\n\n');
+        res.end('data: [DONE]\n\n');return;
+      }
+      return json(res,200,{id:'browser-sim-chat',choices:[{index:0,message:{role:'assistant',content:'EXO_OK'},finish_reason:'stop'}]});
+    }
     json(res,404,{detail:'not found'});
   });
   return new Promise(resolve=>server.listen(0,'127.0.0.1',()=>resolve({server,modelId})));
@@ -155,8 +165,12 @@ try{
   await workbench.locator('.tab[data-tab="chat"]').click();
   await workbench.locator('#prompt').fill('Return the compact integration token.');
   await workbench.locator('#composer').evaluate(form=>form.requestSubmit());
+  await workbench.waitForFunction(()=>[...document.querySelectorAll('.msg.assistant .bubble')].some(node=>node.textContent==='EXO_'),null,{timeout:5000});
   await workbench.getByText('EXO_OK',{exact:true}).waitFor({timeout:10000});
-  report.exoSimulation={status:'pass',endpoint:'simulated',acceptanceText:await page.locator('#resultBanner').innerText(),workbenchStatus:await workbench.locator('#exoStatus').innerText(),compactChat:'EXO_OK'};
+  const compactState=await workbench.evaluate(()=>JSON.parse(localStorage.getItem('conscios-lite-v1')||'{}'));
+  assert.equal(compactState.lastProvenance?.timing?.streamed,true);
+  assert.ok(compactState.lastProvenance?.context?.selectedMessages<=15);
+  report.exoSimulation={status:'pass',endpoint:'simulated',acceptanceText:await page.locator('#resultBanner').innerText(),workbenchStatus:await workbench.locator('#exoStatus').innerText(),compactChat:'EXO_OK',streamed:true};
   await context.close();
 
   fs.writeFileSync(path.join(artifactDir,'report.json'),JSON.stringify(report,null,2));

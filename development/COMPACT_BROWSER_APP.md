@@ -36,7 +36,7 @@ The primary source surface has hard source budgets enforced by the Workbench ver
 
 - HTML: < 5,000 bytes
 - CSS: < 5,500 bytes
-- controller: < 15,000 bytes
+- controller: < 16,000 bytes
 
 GitHub Pages uses `scripts/build-pages-site.mjs`, which computes the exact static-import closure starting from `local/workbench/index.html`. It publishes only:
 
@@ -47,9 +47,23 @@ GitHub Pages uses `scripts/build-pages-site.mjs`, which computes the exact stati
 
 The deployed site has a hard **70,000-byte uncompressed source budget**. Model weights and Transformers.js are runtime downloads from their declared external sources and are not bundled into the Pages artifact.
 
-The immediately requested app shell (HTML + CSS + controller, before lazy provider modules) has a separate **25,000-byte uncompressed budget**.
+The immediately requested app shell (HTML + CSS + controller, before lazy provider modules) has a separate **26,000-byte uncompressed budget**.
 
 This budget measures deployable source bytes, not Git history size and not downloaded model-cache size.
+
+## Chat latency rules
+
+The compact chat path optimizes **time to visible response**, not only total completion time.
+
+- Browser-local generation forwards Transformers.js token chunks directly into the visible assistant bubble.
+- exo requests OpenAI-compatible SSE streaming and forwards each `delta.content` chunk immediately.
+- The UI batches token-painting to animation frames so fast token streams do not trigger a DOM layout for every token.
+- The visible/persisted conversation may contain up to 24 messages, but inference context is independently bounded. Browser-local requests use at most 9 messages / 12,000 UTF-8 content bytes; exo uses at most 15 messages / 24,000 bytes.
+- Context selection walks backward in complete user/assistant pairs so the model always receives a valid alternating conversation ending on the current user turn.
+- Selection counts and bytes are written to inference provenance so latency/continuity trade-offs are inspectable.
+- The compact browser path opts out of the host's optional duplicate pre-generation chat-template/token-count telemetry. Scientific/runtime callers keep that telemetry by default.
+
+These limits reduce prefill cost as the visible chat grows without deleting the user's recent conversation from the interface.
 
 ## State/storage rules
 
