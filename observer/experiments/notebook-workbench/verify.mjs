@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {CELL_TYPES,PYODIDE_VERSION,createCell,createNotebook,interpolateText,parseParameters,validateNotebook} from '../../../local/workbench/notebook-engine.mjs';
 import {createConversationChallenge,scoreConversationArm,compareConversationArms,summarizeConversationRealityResult} from '../../../local/workbench/conversation-test.mjs';
-import {EXECUTION_PROTOCOL,EXECUTION_RESULT_FORMAT,createExecutionProvider,createExecutionRouter,createDefaultWorkbenchExecutionRouter} from '../../../local/workbench/execution-providers.mjs';
+import {EXECUTION_PROTOCOL,EXECUTION_RESULT_FORMAT,createExecutionProvider,createExecutionRouter,createDefaultWorkbenchExecutionRouter,createSandboxContainerExecutionProvider} from '../../../local/workbench/execution-providers.mjs';
+import {DEFAULT_SANDBOX_ENDPOINT,SANDBOX_PROTOCOL,SANDBOX_RESULT_FORMAT,createSandboxRequest,normalizeSandboxEndpoint} from '../../../runtime/execution/sandbox-contract.mjs';
+import {DEFAULT_SANDBOX_POLICY,assertSandboxArgsStayBounded,buildContainerRunArgs,normalizeSandboxRequest,sandboxPolicySnapshot} from '../../../runtime/execution/sandbox-protocol.mjs';
+import {createSandboxServer,isAllowedSandboxOrigin} from '../../../scripts/run-sandbox-daemon.mjs';
 import {CONTEXT_SELECTION_FORMAT,expandContextTerms,rankPreviousResults,selectPreviousResults,tokenizeContextText} from '../../../local/workbench/context-selector.mjs';
 import {BENCHMARK_FORMAT,runContextSelectionBenchmark} from './context-selection-benchmark.mjs';
 import {SEMANTIC_LITE_BENCHMARK_FORMAT,runSemanticLiteBenchmark} from './semantic-lite-benchmark.mjs';
@@ -13,7 +16,7 @@ assert.equal(notebook.format,'conscios-notebook/v1');
 assert.ok(notebook.cells.some(cell=>cell.type==='parameters'));
 assert.ok(notebook.cells.some(cell=>cell.type==='ai'));
 
-for(const required of ['markdown','parameters','ai','conversation','conversation-test','javascript','python','procedure','world-inspect','property-inspector','node-graph','spatial-prompt','playtest','macro'])assert.ok(CELL_TYPES[required],`missing workbench cell type ${required}`);
+for(const required of ['markdown','parameters','ai','conversation','conversation-test','javascript','python','container','procedure','world-inspect','property-inspector','node-graph','spatial-prompt','playtest','macro'])assert.ok(CELL_TYPES[required],`missing workbench cell type ${required}`);
 
 assert.deepEqual(parseParameters('{"scale":2,"project":"ConsciOS"}'),{scale:2,project:'ConsciOS'});
 assert.equal(interpolateText('scale={{ scale }} project={{project}}',{scale:2,project:'ConsciOS'}),'scale=2 project=ConsciOS');
@@ -21,6 +24,7 @@ assert.throws(()=>parseParameters('[1,2,3]'),/JSON object/);
 assert.throws(()=>createCell('undeclared-cell'),/unsupported cell type/);
 assert.equal(createCell('conversation').config.maxResponseUnits,512);
 const aiDefaults=createCell('ai').config;assert.equal(aiDefaults.contextStrategy,'relevant');assert.equal(aiDefaults.maxContextBytes,12000);assert.equal(aiDefaults.maxContextItems,8);
+const containerCell=createCell('container');assert.equal(containerCell.config.endpoint,DEFAULT_SANDBOX_ENDPOINT);assert.match(containerCell.source,/ubuntu:24\.04/);
 assert.match(PYODIDE_VERSION,/^\d+\.\d+\.\d+$/);
 
 const executionProvider=createExecutionProvider({
@@ -45,10 +49,96 @@ await assert.rejects(()=>executionRouter.execute({type:'javascript',source:'',co
 assert.throws(()=>executionRouter.register(executionProvider),/already registered/);
 
 const defaultExecutionRouter=createDefaultWorkbenchExecutionRouter();
-assert.deepEqual(defaultExecutionRouter.records().map(item=>item.id).sort(),['browser-javascript','browser-python','http-tool-bridge']);
+assert.deepEqual(defaultExecutionRouter.records().map(item=>item.id).sort(),['browser-javascript','browser-python','http-tool-bridge','sandbox-container']);
 assert.equal(defaultExecutionRouter.providerFor({type:'javascript',config:{}}).id,'browser-javascript');
 assert.equal(defaultExecutionRouter.providerFor({type:'python',config:{}}).id,'browser-python');
 assert.equal(defaultExecutionRouter.providerFor({type:'playtest',config:{}}).id,'http-tool-bridge');
+assert.equal(defaultExecutionRouter.providerFor({type:'container',config:{}}).id,'sandbox-container');
+
+assert.equal(normalizeSandboxEndpoint('http://localhost:43117/v1/run'),'http://localhost:43117/v1/run');
+assert.throws(()=>normalizeSandboxEndpoint('https://example.com/v1/run'),/loopback http/);
+assert.throws(()=>normalizeSandboxEndpoint('http://192.168.1.4:43117/v1/run'),/loopback/);
+assert.equal(isAllowedSandboxOrigin('http://127.0.0.1:8000'),true);
+assert.equal(isAllowedSandboxOrigin('http://localhost:8080'),true);
+assert.equal(isAllowedSandboxOrigin('https://example.com'),false);
+
+const sandboxRequest=normalizeSandboxRequest({
+  protocol:SANDBOX_PROTOCOL,
+  requestId:'sandbox-test-1',
+  image:'ubuntu:24.04',
+  command:['sh','-lc','printf sandbox-ok'],
+  files:[{path:'src/input.txt',content:'hello'}],
+  network:false,pull:false,
+  limits:{timeoutMs:5000,memoryMB:256,cpus:.5,pids:32,outputBytes:4096}
+});
+assert.equal(sandboxRequest.image,'ubuntu:24.04');
+assert.equal(sandboxRequest.network,false);
+assert.equal(sandboxRequest.files[0].path,'src/input.txt');
+assert.throws(()=>normalizeSandboxRequest({...sandboxRequest,network:true}),/network access is disabled/);
+assert.throws(()=>normalizeSandboxRequest({...sandboxRequest,image:'evil/image:latest'}),/not allowed/);
+assert.throws(()=>normalizeSandboxRequest({...sandboxRequest,files:[{path:'../escape',content:'x'}]}),/escape the workspace/);
+assert.throws(()=>normalizeSandboxRequest({...sandboxRequest,limits:{...sandboxRequest.limits,memoryMB:99999}}),/exceeds policy maximum/);
+const builtSandbox=buildContainerRunArgs(sandboxRequest,{workspacePath:'/tmp/conscios-sandbox-verify',containerName:'conscios-sandbox-verify'});
+assert.equal(assertSandboxArgsStayBounded(builtSandbox.args),true);
+assert.ok(builtSandbox.args.includes('none'),'sandbox should disable container networking by default');
+assert.ok(builtSandbox.args.includes('--read-only'),'sandbox should use a read-only root filesystem');
+assert.ok(builtSandbox.args.includes('65534:65534'),'sandbox should use an unprivileged container user');
+assert.ok(!builtSandbox.args.join(' ').includes('--privileged'));
+assert.ok(!builtSandbox.args.join(' ').includes('docker.sock'));
+assert.equal(sandboxPolicySnapshot(DEFAULT_SANDBOX_POLICY).allowNetwork,false);
+assert.equal(sandboxPolicySnapshot(DEFAULT_SANDBOX_POLICY).allowPull,false);
+
+const contractRequest=createSandboxRequest({
+  source:'{"image":"ubuntu:24.04","command":["sh","-lc","printf {{ project }}"],"files":[],"network":false}',
+  parameters:{project:'ConsciOS'},
+  requestId:'contract-1',
+  interpolate:interpolateText
+});
+assert.equal(contractRequest.protocol,SANDBOX_PROTOCOL);
+assert.equal(contractRequest.command[2],'printf ConsciOS');
+
+let sandboxFetch=null;
+const sandboxProvider=createSandboxContainerExecutionProvider({fetchImpl:async(url,options)=>{
+  sandboxFetch={url:String(url),options,body:JSON.parse(options.body)};
+  return new Response(JSON.stringify({
+    format:SANDBOX_RESULT_FORMAT,
+    protocol:SANDBOX_PROTOCOL,
+    requestId:sandboxFetch.body.requestId,
+    status:'ok',exitCode:0,stdout:'sandbox-ok',stderr:'',outputTruncated:false,
+    timing:{elapsedMs:7,timeoutMs:5000},
+    execution:{engine:'docker',image:'ubuntu:24.04',network:false,pull:false,limits:sandboxFetch.body.limits},
+    policy:sandboxPolicySnapshot(DEFAULT_SANDBOX_POLICY)
+  }),{status:200,headers:{'Content-Type':'application/json'}});
+}});
+const sandboxProviderResult=await sandboxProvider.execute({
+  id:'container-cell-1',type:'container',
+  source:'{"image":"ubuntu:24.04","command":["sh","-lc","printf {{ project }}"],"network":false,"limits":{"timeoutMs":5000}}',
+  config:{endpoint:DEFAULT_SANDBOX_ENDPOINT}
+},{parameters:{project:'ConsciOS'}});
+assert.equal(sandboxProviderResult.output.status,'ok');
+assert.equal(sandboxProviderResult.output.stdout,'sandbox-ok');
+assert.equal(sandboxProviderResult.provenance.executionProvider.id,'sandbox-container');
+assert.equal(sandboxFetch.body.command[2],'printf ConsciOS');
+assert.equal(sandboxFetch.options.credentials,'omit');
+assert.equal(sandboxFetch.body.network,false);
+
+let daemonRunRequest=null;
+const sandboxServer=createSandboxServer({runImpl:async({request,policy})=>{
+  daemonRunRequest=request;
+  return {format:SANDBOX_RESULT_FORMAT,protocol:SANDBOX_PROTOCOL,requestId:request.requestId,status:'ok',exitCode:0,stdout:'daemon-ok',stderr:'',outputTruncated:false,timing:{elapsedMs:1,timeoutMs:request.limits.timeoutMs},execution:{engine:'docker',image:request.image,network:request.network,pull:request.pull,limits:request.limits},policy:sandboxPolicySnapshot(policy)};
+}});
+await new Promise(resolve=>sandboxServer.listen(0,'127.0.0.1',resolve));
+try{
+  const address=sandboxServer.address();assert.ok(address&&typeof address==='object');
+  const daemonBase=`http://127.0.0.1:${address.port}`;
+  const health=await fetch(`${daemonBase}/health`,{headers:{Origin:'http://127.0.0.1:8000'}});
+  assert.equal(health.status,200);assert.equal((await health.json()).protocol,SANDBOX_PROTOCOL);
+  const denied=await fetch(`${daemonBase}/health`,{headers:{Origin:'https://example.com'}});
+  assert.equal(denied.status,403);
+  const run=await fetch(`${daemonBase}/v1/run`,{method:'POST',headers:{Origin:'http://localhost:8000','Content-Type':'application/json'},body:JSON.stringify(sandboxRequest)});
+  assert.equal(run.status,200);assert.equal((await run.json()).stdout,'daemon-ok');
+  assert.equal(daemonRunRequest.image,'ubuntu:24.04');
+}finally{await new Promise(resolve=>sandboxServer.close(resolve))}
 
 assert.deepEqual(tokenizeContextText('Soil moisture, soil-water & THE irrigation!'),['soil','moisture','soil-water','irrigation']);
 assert.ok(expandContextTerms(['handset','hot']).includes('mobile'));assert.ok(expandContextTerms(['handset','hot']).includes('temperature'));
@@ -147,6 +237,7 @@ assert.ok(ui.includes("createBrowserLocalInferenceProvider"),'workbench is not w
 assert.ok(ui.includes("createDeterministicMockModel"),'deterministic control is missing');
 assert.ok(ui.includes('createDefaultWorkbenchExecutionRouter'),'workbench must use the conscios-execution provider boundary');
 assert.ok(ui.includes('executionRouter.execute'),'workbench executable cells must route through the execution provider contract');
+assert.ok(ui.includes('governed loopback container daemon')&&ui.includes('run-sandbox-daemon.mjs'),'Workbench must expose the governed local container path');
 assert.ok(ui.includes('selectPreviousResults')&&ui.includes(':context-selection'),'AI cells must expose deterministic previous-context selection provenance');
 assert.ok(ui.includes('contextStrategy')&&ui.includes('maxContextBytes')&&ui.includes('maxContextItems'),'AI cell UI must expose context strategy and hard budgets');
 assert.ok(ui.includes('Semantic-lite · experimental')&&ui.includes('expandedQueryTerms'),'Workbench must label semantic-lite experimental and expose term-expansion provenance');
@@ -161,6 +252,7 @@ assert.ok(html.includes('Conversation Reality Test'));
 assert.ok(html.includes('exo cluster'));
 assert.ok(html.includes('Browser local'));
 assert.ok(html.includes('Tool bridge'));
+assert.ok(html.includes('Linux sandbox')&&html.includes('node scripts/run-sandbox-daemon.mjs'),'Workbench must document how to start the local sandbox daemon');
 assert.ok(html.includes('Not a consciousness indicator'));
 assert.ok(html.includes('../exo-dashboard/'),'Workbench must expose the exo application view');
 assert.ok(html.includes('Open full exo app'),'exo provider controls must expose the native exo application');
