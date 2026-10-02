@@ -68,7 +68,7 @@ function chooseProvider(kind,provider=null){
   $('chooseExo').classList.toggle('active',kind==='exo');
   $('browserCard').hidden=kind!=='browser';$('exoCard').hidden=kind!=='exo';
   if(provider)setHeader(providerLabel(),'ok');
-  else setHeader(kind==='browser'?'browser · load':'exo · connect','warn');
+  else setHeader(kind==='browser'?'browser':'exo · connect','warn');
   save();
 }
 function responseBudget(p){
@@ -190,7 +190,7 @@ async function connectExo({quiet=false}={}){
   }else{
     state.provider=null;
     tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) connected · no downloaded model.`,'warn');
-    tone($('runtimeStatus'),'exo connected · no model.','warn');setHeader('exo · no model','warn');
+    tone($('runtimeStatus'),'exo connected · no model.','warn');setHeader('exo no model','warn');
   }
   save();return capabilities;
 }
