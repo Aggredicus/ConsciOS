@@ -30,6 +30,14 @@ node scripts/run-exo-local.mjs --lan
 
 The launcher supplies the correct runtime URL to the app. It now stages the same compact transitive site used by GitHub Pages under `.runtime/site` and serves only that directory. LAN mode therefore does not expose the repository tree, research files, or unrelated browser surfaces.
 
+### exo model library and pooling
+
+When exo connects, Runtime loads the live `/v1/models` catalog rather than a hard-coded model list. The model picker shows catalog metadata such as storage size, family, quantization, context length, downloaded status, and active status when exo supplies it. Models not yet downloaded can still be selected; exo downloads/places them when launched.
+
+`Preview fit` calls `/instance/previews` and reports exo's actual placement result for the current cluster. This deliberately replaces rough client-side VRAM/RAM guessing. `Pool test` is stricter: it requires at least two exo worker nodes, chooses a valid placement whose `memory_delta_by_node` spans multiple nodes, launches that exact preview through `POST /instance`, waits for readiness, and runs `/bench/chat/completions` to record real throughput.
+
+Opening ConsciOS from an Android phone against a desktop exo endpoint makes the phone an API client, not an exo worker. A real exo pooling test therefore requires a second supported exo worker node. The current exo documentation supports worker deployment on macOS and Linux; it also notes that Linux inference is presently CPU-backed while Linux GPU support is still under development. ConsciOS does not claim the desktop NVIDIA GPU is pooled unless exo itself reports a placement using that accelerator.
+
 ## Footprint rules
 
 The primary source surface has hard source budgets enforced by the Workbench verifier:
