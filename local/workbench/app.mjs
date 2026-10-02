@@ -75,8 +75,8 @@ function responseBudget(prompt){
   const detailed=/\b(comprehensive|detailed|deep|thorough|tutorial|step[- ]by[- ]step|analy[sz]e|design|implement|code|compare|explain why|research)\b/i.test(prompt);
   const medium=detailed||prompt.length>220||/[\n{}\[\]]/.test(prompt);
   const initialLease=detailed?2048:medium?1024:512;
-  const qwen=state.providerKind==='browser'&&$('browserModel')?.value==='qwen3-0.6b';
-  return {initialLease,smallGrant:512,largeGrant:1536,hardLimit:qwen?8192:4096,policy:'adaptive-lease-v1'};
+  const largeEnvelope=state.providerKind==='exo'||$('browserModel')?.value==='qwen3-0.6b';
+  return {initialLease,smallGrant:512,largeGrant:1536,hardLimit:largeEnvelope?8192:4096,policy:'adaptive-lease-v1'};
 }
 function conversationInput(){
   const [maxMessages,maxBytes]=state.providerKind==='browser'?[7,6000]:[11,16000],source=state.messages,last=source.at(-1);
