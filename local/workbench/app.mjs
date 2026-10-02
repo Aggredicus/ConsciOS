@@ -60,7 +60,7 @@ function renderMessages(){
 function providerLabel(){
   if(state.providerKind==='browser')return state.browserProvider?.provenance?.().modelId||'browser';
   if(state.providerKind==='exo')return state.exoProvider?.provenance?.().modelId||'exo';
-  return 'offline';
+  return 'off';
 }
 function chooseProvider(kind,provider=null){
   state.providerKind=kind;state.provider=provider;
