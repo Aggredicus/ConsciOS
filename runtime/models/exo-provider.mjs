@@ -98,14 +98,15 @@ async function streamChatResponse(response,{onText,started}){
     const text=await response.text().catch(()=> '');
     throw new Error(`exo chat completion failed with HTTP ${response.status}${text?`: ${text.slice(0,240)}`:''}`);
   }
-  let text='',firstChunkAt=null,buffer='';
+  let text='',firstChunkAt=null,buffer='',finishReason=null;
   const handle=block=>{
     for(const line of block.split(/\r?\n/)){
       if(!line.startsWith('data:'))continue;
       const data=line.slice(5).trim();if(!data||data==='[DONE]')continue;
       const payload=JSON.parse(data);
       if(payload?.error)throw new Error(payload.error.message||'exo streaming error');
-      const chunk=payload?.choices?.[0]?.delta?.content;
+      const choice=payload?.choices?.[0],chunk=choice?.delta?.content;
+      if(choice?.finish_reason)finishReason=choice.finish_reason;
       if(typeof chunk==='string'&&chunk){
         if(firstChunkAt===null)firstChunkAt=performance.now();
         text+=chunk;onText(chunk);
@@ -129,7 +130,7 @@ async function streamChatResponse(response,{onText,started}){
     }
     buffer+=decoder.decode();drain(true);
   }else{buffer=await response.text();drain(true)}
-  return {text,ttftMs:firstChunkAt===null?null:Math.max(0,firstChunkAt-started),streamed:Boolean(reader)};
+  return {text,ttftMs:firstChunkAt===null?null:Math.max(0,firstChunkAt-started),streamed:Boolean(reader),finishReason};
 }
 
 export class ExoInferenceProvider{
@@ -197,7 +198,8 @@ export class ExoInferenceProvider{
         `Requesting module: ${input.requestingModule}.`,
         'Use only the declared context artifacts and conversation turns supplied in this request.',
         'Respond naturally to the current user turn while preserving relevant conversational continuity.',
-        'Do not claim access to undeclared context, hidden state, repository state, credentials, or cognitive authority.'
+        'Do not claim access to undeclared context, hidden state, repository state, credentials, or cognitive authority.',
+        /Qwen3/i.test(this.modelId)?'/no_think':''
       ].join(' ');
       const messages=[{role:'system',content:taskInstruction}];
       const hasConversation=Array.isArray(input.conversationMessages)&&input.conversationMessages.length>0;
@@ -210,16 +212,16 @@ export class ExoInferenceProvider{
         method:'POST',signal:this._abortController.signal,headers:{'Content-Type':'application/json',Accept:wantsStream?'text/event-stream':'application/json'},
         body:JSON.stringify({model:this.modelId,temperature:0,max_tokens:input.maxResponseUnits,messages,stream:wantsStream})
       });
-      let text,ttftMs=null,streamed=false;
+      let text,ttftMs=null,streamed=false,finishReason=null;
       if(wantsStream){
-        const stream=await streamChatResponse(response,{onText,started});text=stream.text;ttftMs=stream.ttftMs;streamed=stream.streamed;
+        const stream=await streamChatResponse(response,{onText,started});text=stream.text;ttftMs=stream.ttftMs;streamed=stream.streamed;finishReason=stream.finishReason;
       }else{
-        const payload=await responseJson(response,'exo chat completion');text=payload?.choices?.[0]?.message?.content;
+        const payload=await responseJson(response,'exo chat completion');text=payload?.choices?.[0]?.message?.content;finishReason=payload?.choices?.[0]?.finish_reason??null;
       }
       if(typeof text!=='string')throw new Error('exo response did not contain assistant text');
       const elapsedMs=Math.max(0,performance.now()-started);
       const conversationMessageCount=hasConversation?input.conversationMessages.length:0;
-      return assertValidModelOutput({requestId:input.requestId,provider:this.provenance(),status:'ok',content:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds:input.contextManifest.map(item=>item.artifactId),conversationMessageCount,text,confidenceBasis:'uncalibrated-generative-output'},confidence:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs,ttftMs,streamed},failure:null,epistemicStatus:input.expectedEpistemicStatus});
+      return assertValidModelOutput({requestId:input.requestId,provider:this.provenance(),status:'ok',content:{inferenceType:input.inferenceType,requestingModule:input.requestingModule,accessibleArtifactIds:input.contextManifest.map(item=>item.artifactId),conversationMessageCount,text,confidenceBasis:'uncalibrated-generative-output'},confidence:null,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs,ttftMs,streamed,finishReason},failure:null,epistemicStatus:input.expectedEpistemicStatus});
     }catch(error){
       const cancelled=error?.name==='AbortError';
       return assertValidModelOutput({requestId:input.requestId,provider,status:cancelled?'cancelled':'error',content:null,confidence:0,causalSourceIds:[...input.causalSourceIds],timing:{elapsedMs:Math.max(0,performance.now()-started),ttftMs:null,streamed:false},failure:cancelled?'cancelled by caller':String(error?.message||error),epistemicStatus:'error'});

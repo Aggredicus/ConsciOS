@@ -101,12 +101,18 @@ export class BrowserTransformersHost {
       const ended=now();
       const generated=output?.[0]?.generated_text;
       const finalText=streamedText||((Array.isArray(generated)?generated.at(-1)?.content:generated)||'');
+      let outputTokenCount=null;
+      try{
+        const encoded=await this.generator.tokenizer(finalText,{add_special_tokens:false});
+        outputTokenCount=encoded?.input_ids?.size??encoded?.input_ids?.data?.length??encoded?.input_ids?.length??null;
+      }catch{}
+      const finishReason=this.cancelRequested?'cancelled':outputTokenCount!==null&&outputTokenCount>=maxNewTokens-2?'length':'stop';
       const outputHash=measureBoundary?await sha256Text(finalText):null;
       return {
         status:this.cancelRequested?'cancelled':'ok',text:finalText,
         contextArtifactIds:declared.map(x=>x.artifactId),
         provenance:this.provenance(),
-        telemetry:{elapsedMs:Math.round(ended-started),ttftMs:firstChunkAt===null?null:Math.round(firstChunkAt-started),streamed:Boolean(streamer),
+        telemetry:{elapsedMs:Math.round(ended-started),ttftMs:firstChunkAt===null?null:Math.round(firstChunkAt-started),streamed:Boolean(streamer),outputTokenCount,finishReason,
           inferenceBoundary:{messageCount:messages.length,inputHash,renderedPromptHash,inputTokenCount,outputHash}}
       };
     }catch(error){

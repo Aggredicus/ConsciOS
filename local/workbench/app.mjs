@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);
 const STORE='conscios-lite-v1';
-const encoder=new TextEncoder();
-const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · ~117 MB'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · ~570 MB'}];
+const encoder=new TextEncoder;
+const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · 117 MB'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · 570 MB'}];
 const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
@@ -20,7 +20,7 @@ function save(){
     lastProvenance:state.lastProvenance
   }))}catch{}
 }
-function safeId(){return globalThis.crypto?.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`}
+const safeId=()=>crypto.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`;
 function safeHttpOrigin(value){try{const url=new URL(String(value??'').trim());return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?url.origin:null}catch{return null}}
 function pushMessage(message){state.messages.push(message);if(state.messages.length>24)state.messages.splice(0,state.messages.length-24)}
 function formatBytes(value){
@@ -46,7 +46,7 @@ function renderMessages(){
   const root=$('messages');root.innerHTML='';
   if(!state.messages.length){
     const empty=document.createElement('div');empty.className='empty';empty.id='emptyState';
-    empty.innerHTML='<h1>One conversation. One runtime.</h1><p>Run a small model in this browser or connect to exo on your computer. Nothing else is required.</p>';
+    empty.innerHTML='<h1>One conversation. One runtime.</h1><p>Run here or connect exo.</p>';
     root.append(empty);return;
   }
   for(const message of state.messages){
@@ -60,7 +60,7 @@ function renderMessages(){
 function providerLabel(){
   if(state.providerKind==='browser')return state.browserProvider?.provenance?.().modelId||'browser';
   if(state.providerKind==='exo')return state.exoProvider?.provenance?.().modelId||'exo';
-  return 'not connected';
+  return 'off';
 }
 function chooseProvider(kind,provider=null){
   state.providerKind=kind;state.provider=provider;
@@ -68,8 +68,12 @@ function chooseProvider(kind,provider=null){
   $('chooseExo').classList.toggle('active',kind==='exo');
   $('browserCard').hidden=kind!=='browser';$('exoCard').hidden=kind!=='exo';
   if(provider)setHeader(providerLabel(),'ok');
-  else setHeader(kind==='browser'?'browser · load model':'exo · connect','warn');
+  else setHeader(kind==='browser'?'browser':'exo · connect','warn');
   save();
+}
+function responseBudget(p){
+  const d=/\b(comprehensive|detailed|thorough|tutorial|step.?by.?step|analy[sz]e|implement|code|compare|research)\b/i.test(p),m=d||p.length>220||/[\n{}\[\]]/.test(p);
+  return {initialLease:d?2048:m?1024:512,smallGrant:512,largeGrant:1536,hardLimit:state.providerKind==='exo'||$('browserModel')?.value==='qwen3-0.6b'?8192:4096};
 }
 function conversationInput(){
   const [maxMessages,maxBytes]=state.providerKind==='browser'?[7,6000]:[11,16000],source=state.messages,last=source.at(-1);
@@ -79,7 +83,7 @@ function conversationInput(){
     const pairBytes=encoder.encode(user.content).byteLength+encoder.encode(assistant.content).byteLength;
     if(used+pairBytes>maxBytes)break;selected=[user,assistant,...selected];used+=pairBytes;
   }
-  return {input:{requestId:`chat-${safeId()}`,requestingModule:'Expression',inferenceType:'conversation',contextManifest:[],causalSourceIds:[],conversationMessages:selected.map(({role,content})=>({role,content})),maxResponseUnits:192,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'},context:{candidateMessages:source.length,selectedMessages:selected.length,selectedBytes:used,maxMessages,maxBytes}};
+  const budget=responseBudget(last?.content??'');return {input:{requestId:`chat-${safeId()}`,requestingModule:'Expression',inferenceType:'conversation',contextManifest:[],causalSourceIds:[],conversationMessages:selected.map(({role,content})=>({role,content})),maxResponseUnits:budget.hardLimit,outputBudget:budget,expectedEpistemicStatus:'inference',hiddenContextPolicy:'none'},context:{candidateMessages:source.length,selectedMessages:selected.length,selectedBytes:used,maxMessages,maxBytes,budget}};
 }
 function latencyLabel(timing){
   const first=Number(timing?.ttftMs),total=Number(timing?.elapsedMs);
@@ -99,7 +103,7 @@ async function sendMessage(text){
   const prompt=String(text??'').trim();if(!prompt)return;
   if(!state.provider){
     tab('runtime');
-    tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo first.':'Load a browser model first.','warn');
+    tone($('runtimeStatus'),state.providerKind==='exo'?'Connect exo.':'Load a model first.','warn');
     return;
   }
   pushMessage({role:'user',content:prompt});save();renderMessages();$('prompt').value='';resizePrompt();setBusy(true);
@@ -107,13 +111,13 @@ async function sendMessage(text){
   try{
     const result=await state.provider.infer(request.input,{onText:chunk=>live.push(String(chunk??''))});live.remove();
     if(result.status==='cancelled'){
-      pushMessage({role:'assistant',content:'Generation stopped.',provider:'system'});
+      pushMessage({role:'assistant',content:'Stopped.',provider:'system'});
       state.lastProvenance={provider:result.provider,timing:result.timing,requestId:result.requestId,status:'cancelled',context:request.context};
       $('provenance').textContent=JSON.stringify(state.lastProvenance,null,2);save();renderMessages();setHeader(providerLabel(),'ok');return;
     }
     if(result.status!=='ok')throw new Error(result.failure||`Inference ${result.status}`);
     const content=String(result.content?.text??result.content?.result??'').trim();
-    if(!content)throw new Error('Model returned an empty response.');
+    if(!content)throw new Error('Empty response.');
     const p=result.provider??state.provider.provenance?.()??{};
     pushMessage({role:'assistant',content,provider:p.modelId||p.kind||'ConsciOS'});
     state.lastProvenance={provider:p,timing:result.timing,requestId:result.requestId,causalSourceIds:result.causalSourceIds,context:request.context};
@@ -121,20 +125,16 @@ async function sendMessage(text){
     setHeader(`${providerLabel()}${latencyLabel(result.timing)?` · ${latencyLabel(result.timing)}`:''}`,'ok');save();renderMessages();
   }catch(error){
     live.remove();pushMessage({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
-    setHeader('runtime error','bad');renderMessages();
+    setHeader('error','bad');renderMessages();
   }finally{setBusy(false);$('prompt').focus()}
 }
 
 const browserRuntime=()=>import('./browser-runtime.mjs');
 const exoRuntime=()=>import('./exo-runtime.mjs');
 
-function progressValue(event){
-  const raw=Number(event?.progress);
-  if(!Number.isFinite(raw))return null;
-  return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
-}
+function progressValue(e){const n=Number(e?.progress);return Number.isFinite(n)?Math.max(0,Math.min(100,n<=1?n*100:n)):null}
 async function loadBrowser(){
-  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Starting worker…','warn');
+  $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Starting…','warn');
   try{
     state.browserProvider?.dispose?.();if(state.providerKind==='browser')state.provider=null;state.browserProvider=null;
     const runtime=await browserRuntime();
@@ -142,7 +142,7 @@ async function loadBrowser(){
       modelId:$('browserModel').value,
       onProgress:event=>{
         const pct=progressValue(event);if(pct!==null)$('browserProgress').value=pct;
-        const file=event?.file||event?.name||event?.status||'model assets';
+        const file=event?.file||event?.name||event?.status||'model';
         tone($('browserStatus'),`Loading ${file}${pct!==null?` · ${Math.round(pct)}%`:''}`,'warn');
       }
     });
@@ -179,18 +179,18 @@ function renderExo(capabilities){
 }
 async function connectExo({quiet=false}={}){
   const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
-  if(runtime.isMixedExoContent(endpoint))throw new Error('HTTPS cannot call local HTTP exo. Run scripts/run-exo-local.mjs --lan.');
-  if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
+  if(runtime.isMixedExoContent(endpoint))throw new Error('HTTPS cannot call local exo. Use the LAN launcher.');
+  if(!quiet)tone($('exoStatus'),'Connecting…','warn');
   const {provider,capabilities}=await runtime.connectExoProvider({endpoint,modelId:saved.exoModel});
   state.exoProvider=provider;state.providerKind='exo';renderExo(capabilities);
   if(capabilities.models.length){
     state.provider=provider;
     tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded model(s).`,'ok');
-    tone($('runtimeStatus'),'exo inference ready.','ok');setHeader(providerLabel(),'ok');
+    tone($('runtimeStatus'),'exo ready.','ok');setHeader(providerLabel(),'ok');
   }else{
     state.provider=null;
     tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) connected · no downloaded model.`,'warn');
-    tone($('runtimeStatus'),'exo connected · no model.','warn');setHeader('exo · no model','warn');
+    tone($('runtimeStatus'),'exo connected · no model.','warn');setHeader('exo no model','warn');
   }
   save();return capabilities;
 }
@@ -211,7 +211,7 @@ async function init(){
   const requested=params.get('provider')||saved.preferredProvider||'auto';
   if(requested==='exo'){
     chooseProvider('exo');
-    try{await connectExo({quiet:true})}catch(error){tone($('exoStatus'),String(error?.message||error),'warn');tone($('runtimeStatus'),'exo was requested but is not reachable. No fallback is active.','warn')}
+    try{await connectExo({quiet:true})}catch(error){tone($('exoStatus'),String(error?.message||error),'warn');tone($('runtimeStatus'),'exo unavailable · no fallback.','warn')}
     return;
   }
   if(requested==='auto'&&location.protocol==='http:'){
@@ -219,7 +219,7 @@ async function init(){
     try{await connectExo({quiet:true});return}catch(error){tone($('exoStatus'),String(error?.message||error),'warn')}
   }
   chooseProvider('browser');
-  tone($('runtimeStatus'),'Load a browser model.','warn');
+  tone($('runtimeStatus'),'Load a model.','warn');
 }
 
 document.querySelectorAll('.tab').forEach(button=>{
@@ -232,14 +232,14 @@ document.querySelectorAll('.tab').forEach(button=>{
 });
 $('chooseBrowser').addEventListener('click',()=>chooseProvider('browser',state.browserProvider));
 $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvider));
-$('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');$('loadBrowser').disabled=false}));
-$('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
+$('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('error','bad');$('loadBrowser').disabled=false}));
+$('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo offline','bad')}));
 $('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
-$('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
+$('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);
 $('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
-$('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='No inference yet.';save();renderMessages()});
+$('clearChat').addEventListener('click',()=>{state.messages=[];state.lastProvenance=null;$('provenance').textContent='None.';save();renderMessages()});
 window.addEventListener('online',()=>setHeader(providerLabel(),state.provider?'ok':'warn'));
 window.addEventListener('offline',()=>setHeader('offline','warn'));
 
