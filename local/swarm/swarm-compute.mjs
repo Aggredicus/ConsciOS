@@ -31,7 +31,7 @@ export class BrowserSwarmComputeWorker{
   capability(){
     if(!this.enabled||!this.provider)return {enabled:false,protocol:BROWSER_COMPUTE_PROTOCOL};
     const p=this.provider.provenance?.()??{};
-    return {enabled:true,protocol:BROWSER_COMPUTE_PROTOCOL,modelId:p.modelId??this.manifest?.model??this.manifest?.id??'unknown',label:this.manifest?.label??'Browser model',device:p.device??this.execution?.device??'unknown',dtype:p.dtype??this.execution?.dtype??'unknown',executionThread:p.executionThread??'dedicated-worker',webgpu:Boolean(navigator.gpu),secureContext:Boolean(globalThis.isSecureContext),concurrency:1,maxResponseUnits:4096,maxContextMessages:9,maxContextBytes:12000};
+    return {enabled:true,protocol:BROWSER_COMPUTE_PROTOCOL,modelId:p.modelId??this.manifest?.model??this.manifest?.id??'unknown',label:this.manifest?.label??'Browser model',device:p.device??this.execution?.device??'unknown',dtype:p.dtype??this.execution?.dtype??'unknown',executionThread:p.executionThread??'dedicated-worker',webgpu:Boolean(globalThis.navigator?.gpu),secureContext:Boolean(globalThis.isSecureContext),concurrency:1,maxResponseUnits:4096,maxContextMessages:9,maxContextBytes:12000};
   }
   _queue(message){this._send=this._send.catch(()=>{}).then(()=>this.peer.send(message));return this._send}
   async announce(){if(!this.peer.safetyConfirmed)return;await this._queue(computeMessage('compute-capability',{capability:this.capability()}))}
