@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const STORE='conscios-lite-v1';
-const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · fastest'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · stronger'}];
+const models=[{id:'smollm2-135m-instruct',label:'SmolLM2 135M · ~117 MB'},{id:'qwen3-0.6b',label:'Qwen3 0.6B · ~570 MB'}];
 const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
