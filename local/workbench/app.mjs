@@ -11,7 +11,7 @@ const MODEL_IDS=new Set(['smollm2-135m-instruct','qwen3-0.6b','gemma-3-1b-it']);
 const models=STARTER_MODELS.filter(model=>MODEL_IDS.has(model.id));
 const saved=loadSaved();
 const state={
-  messages:Array.isArray(saved.messages)?saved.messages.slice(-40):[],
+  messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
   provider:null,providerKind:null,busy:false,lastProvenance:saved.lastProvenance??null,
   browserHost:null,browserProvider:null,exoProvider:null,
   browserCapabilities:null
@@ -20,7 +20,7 @@ const state={
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
 function save(){
   localStorage.setItem(STORE,JSON.stringify({
-    messages:state.messages.slice(-40),
+    messages:state.messages.slice(-24),
     preferredProvider:state.providerKind??saved.preferredProvider??'auto',
     browserModel:$('browserModel')?.value||saved.browserModel||models[0]?.id,
     exoEndpoint:$('exoEndpoint')?.value||saved.exoEndpoint||null,
@@ -140,10 +140,16 @@ async function loadBrowser(){
   }finally{$('loadBrowser').disabled=false;setBusy(false)}
 }
 
+function normalizeEndpoint(value){
+  const url=new URL(String(value??'').trim());
+  if(!['http:','https:'].includes(url.protocol))throw new Error('exo address must use http:// or https://');
+  if(url.username||url.password)throw new Error('Do not put credentials in the exo address.');
+  return url.origin;
+}
 function defaultExoEndpoint(){
   const params=new URLSearchParams(location.search);const explicit=params.get('endpoint');
-  if(explicit)return explicit.replace(/\/$/,'');
-  if(saved.exoEndpoint)return String(saved.exoEndpoint).replace(/\/$/,'');
+  if(explicit){try{return normalizeEndpoint(explicit)}catch{}}
+  if(saved.exoEndpoint){try{return normalizeEndpoint(saved.exoEndpoint)}catch{}}
   const host=location.hostname||'localhost';
   return `http://${host}:52415`;
 }
@@ -166,8 +172,7 @@ function renderExo(capabilities){
   $('exoMetrics').innerHTML=metrics.map(([value,label])=>`<div class="metric"><b>${value}</b><span>${label}</span></div>`).join('');
 }
 async function connectExo({quiet=false}={}){
-  const endpoint=$('exoEndpoint').value.trim().replace(/\/$/,'');if(!endpoint)throw new Error('exo runtime address is empty.');
-  $('openExo').href=endpoint;
+  const endpoint=normalizeEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
   if(mixedContent(endpoint))throw new Error('This HTTPS demo cannot call a local HTTP exo process. Run ConsciOS locally with scripts/run-exo-local.mjs --lan.');
   if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
   const provider=createExoInferenceProvider({endpoint});
@@ -196,7 +201,12 @@ async function init(){
 
   const params=new URLSearchParams(location.search);
   const requested=params.get('provider')||saved.preferredProvider||'auto';
-  if(requested==='exo'||(requested==='auto'&&location.protocol==='http:')){
+  if(requested==='exo'){
+    chooseProvider('exo');
+    try{await connectExo({quiet:true})}catch(error){tone($('exoStatus'),String(error?.message||error),'warn');tone($('runtimeStatus'),'exo was requested but is not reachable. No fallback is active.','warn')}
+    return;
+  }
+  if(requested==='auto'&&location.protocol==='http:'){
     chooseProvider('exo');
     try{await connectExo({quiet:true});return}catch(error){tone($('exoStatus'),String(error?.message||error),'warn')}
   }
@@ -210,7 +220,7 @@ $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvid
 $('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');setBusy(false);$('loadBrowser').disabled=false}));
 $('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
 $('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
-$('exoEndpoint').addEventListener('change',()=>{$('openExo').href=$('exoEndpoint').value.trim();save()});
+$('exoEndpoint').addEventListener('change',()=>{try{const endpoint=normalizeEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated. Connect to verify.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);
 $('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
