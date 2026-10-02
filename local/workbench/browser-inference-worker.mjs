@@ -26,21 +26,14 @@ function visibleStream(onText,governor){
   };
   return {push(chunk){raw+=String(chunk??'');emit(false)},finish(finalText){if(!raw&&finalText)raw=String(finalText);return emit(true)}};
 }
-function leaseGovernor(policy={}){
-  const hard=Math.max(256,Number(policy.hardLimit)||4096),small=Math.max(64,Number(policy.smallGrant)||512),large=Math.max(small,Number(policy.largeGrant)||1536);
-  let lease=Math.min(hard,Math.max(128,Number(policy.initialLease)||512)),denied=false;const events=[];
-  const unfinished=text=>((text.match(/```/g)||[]).length%2===1)||(/[\{\[\(]/.test(text)&&((text.match(/[\{\[\(]/g)||[]).length>(text.match(/[\}\]\)]/g)||[]).length))||/[,:;\-\(\[\{]\s*$/.test(text);
-  return {
-    observe(text){
-      const used=Math.ceil(text.length/4);
-      while(used>=lease*.8&&lease<hard){
-        const amount=Math.min(hard-lease,(Number(policy.initialLease)||512)>=1024||unfinished(text)?large:small);
-        events.push({atEstimatedTokens:used,decision:amount>=large?'grant-large':'grant-small',amount});lease+=amount;
-      }
-      if(used>=hard&&!denied){events.push({atEstimatedTokens:used,decision:'deny-hard-limit',amount:0});denied=true}
-    },
-    snapshot(){return {policy:policy.policy??'adaptive-lease-v1',initialLease:Number(policy.initialLease)||512,finalLease:lease,hardLimit:hard,events}}
-  };
+function leaseGovernor(p={}){
+  const hard=Math.max(256,+p.hardLimit||4096),initial=Math.max(128,+p.initialLease||512),small=Math.max(64,+p.smallGrant||512),large=Math.max(small,+p.largeGrant||1536);
+  let lease=Math.min(hard,initial),denied=false;const events=[];
+  return {observe(text){
+    const used=Math.ceil(text.length/4),grant=initial>=1024?large:small;
+    while(used>=lease*.8&&lease<hard){const amount=Math.min(hard-lease,grant);events.push({atEstimatedTokens:used,decision:grant===large?'grant-large':'grant-small',amount});lease+=amount}
+    if(used>=hard&&!denied){events.push({atEstimatedTokens:used,decision:'deny-hard-limit',amount:0});denied=true}
+  },snapshot(){return {policy:p.policy??'adaptive-lease-v1',initialLease:initial,finalLease:lease,hardLimit:hard,events}}};
 }
 
 async function load(requestId,modelId){
