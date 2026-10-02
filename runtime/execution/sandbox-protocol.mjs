@@ -1,7 +1,7 @@
 import path from 'node:path';
+import {SANDBOX_PROTOCOL,SANDBOX_RESULT_FORMAT} from './sandbox-contract.mjs';
 
-export const SANDBOX_PROTOCOL='conscios-sandbox/v1';
-export const SANDBOX_RESULT_FORMAT='conscios-sandbox-result/v1';
+export {SANDBOX_PROTOCOL,SANDBOX_RESULT_FORMAT} from './sandbox-contract.mjs';
 
 export const DEFAULT_SANDBOX_POLICY=Object.freeze({
   version:1,
