@@ -15,7 +15,7 @@ This is deliberate product simplification, not a claim that the research compone
 
 ## Runtime behavior
 
-The compact app supports two explicit inference paths:
+The compact app supports three explicit inference paths:
 
 - **Browser** — Transformers.js inference on the current device using WebGPU when available and WASM otherwise.
 - **exo** — the existing OpenAI-compatible exo provider on the user's computer or trusted cluster.
@@ -52,6 +52,7 @@ GitHub Pages uses `scripts/build-pages-site.mjs`, which computes the exact stati
 
 - the compact HTML/CSS/controller;
 - the relative runtime modules those files actually import;
+- the lazy secure Swarm worker page and its WebRTC/crypto modules;
 - a tiny root redirect; and
 - `.nojekyll`.
 
