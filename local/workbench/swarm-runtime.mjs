@@ -4,7 +4,7 @@ export const DEFAULT_SECURE_SWARM_URL='https://aggredicus.github.io/ConsciOS/loc
 
 export function openSwarmBridge(provider,{url=location.protocol==='https:'?new URL('../swarm/',location.href).toString():DEFAULT_SECURE_SWARM_URL}={}){
   const target=new URL(url),token=crypto.randomUUID();
-  target.searchParams.set('bridge',token);target.searchParams.set('openerOrigin',location.origin);
+  target.hash=new URLSearchParams({bridge:token,openerOrigin:location.origin}).toString();
   const bridgeWindow=window.open(target.toString(),'conscios-swarm-worker','popup=yes,width=520,height=820');
   if(!bridgeWindow)throw new Error('Swarm window was blocked. Allow pop-ups for this site and try again.');
   provider.attachWindow(bridgeWindow,{origin:target.origin,token});return {bridgeWindow,url:target.toString(),origin:target.origin,token};
