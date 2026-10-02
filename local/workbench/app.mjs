@@ -1,5 +1,5 @@
 import {detectBrowserAICapabilities,chooseBrowserExecution} from '../../runtime/models/browser-capabilities.mjs';
-import {STARTER_MODELS,getStarterModel} from '../../runtime/models/model-manifest.mjs';
+import {COMPACT_MODELS,getCompactModel} from '../../runtime/models/compact-models.mjs';
 import {createBrowserTransformersHost} from '../../runtime/models/browser-transformers-host.mjs';
 import {createBrowserTransformersCognitiveModel} from '../../runtime/models/browser-cognitive-model.mjs';
 import {createBrowserLocalInferenceProvider} from '../../runtime/models/browser-provider.mjs';
@@ -7,8 +7,7 @@ import {createExoInferenceProvider} from '../../runtime/models/exo-provider.mjs'
 
 const $=id=>document.getElementById(id);
 const STORE='conscios-lite-v1';
-const MODEL_IDS=new Set(['smollm2-135m-instruct','qwen3-0.6b','gemma-3-1b-it']);
-const models=STARTER_MODELS.filter(model=>MODEL_IDS.has(model.id));
+const models=COMPACT_MODELS;
 const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
@@ -116,7 +115,7 @@ function progressValue(event){
   return Math.max(0,Math.min(100,raw<=1?raw*100:raw));
 }
 async function loadBrowser(){
-  const manifest=getStarterModel($('browserModel').value);if(!manifest)throw new Error('Select a browser model.');
+  const manifest=getCompactModel($('browserModel').value);if(!manifest)throw new Error('Select a browser model.');
   setBusy(true);$('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Detecting browser backend…','warn');
   try{
     state.browserCapabilities=state.browserCapabilities??await detectBrowserAICapabilities();
