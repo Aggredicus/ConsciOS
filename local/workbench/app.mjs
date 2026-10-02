@@ -6,7 +6,7 @@ const saved=loadSaved();
 const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
   provider:null,providerKind:null,busy:false,lastProvenance:saved.lastProvenance??null,
-  browserProvider:null,exoProvider:null
+  browserProvider:null,exoProvider:null,exoUI:null
 };
 
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
@@ -23,12 +23,6 @@ function save(){
 const safeId=()=>crypto.randomUUID?.()??`${Date.now()}-${Math.random().toString(16).slice(2)}`;
 function safeHttpOrigin(value){try{const url=new URL(String(value??'').trim());return ['http:','https:'].includes(url.protocol)&&!url.username&&!url.password?url.origin:null}catch{return null}}
 function pushMessage(message){state.messages.push(message);if(state.messages.length>24)state.messages.splice(0,state.messages.length-24)}
-function formatBytes(value){
-  if(typeof value!=='number'||!Number.isFinite(value)||value<0)return '—';
-  const units=['B','KB','MB','GB','TB'];let n=value,i=0;
-  while(n>=1024&&i<units.length-1){n/=1024;i++}
-  return `${n>=100||i===0?n.toFixed(0):n.toFixed(1)} ${units[i]}`;
-}
 function tone(el,text,tone=''){el.textContent=text;el.className=`status ${tone}`.trim()}
 function setHeader(text,tone=''){
   $('runtimeLabel').textContent=text;$('runtimeDot').className=`dot ${tone}`.trim();
@@ -160,38 +154,15 @@ function defaultExoEndpoint(){
   if(location.protocol==='https:')return 'http://localhost:52415';
   return `http://${location.hostname||'localhost'}:52415`;
 }
-function renderExo(capabilities){
-  const models=capabilities?.models??[];const select=$('exoModel');const prior=saved.exoModel;
-  select.innerHTML='';
-  if(!models.length){select.innerHTML='<option value="">No downloaded models</option>';select.disabled=true}
-  else{
-    for(const id of models){const option=document.createElement('option');option.value=id;option.textContent=id;select.append(option)}
-    select.disabled=false;if(prior&&models.includes(prior))select.value=prior;
-    state.exoProvider.setModel(select.value);
-  }
-  const cluster=capabilities?.cluster??{};
-  const metrics=[
-    [cluster.nodeCount??0,'nodes'],
-    [formatBytes(cluster.memory?.availableBytes),'RAM available'],
-    [(capabilities?.activeModels??[]).length,'active models']
-  ];
-  $('exoMetrics').innerHTML=metrics.map(([value,label])=>`<div class="metric"><b>${value}</b><span>${label}</span></div>`).join('');
-}
 async function connectExo({quiet=false}={}){
   const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
   if(runtime.isMixedExoContent(endpoint))throw new Error('HTTPS cannot call local exo. Use the LAN launcher.');
   if(!quiet)tone($('exoStatus'),'Connecting…','warn');
   const {provider,capabilities}=await runtime.connectExoProvider({endpoint,modelId:saved.exoModel});
-  state.exoProvider=provider;state.providerKind='exo';renderExo(capabilities);
-  if(capabilities.models.length){
-    state.provider=provider;
-    tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded model(s).`,'ok');
-    tone($('runtimeStatus'),'exo ready.','ok');setHeader(providerLabel(),'ok');
-  }else{
-    state.provider=null;
-    tone($('exoStatus'),`${capabilities.cluster.nodeCount} node(s) connected · no downloaded model.`,'warn');
-    tone($('runtimeStatus'),'exo connected · no model.','warn');setHeader('exo no model','warn');
-  }
+  state.exoProvider=provider;state.providerKind='exo';
+  state.exoUI=runtime.mountExoLibrary({provider,capabilities,onSelect:()=>{state.provider=provider;setHeader(providerLabel(),'ok');save()}});
+  state.provider=provider.modelId?provider:null;
+  tone($('runtimeStatus'),state.provider?'exo ready.':'exo connected.','ok');setHeader(state.provider?providerLabel():'exo','ok');
   save();return capabilities;
 }
 
@@ -234,7 +205,6 @@ $('chooseBrowser').addEventListener('click',()=>chooseProvider('browser',state.b
 $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvider));
 $('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('error','bad');$('loadBrowser').disabled=false}));
 $('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo offline','bad')}));
-$('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
 $('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);

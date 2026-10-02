@@ -60,10 +60,15 @@ function summarizeState(state){
   };
 }
 
-function modelIds(payload){
-  const rows=Array.isArray(payload?.data)?payload.data:Array.isArray(payload)?payload:[];
-  return rows.map(row=>typeof row==='string'?row:row?.id).filter(value=>typeof value==='string'&&value.length>0);
+function modelRows(payload){return Array.isArray(payload?.data)?payload.data:Array.isArray(payload)?payload:[]}
+function modelIds(payload){return modelRows(payload).map(row=>typeof row==='string'?row:row?.id??row?.model_id).filter(value=>typeof value==='string'&&value.length>0)}
+function modelDescriptor(row,downloaded,active){
+  const source=typeof row==='string'?{id:row}:row??{},id=source.id??source.model_id;
+  if(typeof id!=='string'||!id)return null;
+  const storageSizeBytes=byteValue(source.storage_size??source.storageSize??source.storage);
+  return {id,name:source.name??id,storageSizeBytes,family:source.family??'',quantization:source.quantization??'',contextLength:Number(source.context_length??source.contextLength??0)||0,supportsTensor:Boolean(source.supports_tensor??source.supportsTensor),tasks:Array.isArray(source.tasks)?source.tasks:[],backends:Array.isArray(source.backends)?source.backends:[],isCustom:Boolean(source.is_custom??source.isCustom),downloaded:downloaded.has(id),active:active.has(id)};
 }
+function previewNodeCount(preview){return Object.values(preview?.memory_delta_by_node??{}).filter(value=>Number(value)>0).length}
 
 function instanceModelIds(state){
   const ids=new Set();
@@ -144,20 +149,54 @@ export class ExoInferenceProvider{
   setModel(modelId){if(typeof modelId!=='string'||modelId.length===0)throw new TypeError('exo modelId must be a non-empty string');this.modelId=modelId;return this.modelId}
   async connect(){return this.refreshRuntime()}
   async refreshRuntime(){
-    const [stateResponse,modelsResponse]=await Promise.all([
+    const [stateResponse,catalogResponse,downloadedResponse]=await Promise.all([
       this.fetchImpl(`${this.endpoint}/state`,{headers:{Accept:'application/json'}}),
+      this.fetchImpl(`${this.endpoint}/v1/models`,{headers:{Accept:'application/json'}}),
       this.fetchImpl(`${this.endpoint}/v1/models?status=downloaded`,{headers:{Accept:'application/json'}})
     ]);
-    const state=await responseJson(stateResponse,'exo state request');
-    const models=await responseJson(modelsResponse,'exo downloaded-model request');
-    const ids=modelIds(models);
-    this._readyModels=instanceModelIds(state);
-    this.capabilities={status:'ready',provider:this.record(),endpoint:this.endpoint,models:ids,downloadedModels:ids,activeModels:[...this._readyModels],cluster:summarizeState(state),observedAt:new Date().toISOString()};
-    if(this.modelId===null&&ids.length===1)this.modelId=ids[0];
+    const state=await responseJson(stateResponse,'exo state request'),catalog=await responseJson(catalogResponse,'exo model catalog request'),downloadedPayload=await responseJson(downloadedResponse,'exo downloaded-model request');
+    const downloaded=new Set(modelIds(downloadedPayload));this._readyModels=instanceModelIds(state);
+    const catalogRows=modelRows(catalog),catalogIds=modelIds(catalog),fallbackRows=catalogRows.length?catalogRows:modelRows(downloadedPayload);
+    const modelCatalog=fallbackRows.map(row=>modelDescriptor(row,downloaded,this._readyModels)).filter(Boolean).sort((a,b)=>Number(b.downloaded)-Number(a.downloaded)||a.id.localeCompare(b.id));
+    const availableModels=catalogIds.length?catalogIds:[...downloaded];
+    this.capabilities={status:'ready',provider:this.record(),endpoint:this.endpoint,models:[...downloaded],downloadedModels:[...downloaded],availableModels,modelCatalog,activeModels:[...this._readyModels],cluster:summarizeState(state),observedAt:new Date().toISOString()};
+    if(this.modelId===null&&downloaded.size===1)this.modelId=[...downloaded][0];
     return this.capabilities;
   }
   provenance(){return {kind:'exo-cluster',name:this.label,hiddenState:'none',modelId:this.modelId??'unselected',endpoint:this.endpoint,runtime:'exo-openai-compatible',inferenceLocation:'lan-cluster',remoteInference:true,clusterNodeCount:this.capabilities?.cluster?.nodeCount??null}}
   cancel(){this._abortController?.abort();this._abortController=null}
+  async previewPlacements(modelId=this.modelId){
+    if(!modelId)throw new Error('exo model is not selected');
+    const response=await this.fetchImpl(`${this.endpoint}/instance/previews?model_id=${encodeURIComponent(modelId)}`,{headers:{Accept:'application/json'}});
+    const payload=await responseJson(response,'exo placement preview'),previews=Array.isArray(payload?.previews)?payload.previews:[];
+    return previews.map(preview=>({...preview,nodeCount:previewNodeCount(preview),valid:!preview?.error&&Boolean(preview?.instance)}));
+  }
+  async launchPlacement(preview){
+    if(!preview?.instance||preview?.error)throw new Error(preview?.error||'invalid exo placement preview');
+    const modelId=preview.model_id??this.modelId;if(!modelId)throw new Error('exo placement is missing model id');
+    if(this._readyModels.has(modelId))throw new Error('model already has an active instance; stop it in native exo before forcing a pooled placement');
+    const response=await this.fetchImpl(`${this.endpoint}/instance`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({instance:preview.instance})});
+    await responseJson(response,'exo exact placement');
+    const awaited=await this.fetchImpl(`${this.endpoint}/instance/await?model_id=${encodeURIComponent(modelId)}&timeout_seconds=300`,{headers:{Accept:'text/event-stream'}});
+    const text=await responseText(awaited,'exo instance wait');
+    if(!/"type"\s*:\s*"ready"/.test(text))throw new Error(/"type"\s*:\s*"timeout"/.test(text)?`exo timed out while launching ${modelId}`:`exo did not report a ready instance for ${modelId}`);
+    this.modelId=modelId;this._readyModels.add(modelId);if(this.capabilities)this.capabilities={...this.capabilities,activeModels:[...this._readyModels],modelCatalog:(this.capabilities.modelCatalog??[]).map(model=>model.id===modelId?{...model,active:true}:model)};return {status:'ready',modelId,nodeCount:previewNodeCount(preview),sharding:preview.sharding??null,runtime:preview.instance_meta??null};
+  }
+  async benchmark({modelId=this.modelId,prompt='Reply with the single word READY.',maxTokens=32}={}){
+    if(!modelId)throw new Error('exo model is not selected');
+    const response=await this.fetchImpl(`${this.endpoint}/bench/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({model:modelId,messages:[{role:'user',content:prompt}],max_tokens:maxTokens,stream:false,temperature:0,enable_thinking:false})});
+    return responseJson(response,'exo benchmark');
+  }
+  async testPooling(modelId=this.modelId){
+    if(!modelId)throw new Error('exo model is not selected');
+    const capabilities=await this.refreshRuntime();
+    if(capabilities.cluster.nodeCount<2)return {status:'needs-second-worker',nodeCount:capabilities.cluster.nodeCount,modelId};
+    if(this._readyModels.has(modelId))return {status:'active-instance-exists',nodeCount:capabilities.cluster.nodeCount,modelId};
+    const previews=await this.previewPlacements(modelId),valid=previews.filter(preview=>preview.valid),multi=valid.filter(preview=>preview.nodeCount>1).sort((a,b)=>b.nodeCount-a.nodeCount);
+    if(!multi.length)return {status:'no-multi-node-placement',nodeCount:capabilities.cluster.nodeCount,modelId,previews:valid};
+    const selected=multi[0],placement=await this.launchPlacement(selected),bench=await this.benchmark({modelId,maxTokens:32});
+    return {status:'pooled',modelId,placement,benchmark:bench,preview:selected};
+  }
   async ensureModelInstance(modelId=this.modelId){
     if(!modelId)throw new Error('exo model is not selected');
     if(this._readyModels.has(modelId))return {status:'ready',modelId,placed:false};
