@@ -60,7 +60,7 @@ function renderMessages(){
 function providerLabel(){
   if(state.providerKind==='browser')return state.browserProvider?.provenance?.().modelId||'browser';
   if(state.providerKind==='exo')return state.exoProvider?.provenance?.().modelId||'exo';
-  return 'not connected';
+  return 'offline';
 }
 function chooseProvider(kind,provider=null){
   state.providerKind=kind;state.provider=provider;
@@ -68,7 +68,7 @@ function chooseProvider(kind,provider=null){
   $('chooseExo').classList.toggle('active',kind==='exo');
   $('browserCard').hidden=kind!=='browser';$('exoCard').hidden=kind!=='exo';
   if(provider)setHeader(providerLabel(),'ok');
-  else setHeader(kind==='browser'?'browser · load model':'exo · connect','warn');
+  else setHeader(kind==='browser'?'browser · load':'exo · connect','warn');
   save();
 }
 function responseBudget(p){
@@ -125,7 +125,7 @@ async function sendMessage(text){
     setHeader(`${providerLabel()}${latencyLabel(result.timing)?` · ${latencyLabel(result.timing)}`:''}`,'ok');save();renderMessages();
   }catch(error){
     live.remove();pushMessage({role:'assistant',content:`Runtime error: ${error?.message||error}`,provider:'system'});
-    setHeader('runtime error','bad');renderMessages();
+    setHeader('error','bad');renderMessages();
   }finally{setBusy(false);$('prompt').focus()}
 }
 
@@ -219,7 +219,7 @@ async function init(){
     try{await connectExo({quiet:true});return}catch(error){tone($('exoStatus'),String(error?.message||error),'warn')}
   }
   chooseProvider('browser');
-  tone($('runtimeStatus'),'Load a browser model.','warn');
+  tone($('runtimeStatus'),'Load a model.','warn');
 }
 
 document.querySelectorAll('.tab').forEach(button=>{
@@ -232,8 +232,8 @@ document.querySelectorAll('.tab').forEach(button=>{
 });
 $('chooseBrowser').addEventListener('click',()=>chooseProvider('browser',state.browserProvider));
 $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvider));
-$('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');$('loadBrowser').disabled=false}));
-$('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
+$('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('error','bad');$('loadBrowser').disabled=false}));
+$('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo offline','bad')}));
 $('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
 $('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Updated.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
