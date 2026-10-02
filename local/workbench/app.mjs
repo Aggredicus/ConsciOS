@@ -6,7 +6,7 @@ const state={
   messages:Array.isArray(saved.messages)?saved.messages.slice(-24):[],
   provider:null,providerKind:null,busy:false,lastProvenance:saved.lastProvenance??null,
   browserHost:null,browserProvider:null,exoProvider:null,
-  browserCapabilities:null,browserModules:null,exoFactory:null
+  browserRuntime:null,exoRuntime:null
 };
 
 function loadSaved(){try{return JSON.parse(localStorage.getItem(STORE)||'{}')}catch{return {}}}
@@ -108,23 +108,13 @@ async function sendMessage(text){
   }finally{setBusy(false);$('prompt').focus()}
 }
 
-async function browserModules(){
-  if(state.browserModules)return state.browserModules;
-  const [capabilities,manifests,host,cognitive,provider]=await Promise.all([
-    import('../../runtime/models/browser-capabilities.mjs'),
-    import('../../runtime/models/compact-models.mjs'),
-    import('../../runtime/models/browser-transformers-host.mjs'),
-    import('../../runtime/models/browser-cognitive-model.mjs'),
-    import('../../runtime/models/browser-provider.mjs')
-  ]);
-  state.browserModules={...capabilities,...manifests,...host,...cognitive,...provider};
-  return state.browserModules;
+async function browserRuntime(){
+  if(!state.browserRuntime)state.browserRuntime=await import('./browser-runtime.mjs');
+  return state.browserRuntime;
 }
-async function exoFactory(){
-  if(state.exoFactory)return state.exoFactory;
-  const module=await import('../../runtime/models/exo-provider.mjs');
-  state.exoFactory=module.createExoInferenceProvider;
-  return state.exoFactory;
+async function exoRuntime(){
+  if(!state.exoRuntime)state.exoRuntime=await import('./exo-runtime.mjs');
+  return state.exoRuntime;
 }
 
 function progressValue(event){
@@ -135,43 +125,32 @@ function progressValue(event){
 async function loadBrowser(){
   $('loadBrowser').disabled=true;$('browserProgress').hidden=false;tone($('browserStatus'),'Preparing browser runtime…','warn');
   try{
-    const modules=await browserModules();
-    const manifest=modules.getCompactModel($('browserModel').value);if(!manifest)throw new Error('Select a browser model.');
-    state.browserCapabilities=state.browserCapabilities??await modules.detectBrowserAICapabilities();
-    const execution=modules.chooseBrowserExecution(state.browserCapabilities,{prefer:'webgpu'});
-    $('browserBackend').textContent=execution.reason;
-    const host=modules.createBrowserTransformersHost({
-      manifest,device:execution.device,dtype:execution.dtype,
+    const runtime=await browserRuntime();
+    const loaded=await runtime.loadBrowserProvider({
+      modelId:$('browserModel').value,
       onProgress:event=>{
         const pct=progressValue(event);if(pct!==null)$('browserProgress').value=pct;
         const file=event?.file||event?.name||event?.status||'model assets';
         tone($('browserStatus'),`Loading ${file}${pct!==null?` · ${Math.round(pct)}%`:''}`,'warn');
       }
     });
-    const model=modules.createBrowserTransformersCognitiveModel({host});
-    await model.load();
-    const provider=modules.createBrowserLocalInferenceProvider({model,label:manifest.label});
-    await provider.connect();
-    state.browserHost=host;state.browserProvider=provider;state.provider=provider;state.providerKind='browser';
-    tone($('browserStatus'),`${manifest.label} ready on ${execution.device}.`,'ok');
+    $('browserBackend').textContent=loaded.execution.reason;
+    state.browserHost=loaded.host;state.browserProvider=loaded.provider;state.provider=loaded.provider;state.providerKind='browser';
+    tone($('browserStatus'),`${loaded.manifest.label} ready on ${loaded.execution.device}.`,'ok');
     tone($('runtimeStatus'),'Browser inference ready.','ok');setHeader(providerLabel(),'ok');save();
   }finally{$('loadBrowser').disabled=false}
 }
 
-function normalizeEndpoint(value){
-  const url=new URL(String(value??'').trim());
-  if(!['http:','https:'].includes(url.protocol))throw new Error('exo address must use http:// or https://');
-  if(url.username||url.password)throw new Error('Do not put credentials in the exo address.');
-  return url.origin;
-}
 function defaultExoEndpoint(){
   const params=new URLSearchParams(location.search);const explicit=params.get('endpoint');
-  if(explicit){try{return normalizeEndpoint(explicit)}catch{}}
-  if(saved.exoEndpoint){try{return normalizeEndpoint(saved.exoEndpoint)}catch{}}
+  const runtime=state.exoRuntime;
+  if(explicit&&runtime){try{return runtime.normalizeExoEndpoint(explicit)}catch{}}
+  if(saved.exoEndpoint&&runtime){try{return runtime.normalizeExoEndpoint(saved.exoEndpoint)}catch{}}
+  if(explicit)return explicit.replace(/\/$/,'');
+  if(saved.exoEndpoint)return String(saved.exoEndpoint).replace(/\/$/,'');
   if(location.protocol==='https:')return 'http://localhost:52415';
   const host=location.hostname||'localhost';return `http://${host}:52415`;
 }
-function mixedContent(endpoint){try{return location.protocol==='https:'&&new URL(endpoint).protocol==='http:'}catch{return false}}
 function renderExo(capabilities){
   const models=capabilities?.models??[];const select=$('exoModel');const prior=saved.exoModel;
   select.innerHTML='';
@@ -190,12 +169,10 @@ function renderExo(capabilities){
   $('exoMetrics').innerHTML=metrics.map(([value,label])=>`<div class="metric"><b>${value}</b><span>${label}</span></div>`).join('');
 }
 async function connectExo({quiet=false}={}){
-  const endpoint=normalizeEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
-  if(mixedContent(endpoint))throw new Error('This HTTPS demo cannot call a local HTTP exo process. Run ConsciOS locally with scripts/run-exo-local.mjs --lan.');
+  const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;
+  if(runtime.isMixedExoContent(endpoint))throw new Error('This HTTPS demo cannot call a local HTTP exo process. Run ConsciOS locally with scripts/run-exo-local.mjs --lan.');
   if(!quiet)tone($('exoStatus'),'Connecting to exo…','warn');
-  const createExoInferenceProvider=await exoFactory();
-  const provider=createExoInferenceProvider({endpoint});
-  const capabilities=await provider.connect();
+  const {provider,capabilities}=await runtime.connectExoProvider({endpoint,modelId:saved.exoModel});
   state.exoProvider=provider;state.providerKind='exo';renderExo(capabilities);
   if(capabilities.models.length){
     state.provider=provider;
@@ -249,7 +226,7 @@ $('chooseExo').addEventListener('click',()=>chooseProvider('exo',state.exoProvid
 $('loadBrowser').addEventListener('click',()=>loadBrowser().catch(error=>{tone($('browserStatus'),String(error?.message||error),'bad');setHeader('browser error','bad');$('loadBrowser').disabled=false}));
 $('connectExo').addEventListener('click',()=>connectExo().catch(error=>{tone($('exoStatus'),String(error?.message||error),'bad');setHeader('exo unavailable','bad')}));
 $('exoModel').addEventListener('change',()=>{if(state.exoProvider&&$('exoModel').value){state.exoProvider.setModel($('exoModel').value);state.provider=state.exoProvider;state.providerKind='exo';setHeader(providerLabel(),'ok');save()}});
-$('exoEndpoint').addEventListener('change',()=>{try{const endpoint=normalizeEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated. Connect to verify.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
+$('exoEndpoint').addEventListener('change',async()=>{try{const runtime=await exoRuntime(),endpoint=runtime.normalizeExoEndpoint($('exoEndpoint').value);$('exoEndpoint').value=endpoint;$('openExo').href=endpoint;tone($('exoStatus'),'Address updated. Connect to verify.','warn');save()}catch(error){tone($('exoStatus'),String(error?.message||error),'bad')}});
 $('composer').addEventListener('submit',event=>{event.preventDefault();if(state.busy){state.provider?.cancel?.();return}sendMessage($('prompt').value)});
 $('prompt').addEventListener('input',resizePrompt);
 $('prompt').addEventListener('keydown',event=>{if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();$('composer').requestSubmit()}});
