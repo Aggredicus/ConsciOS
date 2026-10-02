@@ -3,8 +3,9 @@ import {readFileSync} from 'node:fs';
 import {CELL_TYPES,PYODIDE_VERSION,createCell,createNotebook,interpolateText,parseParameters,validateNotebook} from '../../../local/workbench/notebook-engine.mjs';
 import {createConversationChallenge,scoreConversationArm,compareConversationArms,summarizeConversationRealityResult} from '../../../local/workbench/conversation-test.mjs';
 import {EXECUTION_PROTOCOL,EXECUTION_RESULT_FORMAT,createExecutionProvider,createExecutionRouter,createDefaultWorkbenchExecutionRouter} from '../../../local/workbench/execution-providers.mjs';
-import {CONTEXT_SELECTION_FORMAT,rankPreviousResults,selectPreviousResults,tokenizeContextText} from '../../../local/workbench/context-selector.mjs';
+import {CONTEXT_SELECTION_FORMAT,expandContextTerms,rankPreviousResults,selectPreviousResults,tokenizeContextText} from '../../../local/workbench/context-selector.mjs';
 import {BENCHMARK_FORMAT,runContextSelectionBenchmark} from './context-selection-benchmark.mjs';
+import {SEMANTIC_LITE_BENCHMARK_FORMAT,runSemanticLiteBenchmark} from './semantic-lite-benchmark.mjs';
 
 const notebook=createNotebook({title:'Verification notebook'});
 assert.equal(validateNotebook(notebook),notebook);
@@ -50,6 +51,7 @@ assert.equal(defaultExecutionRouter.providerFor({type:'python',config:{}}).id,'b
 assert.equal(defaultExecutionRouter.providerFor({type:'playtest',config:{}}).id,'http-tool-bridge');
 
 assert.deepEqual(tokenizeContextText('Soil moisture, soil-water & THE irrigation!'),['soil','moisture','soil-water','irrigation']);
+assert.ok(expandContextTerms(['handset','hot']).includes('mobile'));assert.ok(expandContextTerms(['handset','hot']).includes('temperature'));
 const previousResults=[
   {cellId:'a',type:'javascript',title:'Music palette',output:{summary:'twelve tone chromatic colors and oscillator notes'}},
   {cellId:'b',type:'python',title:'Soil moisture model',output:{summary:'soil moisture deficit and irrigation scheduling for sandy loam'}},
@@ -82,6 +84,19 @@ for(const row of contextBenchmark.rows){
   assert.ok(row.relevant.selectedCount<=contextBenchmark.config.maxItems,`${row.id} exceeded relevant item limit`);
 }
 console.log('Notebook context benchmark:',JSON.stringify(contextBenchmark.dimensions));
+
+const semanticLiteBenchmark=runSemanticLiteBenchmark();
+assert.equal(semanticLiteBenchmark.format,SEMANTIC_LITE_BENCHMARK_FORMAT);
+assert.ok(semanticLiteBenchmark.dimensions.semanticLite.recall>=0.75,'semantic-lite recall fell below preregistered threshold');
+assert.ok(semanticLiteBenchmark.dimensions.semanticLite.recall>semanticLiteBenchmark.dimensions.relevant.recall,'semantic-lite did not improve paraphrase recall over plain relevant');
+assert.equal(semanticLiteBenchmark.dimensions.all.recall,1,'semantic-lite all-context control must retain expected results');
+assert.ok(semanticLiteBenchmark.dimensions.byteReduction>=0.40,'semantic-lite did not achieve preregistered byte reduction');
+for(const row of semanticLiteBenchmark.rows){
+  assert.ok(row['semantic-lite'].selectedBytes<=semanticLiteBenchmark.config.budgetBytes,`${row.id} exceeded semantic-lite byte budget`);
+  assert.ok(row['semantic-lite'].selectedCount<=semanticLiteBenchmark.config.maxItems,`${row.id} exceeded semantic-lite item limit`);
+  assert.ok(row['semantic-lite'].expandedQueryTerms.length>=row['semantic-lite'].queryTerms.length,`${row.id} lost query terms during expansion`);
+}
+console.log('Semantic-lite context benchmark:',JSON.stringify(semanticLiteBenchmark.dimensions));
 
 let entropyIndex=0;const entropy=['111111','222222','333333','444444'];
 const challenge=createConversationChallenge({entropyFactory:()=>entropy[entropyIndex++],numberFactory:()=>[23,19]});
@@ -134,6 +149,7 @@ assert.ok(ui.includes('createDefaultWorkbenchExecutionRouter'),'workbench must u
 assert.ok(ui.includes('executionRouter.execute'),'workbench executable cells must route through the execution provider contract');
 assert.ok(ui.includes('selectPreviousResults')&&ui.includes(':context-selection'),'AI cells must expose deterministic previous-context selection provenance');
 assert.ok(ui.includes('contextStrategy')&&ui.includes('maxContextBytes')&&ui.includes('maxContextItems'),'AI cell UI must expose context strategy and hard budgets');
+assert.ok(ui.includes('Semantic-lite · experimental')&&ui.includes('expandedQueryTerms'),'Workbench must label semantic-lite experimental and expose term-expansion provenance');
 assert.ok(!ui.includes('executeJavaScript(cell.source')&&!ui.includes('executeToolRequest(cell,context)'),'workbench UI must not directly dispatch browser/tool execution transports');
 assert.ok(ui.includes('conversationMessages'),'workbench does not send explicit conversation history');
 assert.ok(ui.includes('runConversationRealityTest'),'paired conversation test is missing');
