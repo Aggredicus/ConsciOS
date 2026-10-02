@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {createExoInferenceProvider} from '../../../runtime/models/exo-provider.mjs';
+import {createBrowserSwarmProvider,SWARM_BRIDGE_PROTOCOL} from '../../../runtime/models/browser-swarm-provider.mjs';
 import {normalizeHttpEndpoint} from '../../../runtime/models/inference-provider.mjs';
 import {createInferenceProviderRouter} from '../../../runtime/models/provider-router.mjs';
 import {validateCognitiveModelInput,validateCognitiveModelOutput} from '../../../runtime/models/validation.mjs';
@@ -119,6 +120,23 @@ assert.equal(pooled.placement.sharding,'Tensor');
 assert.equal(pooled.benchmark.generation_stats.generation_tps,12.5);
 assert.equal(poolPlaced,true);
 
+class FakeBridgeChannel extends EventTarget{
+  constructor(){super();this.posts=[]}
+  emit(data){this.dispatchEvent(new MessageEvent('message',{data}))}
+  postMessage(message){
+    this.posts.push(message);
+    if(message.type==='bridge-discover')queueMicrotask(()=>this.emit({type:'bridge-status',bridgeProtocol:SWARM_BRIDGE_PROTOCOL,bridgeId:'bridge-test',requestId:message.requestId,available:true,capability:{enabled:true,modelId:'onnx-community/Qwen3-0.6B-ONNX',label:'Phone Qwen3',device:'webgpu',dtype:'q4f16',executionThread:'dedicated-worker',webgpu:true,secureContext:true},peerName:'Pixel worker',sessionId:'SWARMTEST123',rttMs:18}));
+    if(message.type==='bridge-compute-request')queueMicrotask(()=>{this.emit({type:'bridge-compute-chunk',bridgeProtocol:SWARM_BRIDGE_PROTOCOL,bridgeId:'bridge-test',id:message.id,chunk:'PHONE_'});this.emit({type:'bridge-compute-result',bridgeProtocol:SWARM_BRIDGE_PROTOCOL,bridgeId:'bridge-test',id:message.id,result:{status:'ok',content:{text:'PHONE_OK'},timing:{elapsedMs:44,ttftMs:11,streamed:true,outputTokenCount:2},provider:{kind:'browser-transformers-local'}}})});
+  }
+  close(){}
+}
+const bridgeChannel=new FakeBridgeChannel(),swarm=createBrowserSwarmProvider({channelFactory:()=>bridgeChannel,windowLike:null});
+const swarmCapabilities=await swarm.connect({timeoutMs:500});assert.equal(swarmCapabilities.status,'ready');assert.equal(swarmCapabilities.peerName,'Pixel worker');assert.equal(swarm.provenance().remoteWebGPU,true);assert.equal(swarm.provenance().remoteSecureContext,true);
+const swarmChunks=[];const swarmOutput=await swarm.infer({...input,requestId:'swarm-provider-001'},{onText:chunk=>swarmChunks.push(chunk)});
+assert.equal(swarmOutput.status,'ok');assert.equal(swarmOutput.content.text,'PHONE_OK');assert.deepEqual(swarmChunks,['PHONE_']);assert.equal(swarmOutput.provider.kind,'browser-swarm-peer');assert.equal(swarmOutput.provider.inferenceLocation,'encrypted-webrtc-peer');assert.equal(swarmOutput.timing.pooledResource,'browser-swarm-peer');assert.equal(swarmOutput.timing.transportRttMs,18);
+assert.ok(bridgeChannel.posts.some(message=>message.type==='bridge-compute-request'),'swarm provider must delegate inference to the verified browser bridge');
+swarm.dispose();
+
 const router=createInferenceProviderRouter();
 router.register(exo);
 assert.rejects(()=>router.connectSelected(),/no inference provider selected/);
@@ -133,4 +151,4 @@ assert.equal(failed.confidence,0);
 assert.match(failed.failure,/HTTP 503/);
 assert.equal(failed.provider.kind,'exo-cluster');
 
-console.log('Provider abstraction verification passed: explicit exo boundary, full model catalog, placement previews, automatic instance placement, true alternating conversation history, declared context only, no silent fallback.');
+console.log('Provider abstraction verification passed: explicit exo boundary, live model catalog, placement previews, encrypted browser-swarm inference, streaming, and declared-context-only provider routing.');
