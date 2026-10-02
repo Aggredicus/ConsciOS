@@ -74,6 +74,8 @@ export async function buildPagesSite({output=DEFAULT_OUTPUT,maxBytes=DEFAULT_MAX
     }
   }
   await walk(outRoot);files.sort((a,b)=>b.bytes-a.bytes);
+  const forbidden=files.filter(file=>/(?:^|\/)(?:workbench\.mjs|notebook-engine\.mjs|execution-providers\.mjs|context-selector\.mjs|conversation-test\.mjs|conscios-ui\.css)$/.test(file.path));
+  if(forbidden.length)throw new Error(`Compact Pages closure pulled legacy UI code: ${forbidden.map(file=>file.path).join(', ')}`);
   const report={format:'conscios-pages-footprint/v1',totalBytes,maxBytes:Number.isFinite(maxBytes)?maxBytes:null,fileCount:files.length,files};
   if(totalBytes>maxBytes)throw new Error(`Pages footprint ${totalBytes} bytes exceeds budget ${maxBytes}`);
   return report;
