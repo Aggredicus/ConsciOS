@@ -78,10 +78,14 @@ assert.ok(html.includes('Tool bridge'));
 assert.ok(html.includes('Not a consciousness indicator'));
 assert.ok(html.includes('../exo-dashboard/'),'Workbench must expose the exo application view');
 assert.ok(html.includes('Open full exo app'),'exo provider controls must expose the native exo application');
+assert.ok(html.includes('Runtime Center')&&html.includes('exoRuntimeMetrics'),'Workbench must expose live exo runtime resources');
+assert.ok(ui.includes('refreshExoRuntime')&&ui.includes('renderExoRuntime'),'Workbench must refresh and render exo telemetry without a page reload');
 assert.ok(html.includes('node scripts/run-exo-local.mjs'),'Workbench must expose a concrete local exo launch path');
 assert.ok(html.includes('viewport-fit=cover'),'Workbench must support mobile safe-area viewport layout');
 
 for(const route of ['data-route="/"','data-route="/downloads"','data-route="/integrations"','data-route="/traces"','data-route="/advanced"'])assert.ok(dashboardHtml.includes(route),`exo app shell is missing native route ${route}`);
+assert.ok(dashboardHtml.includes('data-view="runtime"')&&dashboardHtml.includes('id="runtimePanel"'),'exo app shell must expose a ConsciOS runtime center');
+assert.ok(dashboardUi.includes('refreshRuntimeCenter')&&dashboardUi.includes('runtimeNodesFromState'),'exo runtime center must be backed by live state parsing');
 assert.ok(dashboardHtml.includes('Acceptance Test'),'exo app shell must expose the runtime acceptance gate');
 assert.ok(dashboardHtml.includes('Run exo'),'exo app shell must expose runtime setup');
 assert.ok(dashboardHtml.includes('title="Native exo software"'),'dashboard shell must identify the embedded native exo view');

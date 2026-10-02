@@ -97,6 +97,20 @@ The provider and acceptance gate use exo's public HTTP API:
 
 The Workbench provider now discovers **downloaded** models rather than presenting every known model card as immediately executable. Before inference, it reuses an existing active model instance when present; otherwise it asks exo to place the model and waits for exo to report readiness. There is no silent inference-provider fallback.
 
+In browsers, the provider wraps the supplied fetch implementation rather than storing native `window.fetch` and invoking it as an object method. This preserves the browser receiver semantics required by Chromium/WebKit and is covered by the browser integration gate.
+
+## Runtime Center
+
+The Workbench and exo application shell expose a **Runtime Center** backed by the same bounded `/state` and downloaded-model APIs used by the provider. It reports:
+
+- observed cluster node count;
+- aggregate available RAM;
+- downloaded and active model counts;
+- per-node friendly name, hardware identifiers, RAM usage, GPU utilization, temperature, and system power when exo reports those fields; and
+- the observation timestamp and runtime address.
+
+Runtime telemetry is observational. ConsciOS does not infer unsupported hardware properties when exo omits a field.
+
 ## Acceptance gate
 
 The **Acceptance Test** tab is the runtime milestone for this integration. It verifies, in order:
@@ -108,6 +122,12 @@ The **Acceptance Test** tab is the runtime milestone for this integration. It ve
 5. **Runnable instance + neural inference** — ConsciOS reuses or places the selected model instance, waits for readiness, then sends a small non-streaming `POST /v1/chat/completions` request and requires non-empty assistant text.
 
 The UI reports **PASS · exo is ready inside ConsciOS** only after all checks succeed. A reachable HTTP server by itself is not a pass. The acceptance test does not silently download model weights; use exo's native **Downloads** view first if no model is available.
+
+## Simulated CI runtime
+
+Real accelerator execution cannot be reproduced inside every CI runner, so ConsciOS maintains a second acceptance layer that is explicitly labeled simulated. `observer/experiments/exo-runtime-sim/verify.mjs` starts a local HTTP server that implements the specific exo endpoints ConsciOS uses, then verifies real HTTP transport, runtime resource parsing, downloaded-model discovery, automatic instance placement/readiness, and chat completion through `ExoInferenceProvider`.
+
+The responsive-browser verification additionally drives the Workbench and exo Acceptance Test in headless Chromium against a simulated exo server. This catches browser integration regressions without pretending the simulation proves MLX/CUDA execution, LAN discovery, accelerator performance, or multi-node networking. Those remain real-hardware acceptance requirements.
 
 ## Responsive interface contract
 

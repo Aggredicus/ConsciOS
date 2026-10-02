@@ -6,6 +6,7 @@ on:
     paths:
       - 'runtime/models/**'
       - 'observer/experiments/provider-abstraction/**'
+      - 'observer/experiments/exo-runtime-sim/**'
       - 'development/EXO_INTEGRATION.md'
       - '.github/workflows/verify-inference-providers.yml'
   push:
@@ -13,6 +14,7 @@ on:
     paths:
       - 'runtime/models/**'
       - 'observer/experiments/provider-abstraction/**'
+      - 'observer/experiments/exo-runtime-sim/**'
       - 'development/EXO_INTEGRATION.md'
       - '.github/workflows/verify-inference-providers.yml'
   workflow_dispatch:
@@ -32,3 +34,5 @@ jobs:
         run: node observer/experiments/model-adapter/verify.mjs
       - name: Verify explicit provider and mocked exo boundary
         run: node observer/experiments/provider-abstraction/verify.mjs
+      - name: Verify simulated exo runtime over real HTTP
+        run: node observer/experiments/exo-runtime-sim/verify.mjs

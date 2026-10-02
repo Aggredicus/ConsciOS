@@ -182,12 +182,55 @@ async function loadBrowserProvider(){
   browserModel=createBrowserTransformersCognitiveModel({host:browserHost});await browserModel.load();const provider=createBrowserLocalInferenceProvider({model:browserModel,label:`${manifest.label} · browser local`});router.replace(provider);$('browserProgress').value=100;if($('provider').value==='browser-local')router.select('browser-local');setProviderStatus('Browser model ready. Inference stays on this device.','ok');renderProviderProvenance();renderCells();
 }
 
+function formatBytes(value){
+  if(typeof value!=='number'||!Number.isFinite(value)||value<0)return '—';
+  const units=['B','KB','MB','GB','TB'];let scaled=value,index=0;
+  while(scaled>=1024&&index<units.length-1){scaled/=1024;index++}
+  return `${scaled>=100||index===0?scaled.toFixed(0):scaled.toFixed(1)} ${units[index]}`;
+}
+function formatPercent(value){
+  if(typeof value!=='number'||!Number.isFinite(value))return null;
+  const pct=value>=0&&value<=1?value*100:value;
+  return `${Math.max(0,pct).toFixed(pct<10?1:0)}%`;
+}
+function syncExoModelSelect(capabilities){
+  const select=$('exoModel');const previous=select.value;const models=capabilities?.models??[];
+  select.innerHTML=models.length?models.map(id=>`<option value="${esc(id)}">${esc(id)}</option>`).join(''):'<option value="">No downloaded models available</option>';
+  select.disabled=models.length===0;
+  if(previous&&models.includes(previous))select.value=previous;
+  if(models.length&&exoProvider){exoProvider.setModel(select.value||models[0])}
+}
+function renderExoRuntime(capabilities){
+  const cluster=capabilities?.cluster??{};const nodes=Array.isArray(cluster.nodes)?cluster.nodes:[];const active=capabilities?.activeModels??[];const models=capabilities?.models??[];
+  const metrics=[
+    [String(cluster.nodeCount??nodes.length??0),'nodes'],
+    [formatBytes(cluster.memory?.availableBytes),'RAM available'],
+    [String(models.length),'downloaded models'],
+    [String(active.length),'active models']
+  ];
+  $('exoRuntimeMetrics').innerHTML=metrics.map(([value,label])=>`<div class="runtimeMetric"><b>${esc(value)}</b><span>${esc(label)}</span></div>`).join('');
+  $('exoRuntimeNodes').innerHTML=nodes.length?nodes.map(node=>{
+    const hardware=[node.model,node.chip].filter(Boolean).join(' · ')||'hardware not reported';
+    const ram=node.ramTotalBytes?`${formatBytes(Math.max(0,node.ramTotalBytes-(node.ramAvailableBytes??0)))} used / ${formatBytes(node.ramTotalBytes)}`:'RAM not reported';
+    const gpu=formatPercent(node.gpuUsage);
+    const telemetry=[gpu&&`GPU ${gpu}`,typeof node.temperatureC==='number'&&`${node.temperatureC.toFixed(0)} °C`,typeof node.systemPowerW==='number'&&`${node.systemPowerW.toFixed(0)} W`].filter(Boolean).join(' · ');
+    return `<div class="runtimeNode"><div class="runtimeNodeTop"><span class="runtimeNodeName">${esc(node.name||node.id)}</span><span class="pill">connected</span></div><div class="runtimeNodeMeta">${esc(hardware)}<br>${esc(ram)}${telemetry?`<br>${esc(telemetry)}`:''}</div></div>`;
+  }).join(''):'<div class="runtimeNodeMeta">exo did not report any cluster nodes.</div>';
+  $('exoRuntimeObserved').textContent=capabilities?.observedAt?`Observed ${new Date(capabilities.observedAt).toLocaleTimeString()} · ${capabilities.endpoint}`:'No runtime observation yet.';
+}
+async function refreshExoRuntime(){
+  if(!exoProvider)throw new Error('Connect to exo first.');
+  setProviderStatus('Refreshing exo runtime resources…','warn');
+  const capabilities=await exoProvider.refreshRuntime();syncExoModelSelect(capabilities);renderExoRuntime(capabilities);
+  setProviderStatus(`exo ready · ${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded · ${capabilities.activeModels.length} active`,'ok');
+  renderProviderProvenance();return capabilities;
+}
 async function connectExo(){
-  const endpoint=$('exoEndpoint').value.trim();if(!endpoint)throw new Error('Enter the exo HTTP endpoint on your LAN.');setProviderStatus('Connecting to exo cluster…','warn');
-  exoProvider=createExoInferenceProvider({endpoint});const capabilities=await exoProvider.connect();localStorage.setItem('conscios-exo-endpoint',endpoint);router.replace(exoProvider);const select=$('exoModel');select.innerHTML=capabilities.models.length?capabilities.models.map(id=>`<option value="${esc(id)}">${esc(id)}</option>`).join(''):'<option value="">No models available</option>';select.disabled=capabilities.models.length===0;if(capabilities.models.length){exoProvider.setModel(select.value)}if($('provider').value==='exo')router.select('exo');setProviderStatus(`exo ready · ${capabilities.cluster.nodeCount} node(s) observed · ${capabilities.models.length} model(s)`,'ok');renderProviderProvenance();renderCells();
+  const endpoint=$('exoEndpoint').value.trim();if(!endpoint)throw new Error('No exo runtime address was detected. Open the exo app for setup instructions.');setProviderStatus('Connecting to exo cluster…','warn');
+  exoProvider=createExoInferenceProvider({endpoint});const capabilities=await exoProvider.connect();localStorage.setItem('conscios-exo-endpoint',endpoint);router.replace(exoProvider);syncExoModelSelect(capabilities);renderExoRuntime(capabilities);if($('provider').value==='exo')router.select('exo');setProviderStatus(`exo ready · ${capabilities.cluster.nodeCount} node(s) · ${capabilities.models.length} downloaded · ${capabilities.activeModels.length} active`,'ok');renderProviderProvenance();renderCells();return capabilities;
 }
 
-function providerUI(){const value=$('provider').value;$('browserDetails').hidden=value!=='browser-local';$('exoDetails').hidden=value!=='exo';if(value==='mock'){chooseProvider('mock');setProviderStatus('CONTROL ONLY: deterministic scripted mock. It is not a neural conversation.','warn')}else if(value==='browser-local'){if(chooseProvider('browser-local'))setProviderStatus('Browser-local neural provider selected.','ok');else setProviderStatus('Load a browser model before running AI/conversation cells. No fallback is active.','warn')}else if(value==='exo'){if(chooseProvider('exo'))setProviderStatus('exo neural cluster selected.','ok');else setProviderStatus('Connect to an exo endpoint before running AI/conversation cells. No fallback is active.','warn')}renderProviderProvenance();renderCells()}
+function providerUI(){const value=$('provider').value;$('browserDetails').hidden=value!=='browser-local';$('exoDetails').hidden=value!=='exo';if(value==='mock'){chooseProvider('mock');setProviderStatus('CONTROL ONLY: deterministic scripted mock. It is not a neural conversation.','warn')}else if(value==='browser-local'){if(chooseProvider('browser-local'))setProviderStatus('Browser-local neural provider selected.','ok');else setProviderStatus('Load a browser model before running AI/conversation cells. No fallback is active.','warn')}else if(value==='exo'){if(chooseProvider('exo'))setProviderStatus('exo neural cluster selected.','ok');else setProviderStatus('Connect to the detected exo runtime before running AI/conversation cells. No fallback is active.','warn')}renderProviderProvenance();renderCells()}
 
 function exportNotebook(){persist();const blob=new Blob([JSON.stringify(notebook,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`${notebook.title.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'').toLowerCase()||'conscios-notebook'}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);status('Notebook exported.','ok')}
 async function importNotebookFile(file){const parsed=JSON.parse(await file.text());notebook=validateNotebook(parsed);persist();renderCells();status('Notebook imported.','ok')}
@@ -195,8 +238,11 @@ async function importNotebookFile(file){const parsed=JSON.parse(await file.text(
 function setupPalette(){const actions=[['Run all cells',runAll],['Save notebook',()=>persist()],['Export notebook',exportNotebook],['Add Conversation cell',()=>addCell('conversation')],['Add Conversation Reality Test',()=>addCell('conversation-test')],['Add AI cell',()=>addCell('ai')],['Add Python cell',()=>addCell('python')],['Add JavaScript cell',()=>addCell('javascript')],['Add world-inspect cell',()=>addCell('world-inspect')],['Add spatial-prompt cell',()=>addCell('spatial-prompt')],['Add playtest cell',()=>addCell('playtest')]];$('paletteActions').innerHTML=actions.map(([label],i)=>`<button type="button" data-palette="${i}">${esc(label)}</button>`).join('');$('paletteActions').querySelectorAll('[data-palette]').forEach(button=>button.addEventListener('click',async()=>{await actions[Number(button.dataset.palette)][1]();$('commandPalette').close()}));$('paletteButton').addEventListener('click',()=>$('commandPalette').showModal())}
 
 $('addCellType').innerHTML=Object.entries(CELL_TYPES).map(([value,meta])=>`<option value="${esc(value)}">${esc(meta.label)}</option>`).join('');$('browserModel').innerHTML=STARTER_MODELS.map(model=>`<option value="${esc(model.id)}">${esc(model.label)}</option>`).join('');$('exoEndpoint').value=localStorage.getItem('conscios-exo-endpoint')||'';
-$('provider').addEventListener('change',providerUI);$('loadBrowser').addEventListener('click',()=>loadBrowserProvider().catch(error=>{setProviderStatus(String(error?.message||error),'bad');clearProviderSelection()}));$('connectExo').addEventListener('click',()=>connectExo().catch(error=>{setProviderStatus(String(error?.message||error),'bad');clearProviderSelection()}));$('exoModel').addEventListener('change',()=>{if(exoProvider&&$('exoModel').value){exoProvider.setModel($('exoModel').value);renderProviderProvenance();renderCells();markDirty()}});$('addCell').addEventListener('click',()=>addCell($('addCellType').value));$('runAll').addEventListener('click',runAll);$('stopProvider').addEventListener('click',()=>{router.cancel();status('Stop requested for selected provider.','warn')});$('saveNotebook').addEventListener('click',()=>{persist();status('Notebook saved locally.','ok')});$('exportNotebook').addEventListener('click',exportNotebook);$('importNotebook').addEventListener('click',()=>$('importFile').click());$('importFile').addEventListener('change',event=>{const file=event.target.files?.[0];if(file)importNotebookFile(file).catch(error=>status(String(error?.message||error),'bad'));event.target.value=''});$('newNotebook').addEventListener('click',()=>{if(!confirm('Create a new notebook? Export the current notebook first if you need a separate copy.'))return;notebook=createNotebook();persist();renderCells();status('New notebook created.','ok')});$('notebookTitle').addEventListener('input',event=>{notebook.title=event.target.value;markDirty()});
+$('provider').addEventListener('change',providerUI);$('loadBrowser').addEventListener('click',()=>loadBrowserProvider().catch(error=>{setProviderStatus(String(error?.message||error),'bad');clearProviderSelection()}));$('connectExo').addEventListener('click',()=>connectExo().catch(error=>{setProviderStatus(String(error?.message||error),'bad');clearProviderSelection()}));$('refreshExoRuntime').addEventListener('click',()=>refreshExoRuntime().catch(error=>setProviderStatus(String(error?.message||error),'bad')));$('exoModel').addEventListener('change',()=>{if(exoProvider&&$('exoModel').value){exoProvider.setModel($('exoModel').value);renderProviderProvenance();renderCells();markDirty()}});$('addCell').addEventListener('click',()=>addCell($('addCellType').value));$('runAll').addEventListener('click',runAll);$('stopProvider').addEventListener('click',()=>{router.cancel();status('Stop requested for selected provider.','warn')});$('saveNotebook').addEventListener('click',()=>{persist();status('Notebook saved locally.','ok')});$('exportNotebook').addEventListener('click',exportNotebook);$('importNotebook').addEventListener('click',()=>$('importFile').click());$('importFile').addEventListener('change',event=>{const file=event.target.files?.[0];if(file)importNotebookFile(file).catch(error=>status(String(error?.message||error),'bad'));event.target.value=''});$('newNotebook').addEventListener('click',()=>{if(!confirm('Create a new notebook? Export the current notebook first if you need a separate copy.'))return;notebook=createNotebook();persist();renderCells();status('New notebook created.','ok')});$('notebookTitle').addEventListener('input',event=>{notebook.title=event.target.value;markDirty()});
 window.addEventListener('keydown',event=>{if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='k'){event.preventDefault();$('commandPalette').showModal()}if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==='s'){event.preventDefault();persist();status('Notebook saved locally.','ok')}if(event.shiftKey&&event.key==='Enter'){const article=document.activeElement?.closest?.('[data-cell-id]');if(article){event.preventDefault();const index=cellIndex(article.dataset.cellId);if(index>=0)runCell(notebook.cells[index],index)}}});
 
 setupPalette();renderCells();providerUI();renderProviderProvenance();
-const capabilities=await detectBrowserAICapabilities().catch(()=>null);if(capabilities&&!capabilities.webgpu.available)$('browserBackend').value='wasm';status('Workbench ready. For real conversation select a neural provider, then add a Conversation cell.');
+if($('provider').value==='exo'){
+  connectExo().then(()=>status('exo connected. Add a Conversation cell to use the live runtime.','ok')).catch(error=>{setProviderStatus(`exo was not reachable yet: ${String(error?.message||error)}`,'warn');status('Workbench loaded; exo is not running or not reachable yet.','warn')});
+}else status('Workbench ready. For real conversation select a neural provider, then add a Conversation cell.');
+const capabilities=await detectBrowserAICapabilities().catch(()=>null);if(capabilities&&!capabilities.webgpu.available)$('browserBackend').value='wasm';

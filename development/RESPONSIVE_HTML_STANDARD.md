@@ -40,4 +40,8 @@ The acceptance criterion is not that every layout looks identical. It is that al
 
 ## ConsciOS shared implementation
 
-`local/conscios-ui.css` provides the shared responsive baseline. Product surfaces should load it and then add only surface-specific responsive rules. The Workbench verification suite checks the shared overflow containment, `min-width: 0`, safe-area behavior, reduced-motion support, and the exo application's bounded runtime/iframe contract.
+`local/conscios-ui.css` provides the shared responsive baseline. Product surfaces should load it and then add only surface-specific responsive rules. The static Workbench verification suite checks the shared overflow containment, `min-width: 0`, safe-area behavior, reduced-motion support, and the exo application's bounded runtime/iframe contract.
+
+`observer/experiments/responsive-browser/verify.mjs` is the dynamic browser gate. In headless Chromium it opens the major ConsciOS surfaces at 320, 360, 390, 768, 1024, and 1440 CSS px, fails on document-level horizontal overflow, flags important controls/cards escaping the viewport, and checks phone-sized control heights. Failure screenshots and a JSON audit report are uploaded by the `Verify Responsive Browser UX` workflow. Intentional horizontal scrollers such as navigation and tab strips are excluded only when their own container owns the scrolling.
+
+Because this browser gate is a repository-wide quality boundary, workflow changes to it participate in the Guardian role's CI ownership.
