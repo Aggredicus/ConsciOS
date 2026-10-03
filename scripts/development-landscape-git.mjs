@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 
 const argv=process.argv.slice(2);
 const cmd=argv[0]&&!argv[0].startsWith('--')?argv.shift():'status';
@@ -102,7 +103,7 @@ function counterfactualWorktree(data,args){
   requireAuth(data,profile,'past','branchFrom',reason);requireAuth(data,profile,'future','createWorktree',reason);
   const branch=`counterfactual/${name}`;
   if(git(root,['show-ref','--verify',`refs/heads/${branch}`],{soft:true}))throw new Error('counterfactual branch already exists');
-  const base=path.join(root,'.conscios','worktrees'),target=path.join(base,name);
+  const base=path.join(root,'.runtime','worktrees'),target=path.join(base,name);
   fs.mkdirSync(base,{recursive:true});
   if(fs.existsSync(target))throw new Error('counterfactual worktree path already exists');
   git(root,['worktree','add','-b',branch,target,ref]);
@@ -139,7 +140,7 @@ export function execute(command,args={}){
   throw new Error(`unknown command: ${command}`);
 }
 
-if(import.meta.url===`file://${process.argv[1]}`){
+if(process.argv[1]&&fileURLToPath(import.meta.url)===path.resolve(process.argv[1])){
   const data=loadLandscape(),common={repository:arg('--repository','repository:self'),profile:arg('--profile','developer'),reason:arg('--reason','')};
   let out;
   if(cmd==='status')out=status(data,common.repository);
