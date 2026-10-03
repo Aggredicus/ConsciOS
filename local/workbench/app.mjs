@@ -31,10 +31,18 @@ function setBusy(value){
   state.busy=value;$('send').textContent=value?'Stop':'Send';$('send').classList.toggle('danger',value);$('prompt').disabled=value;
   $('messages').setAttribute('aria-busy',String(value));
 }
+let landscapeMounted=false;
+async function ensureLandscape(){
+  if(landscapeMounted)return;
+  landscapeMounted=true;
+  try{const mod=await import('./landscape-ui.mjs');await mod.mountLandscape($('landscapeMount'))}
+  catch(error){landscapeMounted=false;$('landscapeMount').textContent=`Landscape error: ${error?.message||error}`}
+}
 function tab(name){
   document.querySelectorAll('.tab').forEach(button=>{const selected=button.dataset.tab===name;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1});
-  $('chatView').classList.toggle('active',name==='chat');$('runtimeView').classList.toggle('active',name==='runtime');
+  $('chatView').classList.toggle('active',name==='chat');$('runtimeView').classList.toggle('active',name==='runtime');$('landscapeView').classList.toggle('active',name==='landscape');
   if(name==='chat')requestAnimationFrame(()=>$('prompt').focus());
+  if(name==='landscape')ensureLandscape();
 }
 function renderMessages(){
   const root=$('messages');root.innerHTML='';
