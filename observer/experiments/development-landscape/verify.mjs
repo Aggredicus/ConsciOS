@@ -49,6 +49,17 @@ for(const file of ['scripts/development-landscape-mcp.mjs','scripts/development-
   assert(!/node:(http|https|net)|createServer\(|\.listen\(/.test(source),`${file} unexpectedly contains a network listener primitive`);
 }
 
+const studioSource=fs.readFileSync(path.join(ROOT,'tools/self-model-studio/index.html'),'utf8');
+assert.match(studioSource,/id="repo"/);
+assert.match(studioSource,/window\.ConsciOSStudio=/);
+assert.match(studioSource,/from:e\.from\?\?e\.source/);
+const studioScripts=[...studioSource.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)].map(m=>m[1]).filter(x=>x.includes("(()=>{'use strict';"));
+assert.equal(studioScripts.length,1,'expected one executable Self-Model Studio script');
+const studioTemp=fs.mkdtempSync(path.join(os.tmpdir(),'conscios-studio-syntax-'));
+try{
+  const studioJs=path.join(studioTemp,'studio.mjs');fs.writeFileSync(studioJs,studioScripts[0]);execFileSync(process.execPath,['--check',studioJs],{stdio:'pipe'});
+}finally{fs.rmSync(studioTemp,{recursive:true,force:true});}
+
 const temp=fs.mkdtempSync(path.join(os.tmpdir(),'conscios-landscape-write-'));
 try{
   const repo=path.join(temp,'repo');fs.mkdirSync(repo);
