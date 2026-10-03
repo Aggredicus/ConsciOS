@@ -24,6 +24,69 @@ Cognitive topology
 
 The project is therefore organized around cognitive roles rather than conventional frontend/backend/QA silos. See [`AGENT_ORGANIZATION.md`](AGENT_ORGANIZATION.md), [`CONWAY_MIGRATION.md`](CONWAY_MIGRATION.md), and [`agents/OWNERSHIP.yaml`](agents/OWNERSHIP.yaml).
 
+## Development Landscape
+
+ConsciOS can model the hosting repository in the context of a developer's wider software ecosystem through the shadow-only **Development Landscape** substrate.
+
+The landscape represents:
+
+- the current repository as `self`;
+- neighboring Git repositories as external development context;
+- commit and branch history under an explicit global cap;
+- imported file/module/symbol ontologies from `4d-codebase-graph`;
+- evidence-bearing cross-repository relationships;
+- hypothetical projected futures for A/B development and simulation;
+- separate past/present/future capability profiles for agents.
+
+A projected future is not an accepted phenotype, and a capability decision is not execution authority. The bounded stdio MCP exposes summary, search, neighborhood, and authorization queries without adding repository-write tools.
+
+See [`development/DEVELOPMENT_LANDSCAPE_V01.md`](development/DEVELOPMENT_LANDSCAPE_V01.md) and [`interfaces/development-landscape/README.md`](interfaces/development-landscape/README.md).
+
+### Development Landscape quick start
+
+Build a self-only landscape from a fresh checkout:
+
+```bash
+node scripts/development-landscape.mjs build
+```
+
+Build the developer's GitHub landscape directly (public repositories anonymously; private repositories when `GITHUB_TOKEN` is available):
+
+```bash
+node scripts/development-landscape-github.mjs \
+  --owner Aggredicus \
+  --self-repo Aggredicus/ConsciOS \
+  --commit-cap 10000
+```
+
+Open the generated artifact in `tools/self-model-studio/index.html`, or create a standalone embedded viewer:
+
+```bash
+node scripts/self-model-studio-bundle.mjs \
+  --data artifacts/development-landscape/current.json \
+  --out .runtime/development-landscape-studio/index.html
+```
+
+Run topology quality metrics or compare a projected future against a baseline:
+
+```bash
+node scripts/development-landscape-quality.mjs metrics \
+  --input artifacts/development-landscape/current.json
+
+node scripts/development-landscape-quality.mjs gate \
+  --base artifacts/development-landscape/current.json \
+  --candidate .runtime/projection.json \
+  --policy development/development-landscape-quality-policy.example.json
+```
+
+The registered temporal Git MCP is read-capable by default. Mutating branch/worktree/file/commit tools remain disabled unless the host explicitly sets:
+
+```bash
+CONSCIOS_DEVELOPMENT_WRITE_ENABLE=1
+```
+
+Even when enabled, the adapter refuses writes on `main`, `master`, or the repository's declared default branch; historical development is performed through new counterfactual branches/worktrees rather than destructive history rewriting.
+
 ## Repository anatomy
 
 ```txt

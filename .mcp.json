@@ -3,9 +3,31 @@
     "conscios-self-model": {
       "type": "stdio",
       "command": "node",
-      "args": ["scripts/self-model-mcp.mjs"],
+      "args": [
+        "scripts/self-model-mcp.mjs"
+      ],
       "env": {
         "CONSCIOS_SELF_MODEL_DIR": "artifacts/self-model/current"
+      }
+    },
+    "conscios-development-landscape": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "scripts/development-landscape-mcp.mjs"
+      ],
+      "env": {
+        "CONSCIOS_DEVELOPMENT_LANDSCAPE": "artifacts/development-landscape/current.json"
+      }
+    },
+    "conscios-development-git": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "scripts/development-landscape-git-mcp.mjs"
+      ],
+      "env": {
+        "CONSCIOS_DEVELOPMENT_LANDSCAPE": "artifacts/development-landscape/current.json"
       }
     }
   }
