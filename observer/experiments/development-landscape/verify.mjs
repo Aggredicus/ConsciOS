@@ -16,7 +16,7 @@ for(const file of [
   'scripts/development-landscape-quality.mjs',
   'scripts/development-landscape-git.mjs',
   'scripts/development-landscape-git-mcp.mjs'
-])run(file,['--check'].filter(()=>false)),execFileSync(process.execPath,['--check',file],{cwd:ROOT,stdio:'pipe'});
+])execFileSync(process.execPath,['--check',file],{cwd:ROOT,stdio:'pipe'});
 
 const landscape=JSON.parse(run('scripts/development-landscape.mjs',['--self-test']));
 assert.equal(landscape.ok,true);
