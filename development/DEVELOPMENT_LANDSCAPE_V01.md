@@ -180,3 +180,97 @@ v0.1 is successful when:
 - a projected future can be generated without mutating a repository;
 - the MCP exposes bounded landscape access and contains no write or network-listener primitive;
 - existing ConsciOS self-model and governance behavior remains unchanged.
+
+
+## Deployment-ready bootstrap
+
+### Self-only local mode
+
+```bash
+node scripts/development-landscape.mjs build
+```
+
+This succeeds on a normal ConsciOS checkout without any external repository.
+
+### Local multi-repository mode
+
+```bash
+node scripts/development-landscape.mjs build \
+  --manifest development/development-landscape.example.json \
+  --commit-cap 10000
+```
+
+Local mode uses `git log --all` and records `localPath` so the separately governed temporal Git adapter can operate on repositories that are actually cloned.
+
+### GitHub-owner mode
+
+```bash
+node scripts/development-landscape-github.mjs \
+  --owner YOUR_GITHUB_LOGIN \
+  --self-repo YOUR_GITHUB_LOGIN/ConsciOS \
+  --commit-cap 10000
+```
+
+Without a token this discovers public owned repositories. When `GITHUB_TOKEN` is present, owned private repositories are also available subject to token permissions. The token is read from the process environment and is never written to the artifact.
+
+GitHub mode uses a balanced round-robin history sampler and labels its history scope `default-branch`. It must not be described as complete all-ref Git history. Local mode remains the authoritative path for `--all` ref history.
+
+## Governed temporal Git execution
+
+`scripts/development-landscape-git.mjs` and its stdio MCP expose:
+
+- status;
+- bounded file reads at historical or present refs;
+- capability checks;
+- creation of non-protected branches;
+- counterfactual worktrees rooted at historical refs;
+- bounded UTF-8 file writes in non-protected worktrees;
+- commits of already-staged changes.
+
+Mutation requires `CONSCIOS_DEVELOPMENT_WRITE_ENABLE=1`.
+
+The adapter does not expose force push, rebase, reset, branch deletion, merge, or protected-default-branch writes. File writes reject traversal and symlink escapes. Counterfactual worktrees are created under the ignored `.runtime/worktrees/` surface.
+
+This makes temporal authority executable while retaining the distinction:
+
+```text
+permission to model
+    !=
+permission to mutate a worktree
+    !=
+permission to merge accepted reality
+```
+
+## Topological quality gates
+
+`scripts/development-landscape-quality.mjs` provides deterministic metrics for both observed and projected landscapes:
+
+- dependency cycles;
+- cross-repository edges;
+- low-confidence edges;
+- orphan nodes;
+- maximum graph degree / bottleneck;
+- repository coupling;
+- node and edge type counts.
+
+A policy can reject a candidate projection when a metric regresses beyond an allowed delta. The example policy is intentionally conservative and is a starting point, not a universal architectural truth.
+
+## Studio and agent control
+
+Self-Model Studio accepts canonical Development Landscape artifacts directly. Multi-repository nodes are spatially clustered and repository-filterable.
+
+The browser exposes:
+
+```js
+ConsciOSStudio.listActions()
+ConsciOSStudio.getState()
+ConsciOSStudio.command(action, params)
+```
+
+and the compatibility alias:
+
+```js
+Codebase4D.command(action, params)
+```
+
+Supported command classes include repository focus, node selection, search, 2D/3D/4D mode selection, fit-view, and temporal playback control when a ConsciOS temporal-history artifact is loaded. The same interface is available to an embedding parent through `CONSCIOS_STUDIO_COMMAND` / `CONSCIOS_STUDIO_RESPONSE` messages.
