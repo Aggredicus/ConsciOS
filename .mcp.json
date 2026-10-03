@@ -19,6 +19,16 @@
       "env": {
         "CONSCIOS_DEVELOPMENT_LANDSCAPE": "artifacts/development-landscape/current.json"
       }
+    },
+    "conscios-development-git": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "scripts/development-landscape-git-mcp.mjs"
+      ],
+      "env": {
+        "CONSCIOS_DEVELOPMENT_LANDSCAPE": "artifacts/development-landscape/current.json"
+      }
     }
   }
 }
