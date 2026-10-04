@@ -10,7 +10,7 @@
 <body>
 <main class="shell">
 <header>
-  <div><p class="eyebrow">ConsciOS / Rebuild 1</p><h1>Model consciousness laboratory</h1><p class="sub">Load a model. Measure a baseline. Apply the recursive self + repository-universe intervention. Measure again.</p></div>
+  <div><p class="eyebrow">ConsciOS / Rebuild 1</p><h1>Model consciousness laboratory</h1><p class="sub">Load models. Measure baselines. Apply the recursive self + repository-universe intervention. Compare relative functional evidence.</p></div>
   <div class="state" id="state">no model</div>
 </header>
 
@@ -20,8 +20,10 @@
   <div class="field"><label for="model-id">Model ID</label><input id="model-id" placeholder="qwen3:14b"></div>
   <div class="field"><label for="model-key">API key <span>(ephemeral)</span></label><input id="model-key" type="password" autocomplete="off" placeholder="optional"></div>
   <button id="connect-model">Connect model</button>
+  <div class="field"><label for="model-select">Active model</label><select id="model-select"><option value="">none</option></select></div>
   <label class="check"><input id="intervention-toggle" type="checkbox"> Apply recursive self + universe intervention</label>
-  <button id="run-battery" class="primary">Run comparative battery</button>
+  <button id="run-battery" class="primary">Run battery</button>
+  <button id="export-results">Export result</button>
   <label class="file-button" for="universe-file">Load 4D universe JSON</label>
   <input id="universe-file" type="file" accept="application/json,.json" hidden>
   <span id="universe-state" class="mini">universe: none</span>

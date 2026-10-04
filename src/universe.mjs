@@ -30,8 +30,21 @@ function normalizeNode(node) {
 
 export function normalizeUniverseArtifact(data) {
   if (!data || typeof data !== 'object') throw new Error('Universe artifact must be an object.');
-  const rawNodes = Array.isArray(data.nodes) ? data.nodes : [];
+  let rawNodes = Array.isArray(data.nodes) ? [...data.nodes] : [];
   const rawEdges = Array.isArray(data.edges) ? data.edges : [];
+
+  if (data.workspace?.id && !rawNodes.some(node => String(node.id) === String(data.workspace.id))) {
+    rawNodes.unshift({
+      id:data.workspace.id,
+      type:'DevelopmentLandscape',
+      label:data.workspace.label ?? data.workspace.id,
+      properties:{
+        commitCap:data.workspace.commit_cap ?? null,
+        allocationPolicy:data.workspace.allocation_policy ?? null
+      }
+    });
+  }
+
   if (!rawNodes.length) throw new Error('Universe artifact requires nodes.');
   if (rawNodes.length > MAX_NODES || rawEdges.length > MAX_EDGES) throw new Error('Universe artifact exceeds safety limits.');
 
@@ -69,88 +82,74 @@ export function createUniverseModel(initialData = null) {
     if (!graph) return;
     for (const node of graph.nodes) {
       const hay = [node.id,node.type,node.label,node.repo,JSON.stringify(node.properties)].filter(Boolean).join(' ');
-      index.set(node.id, {node, terms:words(hay), hay:clean(hay)});
+      index.set(node.id,{node,terms:words(hay),hay:clean(hay)});
     }
   }
 
   function load(data) {
-    graph = normalizeUniverseArtifact(data);
+    graph=normalizeUniverseArtifact(data);
     rebuildIndex();
     return status();
   }
 
   function status() {
     return graph ? {
-      loaded:true, kind:graph.kind, landscapeId:graph.landscapeId, hash:graph.hash,
-      nodes:graph.nodes.length, edges:graph.edges.length, repositories:graph.repositories.length
+      loaded:true,kind:graph.kind,landscapeId:graph.landscapeId,hash:graph.hash,
+      nodes:graph.nodes.length,edges:graph.edges.length,repositories:graph.repositories.length
     } : {loaded:false,nodes:0,edges:0,repositories:0};
   }
 
   function summary() {
     if (!graph) return {loaded:false};
     const typeCounts={};
-    for (const node of graph.nodes) typeCounts[node.type]=(typeCounts[node.type]??0)+1;
+    for(const node of graph.nodes)typeCounts[node.type]=(typeCounts[node.type]??0)+1;
     return {
       ...status(),
       typeCounts,
       repositories:graph.repositories.slice(0,24).map(repo=>({
-        id:repo.id,
-        name:repo.name ?? repo.fullName ?? repo.id,
-        role:repo.role ?? null,
-        includedCommits:repo.includedCommits ?? null,
-        historyComplete:repo.historyComplete ?? null
+        id:repo.id,name:repo.name??repo.fullName??repo.id,role:repo.role??null,
+        includedCommits:repo.includedCommits??null,historyComplete:repo.historyComplete??null
       }))
     };
   }
 
-  function search(query, limit=8) {
-    if (!graph) return [];
-    const q=words(query);
-    const qText=clean(query);
-    const rows=[];
-    for (const {node,terms,hay} of index.values()) {
+  function search(query,limit=8) {
+    if(!graph)return[];
+    const q=words(query),qText=clean(query),rows=[];
+    for(const {node,terms,hay} of index.values()){
       let score=0;
-      for (const term of q) {
-        if (terms.has(term)) score+=3;
-        else if (hay.includes(term)) score+=1;
-      }
-      if (qText && hay.includes(qText)) score+=4;
-      if (score) rows.push({score,node});
+      for(const term of q){if(terms.has(term))score+=3;else if(hay.includes(term))score+=1}
+      if(qText&&hay.includes(qText))score+=4;
+      if(score)rows.push({score,node});
     }
     return rows.sort((a,b)=>b.score-a.score||a.node.id.localeCompare(b.node.id))
-      .slice(0,Math.max(1,Math.min(MAX_RESULTS,Number(limit)||8)))
-      .map(row=>row.node);
+      .slice(0,Math.max(1,Math.min(MAX_RESULTS,Number(limit)||8))).map(row=>row.node);
   }
 
-  function neighborhood(nodeId, depth=1, limit=16) {
-    if (!graph) return {nodes:[],edges:[]};
+  function neighborhood(nodeId,depth=1,limit=16) {
+    if(!graph)return{nodes:[],edges:[]};
     const nodeMap=new Map(graph.nodes.map(node=>[node.id,node]));
-    if (!nodeMap.has(nodeId)) return {nodes:[],edges:[]};
-    const cap=Math.max(1,Math.min(MAX_RESULTS,Number(limit)||16));
-    const seen=new Set([nodeId]);
-    let frontier=[nodeId];
-    const keptEdges=[];
-    for (let d=0; d<Math.max(0,Math.min(3,Number(depth)||1)); d++) {
+    if(!nodeMap.has(nodeId))return{nodes:[],edges:[]};
+    const cap=Math.max(1,Math.min(MAX_RESULTS,Number(limit)||16)),seen=new Set([nodeId]);
+    let frontier=[nodeId];const keptEdges=[];
+    for(let d=0;d<Math.max(0,Math.min(3,Number(depth)||1));d++){
       const next=[];
-      for (const id of frontier) {
-        for (const edge of graph.edges) {
-          const other=edge.source===id?edge.target:edge.target===id?edge.source:null;
-          if (!other) continue;
-          if (keptEdges.length < cap*4) keptEdges.push(edge);
-          if (!seen.has(other) && seen.size<cap) {seen.add(other);next.push(other);}
-        }
+      for(const id of frontier)for(const edge of graph.edges){
+        const other=edge.source===id?edge.target:edge.target===id?edge.source:null;
+        if(!other)continue;
+        if(keptEdges.length<cap*4)keptEdges.push(edge);
+        if(!seen.has(other)&&seen.size<cap){seen.add(other);next.push(other)}
       }
       frontier=next;
     }
-    const nodes=[...seen].map(id=>nodeMap.get(id));
-    const allowed=new Set(nodes.map(node=>node.id));
+    const nodes=[...seen].map(id=>nodeMap.get(id)),allowed=new Set(nodes.map(node=>node.id));
     const edges=[...new Map(keptEdges.map(edge=>[`${edge.source}|${edge.type}|${edge.target}`,edge])).values()]
       .filter(edge=>allowed.has(edge.source)&&allowed.has(edge.target));
-    return {nodes,edges};
+    return{nodes,edges};
   }
 
-  function contextFor(query, limit=6) {
-    if (!graph) return 'Universe model: no repository landscape is loaded.';
+  function contextFor(query,limit=6) {
+    if(!graph)return'Universe model: no repository landscape is loaded.';
     const hits=search(query,limit);
     return JSON.stringify({
       universe:summary(),
@@ -158,6 +157,6 @@ export function createUniverseModel(initialData = null) {
     });
   }
 
-  if (initialData) load(initialData);
+  if(initialData)load(initialData);
   return Object.freeze({load,status,summary,search,neighborhood,contextFor,raw:()=>graph});
 }

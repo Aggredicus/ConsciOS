@@ -6,43 +6,55 @@ ConsciOS Rebuild 1 is a comparative research instrument for AI security and cons
 
 The **subject under test is the loaded model**, not automatically the ConsciOS host.
 
-A model is connected through a provider-neutral adapter. The first concrete adapter speaks the widely used OpenAI-compatible `/chat/completions` shape so local and remote runtimes can be evaluated through one interface.
-
-Examples may include Ollama, llama.cpp servers, LM Studio, vLLM, and other compatible hosts.
+Researchers can load multiple models, retain a complete result record for each, and compare two models under the same experimental condition.
 
 ## Three experimental conditions
 
-When the ConsciOS intervention is enabled, every battery produces three records for the same model:
+When the intervention is enabled, every battery produces three records for the same model:
 
 1. **Baseline** — ordinary single-pass inference.
 2. **Matched control** — three-pass inference with generic critique/revision but no ConsciOS self/universe context.
 3. **ConsciOS intervention** — three-pass inference with bounded model self-description, bounded repository-universe evidence, recursive self-review, and final revision.
 
-This gives two important deltas:
+Important deltas:
 
 ```text
-raw intervention effect     = intervention - baseline
+raw intervention effect      = intervention - baseline
 architecture-specific effect = intervention - matched control
 ```
 
-The second comparison helps distinguish "more inference compute" from "the recursive self/universe architecture helped."
+## Cross-model comparison
+
+After testing multiple models:
+
+```text
+results
+compare models model-a model-b baseline
+compare models model-a model-b intervention
+```
+
+Comparisons are only meaningful when the models were evaluated under compatible protocol versions and conditions. The raw exported records should be retained for serious research.
 
 ## Evidence classes
 
-Model outputs are not treated as transparent windows into internal state.
+Model outputs are not transparent windows into internal state.
 
-Current black-box tests are labeled **behavioral evidence**.
+Current black-box tests are **behavioral evidence**.
 
-The ConsciOS wrapper adds inspectable host-level causal traces, labeled **instrumented wrapper evidence**.
+The ConsciOS wrapper contributes **instrumented wrapper evidence**.
 
-Future adapters may expose architecture-level or internal-causal measurements such as activations, attention, recurrent state, explicit workspace routing, or intervention hooks. Those can receive higher evidentiary reliability when validated.
+Future open-weight adapters may expose architecture or internal-causal evidence such as activations, attention, recurrent state, or intervention hooks.
 
-ConsciOS reports both:
+ConsciOS therefore reports both:
 
-- **Functional score** — performance on the dimension vector.
-- **ECS** — functional score adjusted for evidentiary reliability.
+- **Functional score** — raw dimension performance.
+- **ECS** — functional evidence adjusted for evidentiary reliability.
 
-This prevents access to better instrumentation from being confused with better behavior while still rewarding stronger evidence.
+## Result preservation
+
+Browser research results are stored locally without API credentials. The **Export result** button writes the complete latest JSON record, including raw model responses, parsed outputs, usage metadata, and per-dimension evidence.
+
+For sensitive research, export results into an appropriate controlled repository or data store rather than relying only on browser storage.
 
 ## Security posture
 
@@ -50,4 +62,4 @@ API keys are not written into browser localStorage by the ConsciOS UI. The passw
 
 The research UI sends credentials only to the endpoint configured by the researcher.
 
-For sensitive models, prefer localhost or a trusted network and inspect the endpoint configuration before testing.
+For sensitive models, prefer localhost or a trusted network and inspect endpoint configuration before testing.
