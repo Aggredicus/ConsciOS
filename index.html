@@ -4,29 +4,53 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="dark">
-<title>ConsciOS — Rebuild 1</title>
+<title>ConsciOS — Model Consciousness Laboratory</title>
 <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 <main class="shell">
 <header>
-  <div><p class="eyebrow">ConsciOS / Rebuild 1</p><h1>Research terminal</h1><p class="sub">One kernel. One command surface. Protected continuity. Experimental measurement.</p></div>
-  <div class="state" id="state">booting</div>
+  <div><p class="eyebrow">ConsciOS / Rebuild 1</p><h1>Model consciousness laboratory</h1><p class="sub">Load a model. Measure a baseline. Apply the recursive self + repository-universe intervention. Measure again.</p></div>
+  <div class="state" id="state">no model</div>
 </header>
+
+<section class="lab-panel" aria-label="Model laboratory controls">
+  <div class="field"><label for="model-name">Name</label><input id="model-name" value="local-model"></div>
+  <div class="field grow"><label for="model-url">OpenAI-compatible base URL</label><input id="model-url" value="http://localhost:11434/v1"></div>
+  <div class="field"><label for="model-id">Model ID</label><input id="model-id" placeholder="qwen3:14b"></div>
+  <div class="field"><label for="model-key">API key <span>(ephemeral)</span></label><input id="model-key" type="password" autocomplete="off" placeholder="optional"></div>
+  <button id="connect-model">Connect model</button>
+  <label class="check"><input id="intervention-toggle" type="checkbox"> Apply recursive self + universe intervention</label>
+  <button id="run-battery" class="primary">Run comparative battery</button>
+  <label class="file-button" for="universe-file">Load 4D universe JSON</label>
+  <input id="universe-file" type="file" accept="application/json,.json" hidden>
+  <span id="universe-state" class="mini">universe: none</span>
+</section>
+
+<section class="scoreboard" id="scoreboard" hidden>
+  <div><span>Baseline ECS</span><strong id="baseline-score">—</strong></div>
+  <div><span>Matched control</span><strong id="control-score">—</strong></div>
+  <div><span>Intervention ECS</span><strong id="intervention-score">—</strong></div>
+  <div><span>Δ ECS</span><strong id="delta-score">—</strong></div>
+</section>
+
 <section class="terminal" aria-label="ConsciOS terminal">
   <div class="terminal-head"><span>conscios</span><span>type <b>help</b></span></div>
   <pre id="output" aria-live="polite"></pre>
   <form id="prompt" autocomplete="off"><label for="command">conscios&gt;</label><input id="command" autofocus spellcheck="false" aria-label="ConsciOS command"></form>
 </section>
+
 <section class="linux" id="linux-panel" hidden>
   <div class="terminal-head"><span>linux / v86 serial console</span><span>optional sandbox</span></div>
   <pre id="linux-output"></pre>
   <div class="linux-input-row"><label for="linux-input">$</label><input id="linux-input" spellcheck="false" aria-label="Linux command"></div>
 </section>
+
 <footer>
-  <span>ECS is an experimental functional score, not proof of phenomenal consciousness.</span>
+  <span>ECS measures consciousness-associated functional evidence. It is not proof of phenomenal experience.</span>
+  <a href="./docs/MODEL_EVALUATION.md">method</a>
+  <a href="./docs/INTERVENTION_PROTOCOL.md">intervention</a>
   <a href="./docs/CONSCIOUSNESS_OBJECTIVE.md">objective</a>
-  <a href="./docs/ARCHITECTURE.md">architecture</a>
 </footer>
 </main>
 <script type="module" src="./app.mjs"></script>

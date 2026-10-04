@@ -1,67 +1,102 @@
 # ConsciOS — Rebuild 1
 
-ConsciOS is an open research system for experimentally studying consciousness-associated computational functions without treating fluent self-report as proof of phenomenal consciousness.
+ConsciOS is a lightweight comparative research instrument for evaluating **consciousness-associated functional evidence in AI models**.
 
-**Rebuild 1** deliberately starts small. The previous project accumulated several parallel runtimes, interfaces, experiments, and CI paths. This branch keeps the constitutional and scientific commitments intact while rebuilding the executable system around one inspectable kernel and one command surface.
+The primary workflow is now:
 
-## Start here
+```text
+load model
+    ↓
+run standardized baseline battery
+    ↓
+optionally apply ConsciOS recursive self + repository-universe intervention
+    ↓
+run matched control + intervention battery
+    ↓
+compare dimension vectors, functional score, ECS, and raw evidence
+```
 
-Browser:
+ConsciOS does not claim that ECS directly measures phenomenal experience.
+
+## Browser
+
+Serve the repository and open `index.html`:
 
 ```bash
 python3 -m http.server 8000
-# open http://localhost:8000
 ```
 
-CLI:
+The browser UI can connect to an OpenAI-compatible endpoint. For local testing, runtimes such as Ollama, llama.cpp, LM Studio, or vLLM can be used when configured to expose a compatible chat-completions endpoint and browser CORS access.
+
+API keys entered in the browser are kept in memory and the password field is cleared after connection.
+
+## CLI
 
 ```bash
-node bin/conscios.mjs
+CONSCIOS_API_KEY=... node bin/conscios.mjs
 ```
 
-Then type:
+Example:
 
 ```text
-help
-man consciousness
-run hello ConsciOS
-status
-score
-linux start
+model add local http://localhost:11434/v1 qwen3:14b
+model test
+intervention on
+experiment run
+compare
 ```
 
-No package installation is required for the core system.
+## Before/after intervention
 
-## Rebuild principles
+The browser checkbox **Apply recursive self + universe intervention** controls the paired experimental design.
 
-- **Protected continuity.** Charter, welfare, scientific contract/method, and license are carried forward byte-for-byte and verified in CI.
-- **One kernel.** Browser and CLI use the same runtime and command registry.
-- **Measured, not declared.** The experimental consciousness score is computed from preregistered measurable dimensions, never from a model saying it is conscious.
-- **Inspectable causality.** Kernel events preserve causal parents and epistemic status.
-- **Terminal first.** The software is operable through Linux-style `help` and `man` documentation.
-- **Progressive capability.** A lightweight native ConsciOS shell loads instantly. A real browser-hosted Linux VM can be started explicitly through the optional v86 adapter.
-- **No framework tax.** Rebuild 1 uses browser JavaScript, Node built-ins, HTML, and CSS only.
+Unchecked:
+- baseline model battery.
 
-## Consciousness objective
+Checked:
+- baseline;
+- matched three-pass generic reflection control;
+- recursive self + universe intervention.
 
-The optimizer uses an **Experimental Consciousness Score (ECS)** in the range 0–1 and loss:
+The same loaded model is used throughout.
+
+## Repository universe / 4D graph
+
+The earlier 4D repository landscape is retained as a lightweight bounded `UniverseModel`.
+
+Load its JSON export in the browser, or expose it to agents through:
+
+```bash
+CONSCIOS_UNIVERSE_FILE=/path/to/landscape.json node scripts/universe-mcp.mjs
+```
+
+The intervention retrieves only small relevant neighborhoods rather than injecting the full graph.
+
+## Score
+
+ConsciOS reports two top-level summaries:
+
+- **Functional score** — performance on the consciousness-model dimension vector.
+- **ECS** — the same functional evidence adjusted by evidentiary reliability.
 
 ```text
 L_consciousness = 1 - ECS
 ```
 
-ECS is a bottleneck-sensitive weighted geometric aggregate of experimentally measured dimensions such as global availability, integration, recurrence, self-model accuracy, temporal continuity, metacognitive calibration, counterfactual influence, agency attribution, state sensitivity, and report independence. Missing measurements reduce coverage and therefore reduce the score.
+Always inspect the per-dimension results and raw trials before interpreting the scalar.
 
-This is an operational score for the ConsciOS research model. It is **not a validated measure of phenomenal consciousness** and is never allowed to override protected welfare/governance invariants.
+## Protected continuity
 
-See [docs/CONSCIOUSNESS_OBJECTIVE.md](docs/CONSCIOUSNESS_OBJECTIVE.md).
+The Charter, Scientific Contract, Scientific Method, Welfare Protocol, and GPL license remain exact source blobs from the pre-rebuild branch and are hash-verified in CI.
 
 ## Documentation
 
+- [Model evaluation](docs/MODEL_EVALUATION.md)
+- [Experiment battery](docs/EXPERIMENT_BATTERY.md)
+- [Intervention protocol](docs/INTERVENTION_PROTOCOL.md)
+- [Repository Universe MCP](docs/MCP_UNIVERSE.md)
+- [Consciousness objective](docs/CONSCIOUSNESS_OBJECTIVE.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Rebuild audit](docs/REBUILD_AUDIT.md)
-- [Consciousness objective](docs/CONSCIOUSNESS_OBJECTIVE.md)
-- [Terminal and Linux VM](docs/TERMINAL.md)
+- [Terminal](docs/TERMINAL.md)
 - [Protected continuity](docs/PROTECTED_CONTINUITY.md)
-
-Type `help` or `man <topic>` inside ConsciOS for operational documentation.

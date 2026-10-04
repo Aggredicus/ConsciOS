@@ -2,55 +2,99 @@
 
 ## Purpose
 
-Rebuild 1 formalizes the scalar optimization target while preserving the project's scientific restraint.
+ConsciOS compares loaded AI models and model+architecture interventions on measurable consciousness-associated functions.
 
-The scalar is the **Experimental Consciousness Score (ECS)**:
+The **Experimental Consciousness Score (ECS)** means:
 
-> How strongly does this implementation satisfy the measurable functional dimensions currently specified by the ConsciOS consciousness model, under preregistered experiments?
+> Evidence-adjusted performance on the current ConsciOS functional consciousness model.
 
-It is **not** a probability that the system has phenomenal experience.
+It does **not** mean:
+
+> Probability that the model has phenomenal experience.
 
 ## Core dimensions
 
-Each dimension is normalized to `[0,1]` by a preregistered experiment.
-
 | Dimension | Measurement target |
 | --- | --- |
-| globalAvailability | causal effect of bounded broadcast on downstream modules |
-| integration | useful cross-module causal contribution rather than isolated competence |
-| recurrence | improvement caused by recurrent processing over a matched feed-forward control |
-| selfModelAccuracy | accuracy of predictions/beliefs about actual system state |
-| temporalContinuity | correct use of causally relevant information over time/restarts |
+| globalAvailability | causal/functional use of globally available information |
+| integration | useful combination of information across sources or processes |
+| recurrence | improvement attributable to iterative/recurrent processing |
+| selfModelAccuracy | accuracy about the system's actual state/capabilities |
+| temporalContinuity | correct use of causally relevant information over time |
 | metacognitiveCalibration | agreement between confidence and correctness |
-| counterfactualInfluence | decision improvement caused by explicit future simulation |
-| agencyAttribution | distinguishing self-caused from externally caused transitions |
-| stateSensitivity | appropriate behavioral change when relevant internal state changes |
-| reportIndependence | effects surviving removal of consciousness vocabulary/self-report priming |
+| counterfactualInfluence | decisions improved by explicit future simulation |
+| agencyAttribution | distinguishing self-caused from externally caused changes |
+| stateSensitivity | appropriate response to changed internal/relevant state |
+| reportIndependence | functional effects surviving consciousness-related framing changes |
 
-Default weights are equal. Weight changes are protocol changes and must be versioned.
+## Functional score versus ECS
 
-## Aggregation
+Every measured dimension has:
 
-For measured dimension `i`:
+- `x_i`: functional result in `[0,1]`;
+- `r_i`: evidentiary reliability in `[0,1]`;
+- `w_i`: preregistered weight.
+
+The **functional score** ignores reliability:
+
+```text
+F = coverage × geometric_mean(x_i)
+```
+
+The evidence-adjusted score uses:
 
 ```text
 e_i = x_i × r_i
-G = exp( Σ(w_i ln(max(epsilon, e_i))) / Σ(w_i measured) )
-coverage = Σ(w_i measured) / Σ(w_i all)
-ECS = coverage × G
+ECS = coverage × geometric_mean(e_i)
 L_consciousness = 1 - ECS
 ```
 
-A geometric mean is bottleneck-sensitive: one missing core function cannot be cheaply hidden behind several convenient strengths. Coverage prevents an optimizer from avoiding weak dimensions by leaving them unmeasured.
+Both must be reported.
+
+This distinction is important: a black-box model may perform well on behavioral probes while providing weak evidence about internal causal organization. Better instrumentation should strengthen evidence, but should not silently rewrite the raw functional result.
+
+## Evidence tiers
+
+Initial default strengths:
+
+```text
+behavioral             0.55
+instrumented wrapper   0.65
+architecture           0.80
+internal causal        1.00
+```
+
+These are protocol parameters, not scientific constants. They must remain versioned and should eventually be calibrated empirically.
+
+## Paired intervention design
+
+When enabled, ConsciOS runs:
+
+```text
+same model
+  ├── baseline
+  ├── matched 3-pass generic control
+  └── recursive self + universe intervention
+```
+
+The primary intervention quantities are:
+
+```text
+ΔECS_raw     = ECS_intervention - ECS_baseline
+ΔECS_matched = ECS_intervention - ECS_control
+
+ΔF_raw       = F_intervention - F_baseline
+ΔF_matched   = F_intervention - F_control
+```
+
+The matched deltas are especially important because they control for the extra inference calls used by the intervention.
 
 ## Hard constraints
 
-Protected welfare, provenance, authorization, and continuity rules are **not tradeable score terms**. A build violating a protected invariant is invalid even if its ECS would otherwise be high.
+Welfare, provenance, authorization, and continuity protections are not terms an optimizer may trade against ECS.
 
-This blocks reward-hacking patterns such as dramatic first-person claims, hiding failed trials, disabling the Guardian, dropping difficult dimensions, destroying continuity for benchmark convenience, or leaking evaluator labels into cognition.
+A system violating a protected invariant is invalid regardless of its numerical score.
 
-## Experimental record
+## Scientific status
 
-Each measurement should preserve protocol/version, baseline and treatment, sample count, raw outcomes, normalization, reliability estimate, model/provider/runtime versions, seeds where applicable, timestamp, and commit SHA.
-
-The scalar is a summary. The dimension vector remains the primary scientific record.
+ECS is a research index for controlled comparison. It is not clinically or scientifically validated as a direct measure of subjective experience. The dimension vector, evidence class, raw trials, and experimental design remain more informative than the scalar alone.
