@@ -133,16 +133,18 @@ const summary=summarizeConversationRealityResult({provider,challenge,stateful:{s
 assert.match(summary,/HISTORY-DEPENDENCE TEST/);
 assert.match(summary,/not a test of consciousness/i);
 
-for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mjs','local/workbench/browser-inference-worker.mjs','local/workbench/exo-runtime.mjs','local/workbench/exo-ui.mjs'])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
+for(const file of ['local/workbench/app.mjs','local/workbench/browser-runtime.mjs','local/workbench/browser-inference-worker.mjs','local/workbench/exo-runtime.mjs','local/workbench/exo-ui.mjs','local/workbench/landscape-ui.mjs'])execFileSync(process.execPath,['--check',file],{stdio:'pipe'});
 const ui=readFileSync('local/workbench/app.mjs','utf8');
 const browserUi=readFileSync('local/workbench/browser-runtime.mjs','utf8');
 const browserWorker=readFileSync('local/workbench/browser-inference-worker.mjs','utf8');
 const exoUi=readFileSync('local/workbench/exo-runtime.mjs','utf8');
 const exoLibraryUi=readFileSync('local/workbench/exo-ui.mjs','utf8');
+const landscapeUi=readFileSync('local/workbench/landscape-ui.mjs','utf8');
 assert.ok(browserUi.length<3600,`browser worker proxy budget exceeded: ${browserUi.length} bytes`);
 assert.ok(browserWorker.length<6000,`browser inference worker budget exceeded: ${browserWorker.length} bytes`);
 assert.ok(exoUi.length<1600,`exo runtime adapter budget exceeded: ${exoUi.length} bytes`);
 assert.ok(exoLibraryUi.length<6500,`exo model-library UI budget exceeded: ${exoLibraryUi.length} bytes`);
+assert.ok(landscapeUi.length<10000,`Landscape lazy module budget exceeded: ${landscapeUi.length} bytes`);
 const html=readFileSync('local/workbench/index.html','utf8');
 const css=readFileSync('local/workbench/app.css','utf8');
 const exoLauncher=readFileSync('scripts/run-exo-local.mjs','utf8');
@@ -166,7 +168,8 @@ assert.ok(ui.includes("state.messages.slice(-24)")&&ui.includes('state.messages.
 assert.ok(!ui.includes('createDeterministicMockModel'),'primary compact UI must not expose the old deterministic-control surface');
 assert.ok(!ui.includes('notebook-engine'),'primary compact UI must not load the old notebook engine');
 assert.ok(!html.includes('workbench.mjs'),'compact HTML must not load the legacy Workbench controller');
-assert.ok(html.includes('data-tab="chat"')&&html.includes('data-tab="runtime"'),'compact UI must expose only Chat and Runtime primary surfaces');
+assert.ok(html.includes('data-tab="chat"')&&html.includes('data-tab="runtime"')&&html.includes('data-tab="landscape"'),'compact UI must expose Chat, Runtime, and Landscape primary surfaces');
+assert.ok(ui.includes("./landscape-ui.mjs")&&landscapeUi.includes('Development Landscape')&&landscapeUi.includes('Open JSON'),'Landscape tab must lazy-load public GitHub topology and full landscape JSON import');
 assert.ok(html.includes('One conversation. One runtime.'),'compact UI must retain the simplified product intent');
 assert.ok(html.includes('Open native exo'),'compact UI must expose the native exo application');
 assert.ok(html.includes('<details>')&&html.includes('Runtime address'),'manual exo endpoint must remain advanced rather than primary');
@@ -186,6 +189,6 @@ assert.ok(exoLauncher.includes("http://${lanIp}:52415"),'LAN launcher must provi
 assert.ok(exoLauncher.includes("Aggredicus/exo.git"),'launcher must use the maintained ConsciOS exo fork');
 assert.ok(exoLauncher.includes("process.platform==='darwin'?'mlx':'mlx-cpu'"),'launcher must select the documented macOS/Linux backend setup');
 
-for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden),`compact UI unexpectedly references credential material: ${forbidden}`);
+for(const forbidden of ['apiKey','API_KEY','githubToken','GITHUB_TOKEN'])assert.ok(!ui.includes(forbidden)&&!html.includes(forbidden)&&!landscapeUi.includes(forbidden),`compact UI unexpectedly references credential material: ${forbidden}`);
 
-console.log('Compact ConsciOS verification passed: two-surface Chat/Runtime UX, dedicated-worker browser inference, explicit exo inference, bounded local persistence, responsive mobile shell, and strict source-size budgets.');
+console.log('Compact ConsciOS verification passed: Chat/Runtime/Landscape UX, lazy development topology, dedicated-worker browser inference, explicit exo inference, bounded local persistence, responsive mobile shell, and strict source-size budgets.');
