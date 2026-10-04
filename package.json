@@ -1,0 +1,14 @@
+{
+  "name": "conscios-rebuild-1",
+  "version": "1.0.0-rebuild.1",
+  "private": true,
+  "type": "module",
+  "description": "Minimal experimental cognitive kernel for ConsciOS Rebuild 1",
+  "engines": {"node": ">=20"},
+  "scripts": {
+    "cli": "node bin/conscios.mjs",
+    "test": "node --test",
+    "verify:protected": "node scripts/verify-protected.mjs",
+    "verify": "npm run verify:protected && npm test"
+  }
+}

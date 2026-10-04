@@ -1,2 +1,5 @@
-.runtime/
-artifacts/development-landscape/
+node_modules/
+.DS_Store
+*.log
+coverage/
+artifacts/runtime/

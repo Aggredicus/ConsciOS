@@ -1,9 +1,0 @@
-{
-  "version": 1,
-  "description": "Conservative example gate for projected Development Landscape changes.",
-  "maxDependencyCycleIncrease": 0,
-  "maxCrossRepositoryEdgeIncrease": 12,
-  "maxLowConfidenceEdgeIncrease": 20,
-  "maxOrphanIncrease": 0,
-  "maxDegreeIncrease": 20
-}

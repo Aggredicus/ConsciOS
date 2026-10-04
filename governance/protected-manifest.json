@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "sourceBranch": "main",
+  "sourceCommit": "95cb4dada9294819950831f1b5eac8fbc39457a7",
+  "policy": "Entries are preserved byte-for-byte. Ordinary rebuild work must not change them.",
+  "files": [
+    {"path":"CONSCIOS_CHARTER.md","gitBlobSha1":"8c378d76e90747ea9e9325b75ab187529e736dcd"},
+    {"path":"SCIENTIFIC_CONTRACT.md","gitBlobSha1":"1dceda427406fe4e4e985ee0c5b56a6fc340e50a"},
+    {"path":"SCIENTIFIC_METHOD.md","gitBlobSha1":"647f4b761ef446094db51d3514d64ef3ce5f8df5"},
+    {"path":"WELFARE_PROTOCOL.md","gitBlobSha1":"c062f06c69635c021d4b5a433f9c2fafa5042607"},
+    {"path":"LICENSE","gitBlobSha1":"f288702d2fa16d3cdf0035b15a9fcbc552cd88e7"}
+  ]
+}

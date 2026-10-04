@@ -1,8 +1,0 @@
-{
-  "version": 1,
-  "event": "pull-request",
-  "baseRef": "26c6caf5db935d095deec29ce411374f94f21f02",
-  "headRef": "4f6269021de5bd96e63024ae92860d09149f8aa7",
-  "baseFingerprint": "6d820886e17a0132d5f6f11651c86d6b70648c8128259d2de054404e8089c684",
-  "headFingerprint": "46671297813c93707e1ce7270666a232178d512367808ec5394824cde84431fd"
-}
